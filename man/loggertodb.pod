@@ -1,0 +1,163 @@
+=head1 NAME
+
+loggertodb - insert automatic meteorological station data to the database
+
+=head1 SYNOPSIS
+
+  loggertodb config_file
+
+=head1 DESCRIPTION
+
+B<loggertodb> reads a plain text data file, connects to the hydria database,
+determines which records in the file are newer than those stored in the
+database, and stores them in the database. The details of its operation are
+specified in the configuration file specified on the command line.
+
+=head1 CONFIGURATION FILE
+
+The configuration file has the format of INI files. There is a
+[General] section with general parameters, and any number of other
+sections, which we will call I<file sections>, each file section
+referring to one file to be processed; this makes it possible to
+process many files in a single B<loggertodb> execution using a single
+configuration file and a single database connection.
+
+=head2 General parameters
+
+=over
+
+=item loglevel
+
+Can have the values ERROR, WARNING, INFO, DEBUG, indicating the amount
+of output requested from B<loggertodb>. The default is WARNING.
+
+=item logfile
+
+The full pathname of a log file. If unspecified, log messages will go
+to the standard error.
+
+=item host, dbname, user, password
+
+The server name, database name, user name and password with which
+B<loggertodb> will connect.  The user must have write permissions for
+all time series specified in the B<datafile_fields> parameter.
+
+=item all_or_nothing
+
+Normally B<loggertodb> commits the transaction after each file is
+processed. If B<all_or_nothing> is set to true, it will process all
+files in a single transaction.
+
+=item no_commit
+
+If this is specified and is true, then the changes will be rolled
+back. Use this in combination with B<loglevel>=INFO for testing and
+debugging, when you do not want your database to be changed.
+
+=back
+
+=head2 File parameters
+
+=over
+
+=item filename
+
+The full pathname of the data file.
+
+=item datafile_format
+
+The format of the datafile. See L</"SUPPORTED FORMATS">.
+
+=item datafile_fields
+
+A series of comma-separated integers representing the ids of the time
+series to which the data file fields correspond; a zero indicates that
+the field is to be ignored. The first number corresponds to the first
+field after the date (and other fixed fields depending on data file
+format, such as the subset identifier) and should be the id of the
+corresponding time series, or zero if the field is dummy; the second
+number corresponds to the second field after the fixed fields, and so
+on.
+
+=item subset_identifiers
+
+Some file formats mix two or more sets of measurements in the same
+file; for example, there may be ten-minute and hourly measurements in
+the same file, and for every 6 lines with ten-minute measurements
+there may be an additional line with hourly measurements (not
+necessarily the same variables). B<loggertodb> processes only one set
+of lines each time. Such files have one or more additional
+distinguishing fields in each line, which helps to distinguish which
+set it is.  B<subset_identifiers>, if present, is a comma-separated
+list of identifiers, and will cause B<loggertodb> to ignore lines with
+different subset identifiers. (Which fields are the subset identifiers
+depends on the data file format.)
+
+=item delimiter, decimal_separator, date_format
+
+Some file formats may be dependent upon regional settings; these
+formats support B<delimiter>, B<decimal_separator>, and
+B<date_format>.  B<date_format> is specified in the same way as for
+L<strftime(3)> (L<http://docs.python.org/lib/module-time.html>).
+
+=back
+
+=head1 SUPPORTED FORMATS
+
+The following formats are currently supported: B<deltacom>, B<lastem>,
+B<pc208w>.
+
+=head2 deltacom
+
+The B<deltacom> format is space-delimited lines of which the first
+field is the date and time in ISO8601 format S<YYYY-MM-DDTHH:mm>, and
+the rest of the fields are either dummy or hold time series values.
+
+=head2 lastem
+
+The B<lastem> format is dependent on regional settings, and uses the
+B<delimiter>, B<decimal_separator>, and B<date_format> parameters.  It
+is lines delimited with the specified delimiter, of which the first
+three fields are the subset identifiers, the fourth is the date, and
+the rest are either dummy or hold time series values.
+
+=head2 pc208w
+
+The B<pc208w> format is comma-delimited items in the following order:
+subset identifier, logger id (ignored), year, day of year, time in
+HHmm, measurements.
+
+=head1 OPERATION DETAILS
+
+B<loggertodb> connects to the server and gets the end date for each
+time series specified in the B<datafilefields> parameter. It then
+picks up a time series id, scans the data file, determines which is
+the first record of that time series not already stored in the
+database, and appends that record and all subsequent records to the
+database. It does this for all time series specified in
+B<datafilefields>.
+
+=head1 AUTHOR, COPYRIGHT, HISTORY
+
+B<loggertodb> was written by Antonis Christofides,
+L<anthony@itia.ntua.gr>.  It is derived from B<autoupdate>, also
+written by Antonis Christofides, for the openmeteo.org database.
+B<loggertodb> is essentially B<autoupdate> adapted to the hydria
+database for the Odysseus project.  This version of B<loggertodb> has
+nothing to do with versions prior to 1.0.0, which were completely
+different, in a different programming language (Perl rather than
+Python), and not based on B<autoupdate>.
+
+Copyright (C) 2005-2009 National Technical University of Athens
+
+Copyright (C) 2004 Antonios Christofides.
+
+B<loggertodb> is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or (at
+your option) any later version.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+General Public License for more details.

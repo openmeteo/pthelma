@@ -1,0 +1,69 @@
+#!/usr/bin/python
+"""
+loggertodb - insert automatic meteorological station data to the database
+
+Copyright (C) 2005-2007 National Technical University of Athens
+Copyright (C) 2005 Antonios Christofides
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+"""
+
+import sys, time
+from datetime import datetime
+from ConfigParser import SafeConfigParser
+import logging
+
+import psycopg2
+
+import meteologger
+
+defaults = (('General', 'loglevel', 'WARNING'),
+            ('General', 'password', 'dummy'),
+            ('General', 'all_or_nothing', 'false'),
+            ('General', 'no_commit', 'false'),
+           )
+if len(sys.argv)!=2:
+    raise RuntimeError, 'usage: %s configfile' % (sys.argv[0])
+config = SafeConfigParser()
+config.read((sys.argv[1],))
+for d in defaults:
+    if not config.has_option(d[0], d[1]): config.set(d[0], d[1], d[2])
+logger = logging.getLogger('loggertodb')
+logger.setLevel(logging.__dict__[config.get('General', 'loglevel')])
+if config.has_option('General', 'logfile'):
+   logger.addHandler(logging.FileHandler(config.get('General', 'logfile')))
+else:
+   logger.addHandler(logging.StreamHandler())
+dsn = ' '.join(["%s='%s'" % (x, config.get('General', x))
+                for x in ('host', 'dbname', 'user', 'password')])
+db = psycopg2.connect(dsn)
+c = db.cursor()
+try: c.execute("SET search_path TO hydro,public")
+finally: c.close()
+logger.info('Starting loggertodb, %s' % (datetime.today().isoformat()))
+try:
+    sections = config.sections()[:]
+    sections.remove('General')
+    all_or_nothing = config.getboolean('General', 'all_or_nothing')
+    no_commit = config.getboolean('General', 'no_commit')
+    for section in sections:
+        datafileclass = eval('meteologger.Datafile_%s' %
+                            (config.get(section, 'datafile_format'),))
+        adatafile = datafileclass(db, dict(config.items(section)), logger)
+        adatafile.update_database()
+        if not all_or_nothing and not no_commit: db.commit()
+    if all_or_nothing and not no_commit: db.commit()
+    if no_commit: db.rollback()
+except:
+    db.rollback()
+    raise
+finally:
+   logger.info('Loggertodb finished, %s' % (datetime.today().isoformat()))
