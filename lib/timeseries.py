@@ -23,7 +23,7 @@ import random
 import re
 import textwrap
 from datetime import datetime, timedelta
-from cStringIO import StringIO
+from StringIO import StringIO
 from math import sin, cos, atan2, pi
 
 import psycopg2
