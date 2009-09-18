@@ -219,7 +219,7 @@ class Timeseries(dict):
             if end and key>end: return
             if fpconst.isNaN(self[key]): value = ''
             else: value = strip_trailing_zeros('%.5f' % self[key])
-            fp.write('%s,%s,%s\n' % (isoformat_nosecs(key, ' '), value,
+            fp.write('%s,%s,%s\r\n' % (isoformat_nosecs(key, ' '), value,
                                      ' '.join(self[key].flags)))
     def read_from_db(self, db):
         c = db.cursor()
