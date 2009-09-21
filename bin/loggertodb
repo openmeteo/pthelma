@@ -23,7 +23,7 @@ import logging
 
 import psycopg2
 
-import meteologger
+from pthelma import meteologger
 
 defaults = (('General', 'loglevel', 'WARNING'),
             ('General', 'password', 'dummy'),
