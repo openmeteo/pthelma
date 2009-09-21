@@ -39,7 +39,7 @@ class Datafile:
     def update_database(self):
         self.logger.info('Processing datafile %s' % (self.filename))
         self.last_timeseries_end_date = None
-        self.fileobject = open(self.filename, 'r')
+        self.fileobject = open(self.filename, 'rb')
         try:
             self.seq = 0 # sequence number of timeseries
             for self.ts in self.datafile_fields:
