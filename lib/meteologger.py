@@ -55,7 +55,9 @@ class Datafile:
     def _update_timeseries(self):
         c = self.db.cursor()
         try:
-            c.execute("SELECT TO_CHAR(timeseries_end_date(%d), 'YYYY-MM-DD HH24:MI')" % (self.ts))
+            c.execute(
+                "SELECT TO_CHAR(timeseries_end_date(%d), 'YYYY-MM-DD HH24:MI')"
+                % (self.ts))
             r = c.fetchone()
         finally:
             c.close()
@@ -63,7 +65,8 @@ class Datafile:
         self.logger.info('Last date in database: %s' % (str(r[0])))
         end_date = datetime(1, 1, 1)
         if r[0]: end_date = datetime_from_iso(r[0])
-        if not self.last_timeseries_end_date or end_date!=self.last_timeseries_end_date:
+        if (not self.last_timeseries_end_date) or \
+                                    end_date!=self.last_timeseries_end_date:
             self.last_timeseries_end_date = end_date
             self.logger.info('Reading datafile tail')
             self._get_tail()
@@ -110,9 +113,11 @@ class Datafile:
         "Returns true if subset identifier of line matches specified"
         return True
     def extract_date(self, line):
-        raise Exception("Internal error: datafile.extract_date is an abstract function")
+        raise Exception(
+                "Internal error: datafile.extract_date is an abstract function")
     def extract_value_and_flags(self, line, seq):
-        raise Exception("Internal error: datafile.extract_value_and_flags is an abstract function")
+        raise Exception("Internal error: datafile.extract_value_and_flags " +
+                "is an abstract function")
     def raise_error(self, line, msg):
         raise RuntimeError, '%s: "%s": %s' % (self.filename, line, msg)
 
@@ -123,7 +128,7 @@ class Datafile_deltacom(Datafile):
                        '&': 'LOGRANGE' }
     def extract_date(self, line):
         try: return datetime_from_iso(line)
-        except ValueError: self.raiseerror(line, 'parse error or invalid date')
+        except ValueError: self.raise_error(line, 'parse error or invalid date')
     def extract_value_and_flags(self, line, seq):
         flags = ''
         item = line.split()[seq].strip()
@@ -145,7 +150,7 @@ class Datafile_pc208w(Datafile):
                 yday = yday+1
             return datetime(year, 1, 1, hour, minute) + timedelta(yday-1)
         except StandardError:
-            self.raiseerror(line, 'parse error or invalid date')
+            self.raise_error(line, 'parse error or invalid date')
     def extract_value_and_flags(self, line, seq):
         return (line.split(',')[seq+4].strip(), '')
     def subset_identifiers_match(self, line):
@@ -158,8 +163,7 @@ class Datafile_lastem(Datafile):
             date = line.split(self.delimiter)[3]
             return datetime(*time.strptime(date, self.date_format)[:6])
         except StandardError:
-            raise
-            self.raiseerror(line, 'parse error or invalid date')
+            self.raise_error(line, 'parse error or invalid date')
     def extract_value_and_flags(self, line, seq):
         value = line.split(self.delimiter)[seq+3]
         value = value.replace(self.decimal_separator, '.')
