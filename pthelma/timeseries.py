@@ -174,7 +174,7 @@ class Timeseries(dict):
     # between -MAX_BOTTOM_NOISE and +MAX_BOTTOM_NOISE is added to
     # MAX_BOTTOM; this is to avoid reaching circumstances where 20
     # timeseries will be repacked altogether).  If a timeseries is
-    # stored entirely from scratch, then all rhttp://pudge.lesscode.org/ecords go to bottom if
+    # stored entirely from scratch, then all records go to bottom if
     # they are less than MAX_ALL_BOTTOM; otherwise ROWS_IN_TOP_BOTTOM
     # go to top, another as much go to bottom, the rest goes to
     # middle.
