@@ -10,4 +10,5 @@ setup(
     author = "Antonis Christofides",
     author_email = "anthony@itia.ntua.gr",
     packages = find_packages(),
+    test_suite = "tests"
 )

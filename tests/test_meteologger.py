@@ -23,8 +23,8 @@ from cStringIO import StringIO
 import tempfile
 
 import psycopg2
-from timeseries import Timeseries
-from meteologger import *
+from pthelma.timeseries import Timeseries
+from pthelma.meteologger import *
 
 deltacom_data = textwrap.dedent("""\
          2009-03-19T20:10 0.000000  2.413333  2.710526
@@ -129,10 +129,25 @@ deltacom_data = textwrap.dedent("""\
          2009-03-20T12:40 0.000000  4.946667  7.184211
          """)
 
+class database_test_metaclass(type):
+    warning = textwrap.dedent("""\
+        WARNING: Database tests not run. If you want to run the database
+                 tests, set the PSYCOPG_CONNECTION environment variable
+                 to "host=... dbname=... user=... password=...".
+        """)
+    def __new__(mcs, name, bases, dict):
+        psycopg_string = os.getenv("PSYCOPG_CONNECTION")
+        if not psycopg_string:
+            sys.stderr.write(mcs.warning)
+            return None
+        return type.__new__(mcs, name, bases, dict)
+
 class _Test_deltacom(unittest.TestCase):
+    __metaclass__ = database_test_metaclass
     def setUp(self):
         # First 60 lines of test go to file1
         (fd, self.file1) = tempfile.mkstemp(text=True)
+        import os
         fp = os.fdopen(fd, 'w')
         for i, line in enumerate(StringIO(deltacom_data)):
             if i>=60: break
@@ -146,11 +161,11 @@ class _Test_deltacom(unittest.TestCase):
         fp.close
 
         # DB connect and create two fake timeseries
-        self.db = psycopg2.connect(host=_dbhost, database=_dbname,
-                                            user=_dbuser, password=_dbpasswd)
+        import os, psycopg2
+        self.db = psycopg2.connect(os.getenv("PSYCOPG_CONNECTION"))
         c = self.db.cursor()
         c.execute('SET CONSTRAINTS ALL DEFERRED')
-        c.execute('SELECT MAX(id)+1, MAX(id)+2 FROM timeseries')
+        c.execute('SELECT MAX(id)+1, MAX(id)+2 FROM ts_records')
         (self.timeseries_id1, self.timeseries_id2) = c.fetchone()
         c.close()
 
@@ -213,12 +228,3 @@ class _Test_pc208w(unittest.TestCase):
 class _Test_lastem(unittest.TestCase):
     def test_lastem(self):
         sys.stderr.write('\nWARNING: No test for Deltacom_lastem has been written yet\n')
-
-if __name__ == '__main__':
-    (_dbhost, _dbname, _dbuser, _dbpasswd) = sys.argv[1:]
-    suites = []
-    for x in locals().keys():
-        if x.startswith('_Test'):
-            suites.append(unittest.makeSuite(locals()[x]))
-    alltests = unittest.TestSuite(suites)
-    unittest.TextTestRunner(verbosity=1).run(alltests)

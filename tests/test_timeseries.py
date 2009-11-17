@@ -16,76 +16,75 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 """
 
-from timeseries import *
+from pthelma.timeseries import *
 import unittest
 import types
 import sys
 import textwrap
 from datetime import datetime
-import psycopg2
 from cStringIO import StringIO
 
 big_test_timeseries = textwrap.dedent("""\
-            2003-07-18 18:53,93,
-            2003-07-19 19:52,108.7,
-            2003-07-20 23:59,28.3,HEARTS SPADES
-            2003-07-21 00:02,,
-            2003-07-22 00:02,,DIAMONDS
-            2003-07-23 18:53,93,
-            2003-07-24 19:52,108.7,
-            2003-07-25 23:59,28.3,HEARTS SPADES
-            2003-07-26 00:02,,
-            2003-07-27 00:02,,DIAMONDS
-            2003-08-18 18:53,93,
-            2003-08-19 19:52,108.7,
-            2003-08-20 23:59,28.3,HEARTS SPADES
-            2003-08-21 00:02,,
-            2003-08-22 00:02,,DIAMONDS
-            2003-08-23 18:53,93,
-            2003-08-24 19:52,108.7,
-            2003-08-25 23:59,28.3,HEARTS SPADES
-            2003-08-26 00:02,,
-            2003-08-27 00:02,,DIAMONDS
-            2004-07-18 18:53,93,
-            2004-07-19 19:52,108.7,
-            2004-07-20 23:59,28.3,HEARTS SPADES
-            2004-07-21 00:02,,
-            2004-07-22 00:02,,DIAMONDS
-            2004-07-23 18:53,93,
-            2004-07-24 19:52,108.7,
-            2004-07-25 23:59,28.3,HEARTS SPADES
-            2004-07-26 00:02,,
-            2004-07-27 00:02,,DIAMONDS
-            2004-08-18 18:53,93,
-            2004-08-19 19:52,108.7,
-            2004-08-20 23:59,28.3,HEARTS SPADES
-            2004-08-21 00:02,,
-            2004-08-22 00:02,,DIAMONDS
-            2004-08-23 18:53,93,
-            2004-08-24 19:52,108.7,
-            2004-08-25 23:59,28.3,HEARTS SPADES
-            2004-08-26 00:02,,
-            2004-08-27 00:02,,DIAMONDS
-            2005-07-18 18:53,93,
-            2005-07-19 19:52,108.7,
-            2005-07-20 23:59,28.3,HEARTS SPADES
-            2005-07-21 00:02,,
-            2005-07-22 00:02,,DIAMONDS
-            2005-07-23 18:53,91,
-            2005-07-24 19:52,1087,
-            2005-07-25 23:59,-28.3,HEARTS SPADES
-            2005-07-26 00:02,,
-            2005-07-27 00:02,,DIAMONDS
-            2005-08-18 18:53,95,
-            2005-08-19 19:52,110.7,
-            2005-08-20 23:59,8.3,HEARTS SPADES
-            2005-08-21 00:02,,
-            2005-08-22 00:02,,DIAMONDS
-            2005-08-23 18:53,94,
-            2005-08-24 19:52,109.7,
-            2005-08-25 23:59,27.3,HEARTS SPADES
-            2005-08-26 00:02,,
-            2005-08-27 00:02,,DIAMONDS
+            2003-07-18 18:53,93,\r
+            2003-07-19 19:52,108.7,\r
+            2003-07-20 23:59,28.3,HEARTS SPADES\r
+            2003-07-21 00:02,,\r
+            2003-07-22 00:02,,DIAMONDS\r
+            2003-07-23 18:53,93,\r
+            2003-07-24 19:52,108.7,\r
+            2003-07-25 23:59,28.3,HEARTS SPADES\r
+            2003-07-26 00:02,,\r
+            2003-07-27 00:02,,DIAMONDS\r
+            2003-08-18 18:53,93,\r
+            2003-08-19 19:52,108.7,\r
+            2003-08-20 23:59,28.3,HEARTS SPADES\r
+            2003-08-21 00:02,,\r
+            2003-08-22 00:02,,DIAMONDS\r
+            2003-08-23 18:53,93,\r
+            2003-08-24 19:52,108.7,\r
+            2003-08-25 23:59,28.3,HEARTS SPADES\r
+            2003-08-26 00:02,,\r
+            2003-08-27 00:02,,DIAMONDS\r
+            2004-07-18 18:53,93,\r
+            2004-07-19 19:52,108.7,\r
+            2004-07-20 23:59,28.3,HEARTS SPADES\r
+            2004-07-21 00:02,,\r
+            2004-07-22 00:02,,DIAMONDS\r
+            2004-07-23 18:53,93,\r
+            2004-07-24 19:52,108.7,\r
+            2004-07-25 23:59,28.3,HEARTS SPADES\r
+            2004-07-26 00:02,,\r
+            2004-07-27 00:02,,DIAMONDS\r
+            2004-08-18 18:53,93,\r
+            2004-08-19 19:52,108.7,\r
+            2004-08-20 23:59,28.3,HEARTS SPADES\r
+            2004-08-21 00:02,,\r
+            2004-08-22 00:02,,DIAMONDS\r
+            2004-08-23 18:53,93,\r
+            2004-08-24 19:52,108.7,\r
+            2004-08-25 23:59,28.3,HEARTS SPADES\r
+            2004-08-26 00:02,,\r
+            2004-08-27 00:02,,DIAMONDS\r
+            2005-07-18 18:53,93,\r
+            2005-07-19 19:52,108.7,\r
+            2005-07-20 23:59,28.3,HEARTS SPADES\r
+            2005-07-21 00:02,,\r
+            2005-07-22 00:02,,DIAMONDS\r
+            2005-07-23 18:53,91,\r
+            2005-07-24 19:52,1087,\r
+            2005-07-25 23:59,-28.3,HEARTS SPADES\r
+            2005-07-26 00:02,,\r
+            2005-07-27 00:02,,DIAMONDS\r
+            2005-08-18 18:53,95,\r
+            2005-08-19 19:52,110.7,\r
+            2005-08-20 23:59,8.3,HEARTS SPADES\r
+            2005-08-21 00:02,,\r
+            2005-08-22 00:02,,DIAMONDS\r
+            2005-08-23 18:53,94,\r
+            2005-08-24 19:52,109.7,\r
+            2005-08-25 23:59,27.3,HEARTS SPADES\r
+            2005-08-26 00:02,,\r
+            2005-08-27 00:02,,DIAMONDS\r
             """)
 
 tenmin_test_timeseries = textwrap.dedent("""\
@@ -114,43 +113,43 @@ tenmin_test_timeseries = textwrap.dedent("""\
             """)
 
 aggregated_hourly_sum = textwrap.dedent("""\
-            2008-02-07 10:00,31.25,MISS
-            2008-02-07 11:00,65.47,
-            2008-02-07 12:00,69.3,
-            2008-02-07 13:00,72.78,
+            2008-02-07 10:00,31.25,MISS\r
+            2008-02-07 11:00,65.47,\r
+            2008-02-07 12:00,69.3,\r
+            2008-02-07 13:00,72.78,\r
             """)
 
 aggregated_hourly_average = textwrap.dedent("""\
-            2008-02-07 10:00,10.4166666666667,MISS
-            2008-02-07 11:00,10.911666667,
-            2008-02-07 12:00,11.55,
-            2008-02-07 13:00,12.13,
+            2008-02-07 10:00,10.4166666666667,MISS\r
+            2008-02-07 11:00,10.911666667,\r
+            2008-02-07 12:00,11.55,\r
+            2008-02-07 13:00,12.13,\r
             """)
 
 aggregated_hourly_max = textwrap.dedent("""\
-            2008-02-07 10:00,10.51,MISS
-            2008-02-07 11:00,11.23,
-            2008-02-07 12:00,11.8,
-            2008-02-07 13:00,12.25,
+            2008-02-07 10:00,10.51,MISS\r
+            2008-02-07 11:00,11.23,\r
+            2008-02-07 12:00,11.8,\r
+            2008-02-07 13:00,12.25,\r
             """)
 
 aggregated_hourly_min = textwrap.dedent("""\
-            2008-02-07 10:00,10.32,MISS
-            2008-02-07 11:00,10.54,
-            2008-02-07 12:00,11.41,
-            2008-02-07 13:00,11.91,
+            2008-02-07 10:00,10.32,MISS\r
+            2008-02-07 11:00,10.54,\r
+            2008-02-07 12:00,11.41,\r
+            2008-02-07 13:00,11.91,\r
             """)
 
 aggregated_hourly_missing = textwrap.dedent("""\
-            2008-02-07 10:00,3,
-            2008-02-07 11:00,0,
-            2008-02-07 12:00,0,
-            2008-02-07 13:00,0,
+            2008-02-07 10:00,3,\r
+            2008-02-07 11:00,0,\r
+            2008-02-07 12:00,0,\r
+            2008-02-07 13:00,0,\r
             """)
 
 
 def extract_lines(s, from_, to):
-    return '\n'.join(s.splitlines()[from_:to]) + '\n'
+    return ''.join(s.splitlines(True)[from_:to])
 
 class _Test_timestep_utilities(unittest.TestCase):
     def setUp(self):
@@ -302,70 +301,70 @@ class _Test_Timeseries_write_nonempty(unittest.TestCase):
     def test_all(self):
         self.ts.write(self.c)
         self.assertEqual(self.c.getvalue(), textwrap.dedent("""\
-            2005-08-23 18:53,93,
-            2005-08-24 19:52,108.7,
-            2005-08-25 23:59,28.3,HEARTS SPADES
-            2005-08-26 00:02,,
-            2005-08-27 00:02,,DIAMONDS
+            2005-08-23 18:53,93,\r
+            2005-08-24 19:52,108.7,\r
+            2005-08-25 23:59,28.3,HEARTS SPADES\r
+            2005-08-26 00:02,,\r
+            2005-08-27 00:02,,DIAMONDS\r
             """))
     def test_with_start1(self):
         self.ts.write(self.c, start=datetime_from_iso("2005-08-24 19:52"))
         self.assertEqual(self.c.getvalue(), textwrap.dedent("""\
-            2005-08-24 19:52,108.7,
-            2005-08-25 23:59,28.3,HEARTS SPADES
-            2005-08-26 00:02,,
-            2005-08-27 00:02,,DIAMONDS
+            2005-08-24 19:52,108.7,\r
+            2005-08-25 23:59,28.3,HEARTS SPADES\r
+            2005-08-26 00:02,,\r
+            2005-08-27 00:02,,DIAMONDS\r
             """))
     def test_with_start2(self):
         self.ts.write(self.c, start=datetime_from_iso("2005-08-24 19:51"))
         self.assertEqual(self.c.getvalue(), textwrap.dedent("""\
-            2005-08-24 19:52,108.7,
-            2005-08-25 23:59,28.3,HEARTS SPADES
-            2005-08-26 00:02,,
-            2005-08-27 00:02,,DIAMONDS
+            2005-08-24 19:52,108.7,\r
+            2005-08-25 23:59,28.3,HEARTS SPADES\r
+            2005-08-26 00:02,,\r
+            2005-08-27 00:02,,DIAMONDS\r
             """))
     def test_with_start3(self):
         self.ts.write(self.c, start=datetime_from_iso("2000-08-24 19:51"))
         self.assertEqual(self.c.getvalue(), textwrap.dedent("""\
-            2005-08-23 18:53,93,
-            2005-08-24 19:52,108.7,
-            2005-08-25 23:59,28.3,HEARTS SPADES
-            2005-08-26 00:02,,
-            2005-08-27 00:02,,DIAMONDS
+            2005-08-23 18:53,93,\r
+            2005-08-24 19:52,108.7,\r
+            2005-08-25 23:59,28.3,HEARTS SPADES\r
+            2005-08-26 00:02,,\r
+            2005-08-27 00:02,,DIAMONDS\r
             """))
     def test_with_end1(self):
         self.ts.write(self.c, end=datetime_from_iso("2005-08-27 00:02"))
         self.assertEqual(self.c.getvalue(), textwrap.dedent("""\
-            2005-08-23 18:53,93,
-            2005-08-24 19:52,108.7,
-            2005-08-25 23:59,28.3,HEARTS SPADES
-            2005-08-26 00:02,,
-            2005-08-27 00:02,,DIAMONDS
+            2005-08-23 18:53,93,\r
+            2005-08-24 19:52,108.7,\r
+            2005-08-25 23:59,28.3,HEARTS SPADES\r
+            2005-08-26 00:02,,\r
+            2005-08-27 00:02,,DIAMONDS\r
             """))
     def test_with_end2(self):
         self.ts.write(self.c, end=datetime_from_iso("3005-08-27 00:02"))
         self.assertEqual(self.c.getvalue(), textwrap.dedent("""\
-            2005-08-23 18:53,93,
-            2005-08-24 19:52,108.7,
-            2005-08-25 23:59,28.3,HEARTS SPADES
-            2005-08-26 00:02,,
-            2005-08-27 00:02,,DIAMONDS
+            2005-08-23 18:53,93,\r
+            2005-08-24 19:52,108.7,\r
+            2005-08-25 23:59,28.3,HEARTS SPADES\r
+            2005-08-26 00:02,,\r
+            2005-08-27 00:02,,DIAMONDS\r
             """))
     def test_with_end3(self):
         self.ts.write(self.c, end=datetime_from_iso("2005-08-26 00:03"))
         self.assertEqual(self.c.getvalue(), textwrap.dedent("""\
-            2005-08-23 18:53,93,
-            2005-08-24 19:52,108.7,
-            2005-08-25 23:59,28.3,HEARTS SPADES
-            2005-08-26 00:02,,
+            2005-08-23 18:53,93,\r
+            2005-08-24 19:52,108.7,\r
+            2005-08-25 23:59,28.3,HEARTS SPADES\r
+            2005-08-26 00:02,,\r
             """))
     def test_with_start_and_end1(self):
         self.ts.write(self.c, start=datetime_from_iso("2005-08-24 19:50"),
                       end=datetime_from_iso("2005-08-26 00:03"))
         self.assertEqual(self.c.getvalue(), textwrap.dedent("""\
-            2005-08-24 19:52,108.7,
-            2005-08-25 23:59,28.3,HEARTS SPADES
-            2005-08-26 00:02,,
+            2005-08-24 19:52,108.7,\r
+            2005-08-25 23:59,28.3,HEARTS SPADES\r
+            2005-08-26 00:02,,\r
             """))
 
 class _Test_Timeseries_read(unittest.TestCase):
@@ -381,11 +380,11 @@ class _Test_Timeseries_read(unittest.TestCase):
         self.check('')
     def test_read_nonempty(self):
         self.check(textwrap.dedent("""\
-            2005-08-23 18:53,93,
-            2005-08-24 19:52,108.7,
-            2005-08-25 23:59,28.3,HEARTS SPADES
-            2005-08-26 00:02,,
-            2005-08-27 00:02,,DIAMONDS
+            2005-08-23 18:53,93,\r
+            2005-08-24 19:52,108.7,\r
+            2005-08-25 23:59,28.3,HEARTS SPADES\r
+            2005-08-26 00:02,,\r
+            2005-08-27 00:02,,DIAMONDS\r
             """))
     def test_error1(self):
         self.assertRaises(ValueError, Timeseries.read, Timeseries(),
@@ -398,16 +397,30 @@ class _Test_Timeseries_read(unittest.TestCase):
             2005-08-25 23:59,28.3,HEARTS SPADES
             2005-08-26 00:02,
             2005-08-27 00:02,,DIAMONDS
-            """)) # Has only two commas in line four
+            """)) # Has only one comma in line four
     def test_error3(self):
         self.assertRaises(ValueError, Timeseries.read, Timeseries(),
                           StringIO('abcd,,'))
     
+class database_test_metaclass(type):
+    warning = textwrap.dedent("""\
+        WARNING: Database tests not run. If you want to run the database
+                 tests, set the PSYCOPG_CONNECTION environment variable
+                 to "host=... dbname=... user=... password=...".
+        """)
+    def __new__(mcs, name, bases, dict):
+        import os
+        psycopg_string = os.getenv("PSYCOPG_CONNECTION")
+        if not psycopg_string:
+            sys.stderr.write(mcs.warning)
+            return None
+        return type.__new__(mcs, name, bases, dict)
 
 class _Test_Timeseries_write_to_db(unittest.TestCase):
+    __metaclass__ = database_test_metaclass
     def setUp(self):
-        self.db = psycopg2.connect(host=_dbhost, database=_dbname,
-                                            user=_dbuser, password=_dbpasswd)
+        import os, psycopg2
+        self.db = psycopg2.connect(os.getenv("PSYCOPG_CONNECTION"))
         c = self.db.cursor()
         c.execute('SET CONSTRAINTS ALL DEFERRED')
         c.close()
@@ -426,17 +439,18 @@ class _Test_Timeseries_write_to_db(unittest.TestCase):
         ts.write_to_db(self.db, commit=False)
         c = self.db.cursor()
         c.execute("""SELECT top, middle, bottom FROM ts_records
-                     WHERE id=%d AND num=0""" % (ts.id))
+                     WHERE id=%d""" % (ts.id))
         (top, middle, bottom) = c.fetchone()
         c.close()
-        self.assert_(top is None)
+        sys.stderr.write('------------------\n'+top+'--------------------\n')
+        self.assertFalse(top)
         self.assert_(middle is None)
         self.assertEqual(bottom, textwrap.dedent("""\
-            2005-08-23 18:53,93,
-            2005-08-24 19:52,108.7,
-            2005-08-25 23:59,28.3,HEARTS SPADES
-            2005-08-26 00:02,,
-            2005-08-27 00:02,,DIAMONDS
+            2005-08-23 18:53,93,\r
+            2005-08-24 19:52,108.7,\r
+            2005-08-25 23:59,28.3,HEARTS SPADES\r
+            2005-08-26 00:02,,\r
+            2005-08-27 00:02,,DIAMONDS\r
             """))
     def test_top_middle_bottom(self):
         ts = Timeseries(0)
@@ -444,7 +458,7 @@ class _Test_Timeseries_write_to_db(unittest.TestCase):
         ts.write_to_db(self.db, commit=False)
         c = self.db.cursor()
         c.execute("""SELECT top, middle, bottom FROM ts_records
-                     WHERE id=%d AND num=0""" % (ts.id))
+                     WHERE id=%d""" % (ts.id))
         (db_top, db_middle, db_bottom) = c.fetchone()
         c.close()
         actual_top = extract_lines(big_test_timeseries, None, 
@@ -458,10 +472,11 @@ class _Test_Timeseries_write_to_db(unittest.TestCase):
         self.assertEqual(db_bottom, actual_bottom)
 
 class _Test_Timeseries_read_from_db(unittest.TestCase):
+    __metaclass__ = database_test_metaclass
     # This test trusts Timeseries.write_to_db, so it must be independently tested
     def setUp(self):
-        self.db = psycopg2.connect(host=_dbhost, database=_dbname,
-                                            user=_dbuser, password=_dbpasswd)
+        import os, psycopg2
+        self.db = psycopg2.connect(os.getenv("PSYCOPG_CONNECTION"))
         c = self.db.cursor()
         c.execute('SET CONSTRAINTS ALL DEFERRED')
         c.close()
@@ -482,11 +497,11 @@ class _Test_Timeseries_read_from_db(unittest.TestCase):
         self.check('')
     def test_read_nonempty_small(self):
         self.check(textwrap.dedent("""\
-            2005-08-23 18:53,93,
-            2005-08-24 19:52,108.7,
-            2005-08-25 23:59,28.3,HEARTS SPADES
-            2005-08-26 00:02,,
-            2005-08-27 00:02,,DIAMONDS
+            2005-08-23 18:53,93,\r
+            2005-08-24 19:52,108.7,\r
+            2005-08-25 23:59,28.3,HEARTS SPADES\r
+            2005-08-26 00:02,,\r
+            2005-08-27 00:02,,DIAMONDS\r
             """))
     def test_read_nonempty_big(self):
         self.check(big_test_timeseries)
@@ -507,11 +522,12 @@ class _Test_Timeseries_append(unittest.TestCase):
         self.assertRaises(Exception, Timeseries.append, ts1, ts3)
 
 class _Test_Timeseries_append_to_db(unittest.TestCase):
+    __metaclass__ = database_test_metaclass
     # This trusts everything else, so no other test should trust append and
     # append_to_db.
     def setUp(self):
-        self.db = psycopg2.connect(host=_dbhost, database=_dbname,
-                                            user=_dbuser, password=_dbpasswd)
+        import os, psycopg2
+        self.db = psycopg2.connect(os.getenv("PSYCOPG_CONNECTION"))
         c = self.db.cursor()
         c.execute('SET CONSTRAINTS ALL DEFERRED')
         c.close()
@@ -648,21 +664,3 @@ class _Test_Timeseries_aggregate(unittest.TestCase):
         self.assertEqual(out.getvalue(),aggregated_hourly_missing)
     ### def test_aggregate_hourly_vector(self):
         ### pending
-
-if __name__ == '__main__':
-    (_dbhost, _dbname, _dbuser, _dbpasswd) = ('', '', '', '')
-    if len(sys.argv)==5:
-        (_dbhost, _dbname, _dbuser, _dbpasswd) = sys.argv[1:]
-    suites = []
-    for x in locals().keys():
-        if x.startswith('_Test') and not x.endswith('_db'):
-            suites.append(unittest.makeSuite(locals()[x]))
-    if _dbhost:
-        for x in locals().keys():
-            if x.startswith('_Test') and x.endswith('_db'):
-                suites.append(unittest.makeSuite(locals()[x]))
-    alltests = unittest.TestSuite(suites)
-    unittest.TextTestRunner(verbosity=1).run(alltests)
-    if not _dbhost:
-        sys.stderr.write('Run as "./timeseries.py dbhost dbname dbuser '
-                         'dbpasswd" to include database tests.\n')
