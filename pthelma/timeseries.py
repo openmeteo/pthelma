@@ -25,6 +25,7 @@ import textwrap
 from datetime import datetime, timedelta
 from StringIO import StringIO
 from math import sin, cos, atan2, pi
+from django.db import transaction
 
 import psycopg2
 import fpconst
@@ -259,7 +260,12 @@ class Timeseries(dict):
                      VALUES (%s, %s, %s, %s)"""  , (self.id, top, middle,
                                                        bottom))
         c.close()
-        if commit: db.commit()
+        if commit:
+            try:
+                transaction.commit()
+            except IntegrityError:
+                transaction.rollback()
+                raise IntegrityError()
     def append_to_db(self, db, commit=True):
         """Append the contained records to the timeseries stored in the database."""
         if not len(self): return
@@ -280,7 +286,12 @@ class Timeseries(dict):
             c.execute("""UPDATE ts_records SET bottom=%s
                          WHERE id=%s""", (fp.getvalue(), self.id))
             fp.close()
-            if commit: db.commit()
+            if commit:
+                try:
+                    transaction.commit()
+                except IntegrityError:
+                    transaction.rollback()
+                    raise IntegrityError()
         else:
             ts = Timeseries(self.id)
             ts.read_from_db(db)
