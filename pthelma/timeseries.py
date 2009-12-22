@@ -26,6 +26,7 @@ from datetime import datetime, timedelta
 from StringIO import StringIO
 from math import sin, cos, atan2, pi
 from django.db import transaction
+from django.db import IntegrityError
 
 import psycopg2
 import fpconst
@@ -235,6 +236,7 @@ class Timeseries(dict):
                 self.read(StringIO(zlib.decompress(middle)))
             self.read(StringIO(bottom))
         c.close()
+    @transaction.commit_manually
     def write_to_db(self, db, commit=True):
         fp = StringIO()
         if len(self)<Timeseries.MAX_ALL_BOTTOM:
@@ -265,7 +267,8 @@ class Timeseries(dict):
                 transaction.commit()
             except IntegrityError:
                 transaction.rollback()
-                raise IntegrityError()
+                raise IntegrityError
+    @transaction.commit_manually
     def append_to_db(self, db, commit=True):
         """Append the contained records to the timeseries stored in the database."""
         if not len(self): return
@@ -291,7 +294,7 @@ class Timeseries(dict):
                     transaction.commit()
                 except IntegrityError:
                     transaction.rollback()
-                    raise IntegrityError()
+                    raise IntegrityError
         else:
             ts = Timeseries(self.id)
             ts.read_from_db(db)
