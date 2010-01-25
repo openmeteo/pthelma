@@ -223,6 +223,12 @@ class Timeseries(dict):
             else: value = strip_trailing_zeros('%.5f' % self[key])
             fp.write('%s,%s,%s\r\n' % (isoformat_nosecs(key, ' '), value,
                                      ' '.join(self[key].flags)))
+    def delete_from_db(self, db):
+        c = db.cursor()
+        c.execute("""DELETE FROM ts_records
+                     WHERE id=%d""" % (self.id))
+        self.clear()
+        c.close()
     def read_from_db(self, db):
         c = db.cursor()
         c.execute("""SELECT top, middle, bottom FROM ts_records
