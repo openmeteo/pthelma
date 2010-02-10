@@ -25,8 +25,6 @@ import textwrap
 from datetime import datetime, timedelta
 from StringIO import StringIO
 from math import sin, cos, atan2, pi
-from django.db import transaction
-from django.db import IntegrityError
 
 import psycopg2
 import fpconst
@@ -242,8 +240,8 @@ class Timeseries(dict):
                 self.read(StringIO(zlib.decompress(middle)))
             self.read(StringIO(bottom))
         c.close()
-    @transaction.commit_manually
-    def write_to_db(self, db, commit=True):
+    def write_to_db(self, db, transaction=None, commit=True):
+        if transaction is None: transaction = db
         fp = StringIO()
         if len(self)<Timeseries.MAX_ALL_BOTTOM:
             top = ''
@@ -268,15 +266,10 @@ class Timeseries(dict):
                      VALUES (%s, %s, %s, %s)"""  , (self.id, top, middle,
                                                        bottom))
         c.close()
-        if commit:
-            try:
-                transaction.commit()
-            except IntegrityError:
-                transaction.rollback()
-                raise IntegrityError
-    @transaction.commit_manually
-    def append_to_db(self, db, commit=True):
+        if commit: transaction.commit()
+    def append_to_db(self, db, transaction=None, commit=True):
         """Append the contained records to the timeseries stored in the database."""
+        if transaction is None: transaction = db
         if not len(self): return
         c = db.cursor()
         bottom_ts = Timeseries()
@@ -295,17 +288,12 @@ class Timeseries(dict):
             c.execute("""UPDATE ts_records SET bottom=%s
                          WHERE id=%s""", (fp.getvalue(), self.id))
             fp.close()
-            if commit:
-                try:
-                    transaction.commit()
-                except IntegrityError:
-                    transaction.rollback()
-                    raise IntegrityError
+            if commit: transaction.commit()
         else:
             ts = Timeseries(self.id)
             ts.read_from_db(db)
             ts.append(self)
-            ts.write_to_db(db, commit)
+            ts.write_to_db(db, transaction=transaction, commit=commit)
         c.close()
     def append(self, b):
         if len(self) and len(b) and max(self.keys())>=min(b.keys()):
