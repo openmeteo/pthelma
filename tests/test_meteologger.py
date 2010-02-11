@@ -338,8 +338,10 @@ deltacom_data = textwrap.dedent("""\
 zeno_data = textwrap.dedent("""\
          09/03/19 20:10:00 0.000000  2.413333  2.710526 
          09/03/19 20:20:00 0.000000  2.320000  2.578947 
+
          09/03/19 20:30:00 0.000000  2.386667  2.736842 
          09/03/19 20:40:00 0.000000  1.746667  2.210526 
+
          09/03/19 20:50:00 0.000000  1.680000  2.105263 
          09/03/19 21:00:00 0.000000  1.546667  1.947368 
          09/03/19 21:10:00 0.000000  1.520000  2.052632 
@@ -458,12 +460,15 @@ class _Test_logger:
         self.timeseries2 = Timeseries(0)
         self.timeseries2.read(StringIO(timeseries2))
     def setUp(self):
-        # First 60 lines of test go to file1
+        # First 60 nonempty lines of test go to file1
         (fd, self.file1) = tempfile.mkstemp(text=True)
         import os
         fp = os.fdopen(fd, 'w')
-        for i, line in enumerate(StringIO(self.testdata)):
+        i = 0
+        for line in StringIO(self.testdata):
             if i>=60: break
+            if not line.strip(): continue
+            i += 1
             fp.write(line)
         fp.close()
 

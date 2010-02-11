@@ -94,6 +94,7 @@ class Datafile:
             while True:
                 line = xr.next()
                 self.logger.debug(line)
+                if not line.strip(): continue # skip empty lines
                 if not self.subset_identifiers_match(line): continue
                 date = self.extract_date(line)
                 if date == prev_date:
