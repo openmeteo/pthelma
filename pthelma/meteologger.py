@@ -176,6 +176,6 @@ class Datafile_lastem(Datafile):
 
 class Datafile_zeno(Datafile):
     def extract_date(self, line):
-        return datetime.strptime(line[:17], '%y/%m/%d %H:%M:%S')
+        return datetime.strptime(line[:14], '%y/%m/%d %H:%M')
     def extract_value_and_flags(self, line, seq):
         return line.split()[seq+1]
