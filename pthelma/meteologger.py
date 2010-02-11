@@ -172,3 +172,9 @@ class Datafile_lastem(Datafile):
         si = [x.strip() for x in line.split(self.delimiter)[0:3]]
         si1 = [x.strip() for x in self.subset_identifiers.split(',')]
         return si==si1
+
+class Datafile_zeno(Datafile):
+    def extract_date(self, line):
+        return datetime.strptime(line[:17], '%y/%m/%d %H:%M:%S')
+    def extract_value_and_flags(self, line, seq):
+        return line.split()[seq+1]
