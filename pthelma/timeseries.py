@@ -356,7 +356,7 @@ class Timeseries(dict):
             if fpconst.isNaN(value): continue
             sum += value
             divider += 1
-        if divider: 
+        if divider:
             return sum/divider
         else:
             return fpconst.NaN
