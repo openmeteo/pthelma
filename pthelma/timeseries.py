@@ -111,7 +111,7 @@ class TimeStep:
                 result = timestamp.replace(year=y, month=m, day=1, hour=0,
                     minute=0) + timedelta(minutes=self.nominal_offset[0])
         else:
-            raise Exception("Internal error")
+            assert(False)
         return result
     def next(self, timestamp):
         timestamp = self.up(timestamp)
@@ -278,7 +278,11 @@ class Timeseries(dict):
         r = c.fetchone()
         if r:
             bottom_ts.read(StringIO(r[0]))
-            assert(max(bottom_ts.keys())<min(self.keys()))
+            if max(bottom_ts.keys())>=min(self.keys()):
+                raise ValueError(("Cannot append time series: "
+                    +"its first record (%s) has a date earlier than the last "
+                    +"record (%s) of the timeseries to append to.")
+                    % (str(min(self.keys())), str(max(bottom_ts.keys()))))
         max_bottom = Timeseries.MAX_BOTTOM + random.randrange(
             -Timeseries.MAX_BOTTOM_NOISE, Timeseries.MAX_BOTTOM_NOISE)
         if len(bottom_ts) and len(bottom_ts)+len(self) < max_bottom:
@@ -297,8 +301,10 @@ class Timeseries(dict):
         c.close()
     def append(self, b):
         if len(self) and len(b) and max(self.keys())>=min(b.keys()):
-            raise Exception("Attempt to append a timeseries that does not "
-                            "come after.")
+            raise ValueError(("Cannot append: the first record (%s) of the "
+                +"time series to append has a date earlier than the last "
+                +"record (%s) of the timeseries to append to.")
+                % (str(min(b.keys())), str(max(self.keys()))))
         self.update(b)
     def bounding_dates(self):
         if len(self): return self.items()[0][0], self.items()[-1][0]
@@ -314,9 +320,11 @@ class Timeseries(dict):
         if pos>=0 and pos<len(items) and items[pos][0]==date: return pos
         if downwards: pos -= 1
         if pos<0:
-            raise IndexError("There is no item in the timeseries on or before "+str(date))
+            raise IndexError("There is no item in the timeseries on or before "
+                                            +str(date))
         if pos>=len(self):
-            raise IndexError("There is no item in the timeseries on or after "+str(date))
+            raise IndexError("There is no item in the timeseries on or after "
+                                            +str(date))
         return pos
     def item(self, date, downwards=False):
         return self.items()[self.index(date, downwards)]
@@ -380,7 +388,7 @@ class Timeseries(dict):
             elif it == IntervalType.MAXIMUM: aggregate_value = -1e38
             elif it == IntervalType.MINIMUM: aggregate_value = 1e38
             elif it == IntervalType.VECTOR_AVERAGE: aggregate_value = (0, 0)
-            else: raise Exception("Internal error")
+            else: assert(False)
             missing = 0.0
             total_components = 0.0
             divider = 0.0
@@ -414,7 +422,7 @@ class Timeseries(dict):
                     aggregate_value[0] += cos(self[s]/180*pi)*pct_used
                     aggregate_value[1] += sin(self[s]/180*pi)*pct_used
                 else:
-                    raise Exception("Internal error")
+                    assert(False)
                 s = self.time_step.next(s)
             flag = []
             if missing/total_components > missing_allowed/total_components+1e-5:
