@@ -231,7 +231,13 @@ class Timeseries(dict):
             if start and key<start: continue
             if end and key>end: return
             if fpconst.isNaN(self[key]): value = ''
-            else: value = strip_trailing_zeros('%.5f' % self[key])
+            elif self.precision is None:
+                value = strip_trailing_zeros('%.5f' % self[key])
+            else:
+                p = self.precision
+                if p<0: p = 0
+                fmtstring = '%%.%df' % (p,)
+                value = fmtstring % self[key]
             fp.write('%s,%s,%s\r\n' % (isoformat_nosecs(key, ' '), value,
                                      ' '.join(self[key].flags)))
     def delete_from_db(self, db):
@@ -321,10 +327,10 @@ class Timeseries(dict):
         fp.write("Version=2\r\n")
         fp.write("Unit=%s\r\n" % (self.unit,))
         fp.write("Count=%d\r\n" % (len(self),))
-        fp.write("Title=%d\r\n" % (self.title,))
-        for line in self.comment.splitlines:
+        fp.write("Title=%s\r\n" % (self.title,))
+        for line in self.comment.splitlines():
             fp.write("Comment=%s\r\n" % (line,))
-        fp.write("Timezone=%d\r\n" % (self.timezone,))
+        fp.write("Timezone=%s\r\n" % (self.timezone,))
         if self.time_step.length_minutes or self.time_step.length_months:
             fp.write("Time_step=%d,%d\r\n" % (self.time_step.length_minutes,
                                               self.time_step.length_months))
@@ -337,7 +343,7 @@ class Timeseries(dict):
                 IntervalType.SUM: "sum", IntervalType.AVERAGE: "average",
                 IntervalType.MAXIMUM: "maximum", IntervalType.MINIMUM: "minimum",
                 IntervalType.VECTOR_AVERAGE: "vector_average" },))
-        fp.write("Variable=%d\r\n" % (self.variable,))
+        fp.write("Variable=%s\r\n" % (self.variable,))
         if self.precision is not None:
             fp.write("Precision=%d\r\n" % (self.precision,))
 

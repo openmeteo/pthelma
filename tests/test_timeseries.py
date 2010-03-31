@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# -*- coding: utf8 -*-
 """
 Tests for timeseries class.
 
@@ -110,6 +111,47 @@ tenmin_test_timeseries = textwrap.dedent("""\
             2008-02-07 12:50,12.13,
             2008-02-07 13:00,12.17,
             2008-02-07 13:10,12.31,
+            """)
+
+tenmin_test_timeseries_file = textwrap.dedent("""\
+            Version=2\r
+            Unit=°C\r
+            Count=22\r
+            Title=A test 10-min time series\r
+            Comment=This timeseries is extremely important\r
+            Comment=because the comment that describes it\r
+            Comment=spans five lines.\r
+            Comment=\r
+            Comment=These five lines form two paragraphs.\r
+            Timezone=EET (UTC+0200)\r
+            Time_step=10,0\r
+            Nominal_offset=0,0\r
+            Actual_offset=0,0\r
+            Variable=temperature\r
+            Precision=1\r
+            \r
+            2008-02-07 09:40,10.3,\r
+            2008-02-07 09:50,10.4,\r
+            2008-02-07 10:00,10.5,\r
+            2008-02-07 10:10,10.5,\r
+            2008-02-07 10:20,10.7,\r
+            2008-02-07 10:30,11.0,\r
+            2008-02-07 10:40,10.9,\r
+            2008-02-07 10:50,11.1,\r
+            2008-02-07 11:00,11.2,\r
+            2008-02-07 11:10,11.4,\r
+            2008-02-07 11:20,11.4,\r
+            2008-02-07 11:30,11.4,\r
+            2008-02-07 11:40,11.5,\r
+            2008-02-07 11:50,11.7,\r
+            2008-02-07 12:00,11.8,\r
+            2008-02-07 12:10,11.9,\r
+            2008-02-07 12:20,12.2,\r
+            2008-02-07 12:30,12.2,\r
+            2008-02-07 12:40,12.2,\r
+            2008-02-07 12:50,12.1,\r
+            2008-02-07 13:00,12.2,\r
+            2008-02-07 13:10,12.3,\r
             """)
 
 aggregated_hourly_sum = textwrap.dedent("""\
@@ -367,6 +409,22 @@ class _Test_Timeseries_write_nonempty(unittest.TestCase):
             2005-08-26 00:02,,\r
             """))
 
+class _Test_Timeseries_file(unittest.TestCase):
+    def setUp(self):
+        self.reference_ts = Timeseries(
+            time_step=TimeStep(length_minutes=10, length_months=0),
+            unit='°C', title="A test 10-min time series", precision=1,
+            timezone="EET (UTC+0200)", variable="temperature",
+            comment="This timeseries is extremely important\n" 
+                + "because the comment that describes it\n"
+                + "spans five lines.\n\n"
+                + "These five lines form two paragraphs.")
+        self.reference_ts.read(StringIO(tenmin_test_timeseries))
+    def test_write_file(self):
+        outstring = StringIO()
+        self.reference_ts.write_file(outstring)
+        self.assertEqual(outstring.getvalue(), tenmin_test_timeseries_file)
+    
 class _Test_Timeseries_read(unittest.TestCase):
     # This test trusts Timeseries.write, so it must be independently tested.
     def check(self, s):
