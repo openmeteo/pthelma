@@ -3,9 +3,9 @@
 Timeseries processing
 =====================
 
-Copyright (C) 2005-2009 National Technical University of Athens
+Copyright (C) 2005-2010 National Technical University of Athens
 
-Copyright (C) 2005 Antonios Christofides
+Copyright (C) 2005 Antonis Christofides
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@ import textwrap
 from datetime import datetime, timedelta
 from StringIO import StringIO
 from math import sin, cos, atan2, pi
+from ConfigParser import ParsingError
 
 import psycopg2
 import fpconst
@@ -183,12 +184,19 @@ class Timeseries(dict):
     MAX_ALL_BOTTOM=40
     ROWS_IN_TOP_BOTTOM=5
 
-    def __init__(self, id=0, time_step=None):
+    def __init__(self, id=0, time_step=None, unit='', title='', timezone='',
+        variable='', precision=None, comment=''):
         self.id = id
         if time_step:
             self.time_step = time_step
         else:
             self.time_step = TimeStep()
+        self.unit = unit
+        self.title = title
+        self.timezone = timezone
+        self.variable = variable
+        self.precision = precision
+        self.comment = comment
     def __setitem__(self, key, value):
         if not isinstance(key, datetime):
             key = datetime_from_iso(key)
@@ -205,14 +213,19 @@ class Timeseries(dict):
             return dict.__getitem__(self, key)
         else:
             return dict.__getitem__(self, datetime_from_iso(key))
-    def read(self, fp):
-        for line in fp:
-            (isodate, value, flags) = line.strip().split(',')
-            flags = flags.split()
-            if not value: value = fpconst.NaN
-            else: value = float(value)
-            dict.__setitem__(self, datetime_from_iso(isodate),
-                             _Tsvalue(value, flags))
+    def read(self, fp, line_number=1):
+        try:
+            for line in fp:
+                (isodate, value, flags) = line.strip().split(',')
+                flags = flags.split()
+                if not value: value = fpconst.NaN
+                else: value = float(value)
+                dict.__setitem__(self, datetime_from_iso(isodate),
+                                 _Tsvalue(value, flags))
+                line_number += 1
+        except Exception as e:
+            e.args = e.args + (line_number,)
+            raise
     def write(self, fp, start=None, end=None):
         for key in sorted(self.keys()):
             if start and key<start: continue
@@ -227,6 +240,109 @@ class Timeseries(dict):
                      WHERE id=%d""" % (self.id))
         self.clear()
         c.close()
+    def __read_meta_line(self, fp):
+        """Read one line from a file format header and return a (name, value)
+        tuple, where name is lowercased. Returns ('', '') if the next line is
+        blank. Raises ParsingError if next line in fp is not a valid header
+        line."""
+        line = fp.readline()
+        (name, value) = ''
+        if line.isspace(): return (name, value)
+        if line.find('=') > 0:
+            (name, value) = line.split('=', maxsplit=1)
+            name = name.rstrip().lower()
+            value = value.strip()
+        for c in name:
+            if c.isspace():
+                name = ''
+                break
+        if not name:
+            raise ParsingError(_("Invalid file header line"))
+        return (name, value)
+    def __read_meta(self, fp):
+        """Read the headers of a file in file format into the instance
+        attributes and return the line number of the first data line of the
+        file.
+        """
+        def read_minutes_months(s):
+            """Return a (minutes, months) tuple after parsing a "M,N" string."""
+            try:
+                (minutes, months) = [int(x.strip()) for x in s.split(',')]
+                return minutes, months
+            except Exception as e:
+                raise ParsingError(_('Value should be "minutes, months"'))
+        line_number = 1
+        try:
+            (name, value) = self.__read_meta_line(fp)
+            if name != 'version' or value != '2':
+                raise ParsingError(_("The first line must be Version=2"))
+            line_number += 1
+            (name, value) = __read_meta_line(fp)
+            while name:
+                if name == 'unit': self.unit = value
+                elif name == 'title': self.title = value
+                elif name == 'timezone': self.timezone = timezone
+                elif name == 'variable': self.variable = value
+                elif name == 'time_step':
+                    minutes, months = read_minutes_months(value)
+                    self.time_step.length_minutes = minutes
+                    self.time_step.length_months = months
+                elif name == 'nominal_offset':
+                    self.time_step.nominal_offset = read_minutes_months(value)
+                elif name == 'actual_offset':
+                    self.time_step.actual_offset = read_minutes_months(value)
+                elif name == 'interval_type':
+                    it = IntervalType
+                    v = value.lower()
+                    if v=='sum': self.time_step.interval_type = it.SUM
+                    elif v=='average': self.time_step.interval_type = it.AVERAGE
+                    elif v=='maximum': self.time_step.interval_type = it.MAXIMUM
+                    elif v=='minimum': self.time_step.interval_type = it.MINIMUM
+                    elif v=='vector_average': self.time_step.interval_type = it.VECTOR_AVERAGE
+                    elif v=='': self.time_step.interval_type = None
+                    else: raise ParsingError(_("Invalid interval type"))
+                elif name == 'precision':
+                    try: self.precision = int(value)
+                    except TypeError as e: raise ParsingError(e.args)
+                elif name == 'comment':
+                    if self.comment: self.comment += '\n'
+                    self.comment += value
+                elif name == 'count': pass
+                line_number += 1
+                (name, value) = __read_meta_line(fp)
+                if not name and not value: return line_number+1
+        except ParsingError as e:
+            e.args = e.args + (line_count,)
+            raise
+    def read_file(self, fp):
+        line_number = self.__read_meta(fp)
+        self.read(fp, line_number=line_number)
+    def write_file(self, fp):
+        fp.write("Version=2\r\n")
+        fp.write("Unit=%s\r\n" % (self.unit,))
+        fp.write("Count=%d\r\n" % (len(self),))
+        fp.write("Title=%d\r\n" % (self.title,))
+        for line in self.comment.splitlines:
+            fp.write("Comment=%s\r\n" % (line,))
+        fp.write("Timezone=%d\r\n" % (self.timezone,))
+        if self.time_step.length_minutes or self.time_step.length_months:
+            fp.write("Time_step=%d,%d\r\n" % (self.time_step.length_minutes,
+                                              self.time_step.length_months))
+            if self.time_step.nominal_offset:
+                fp.write("Nominal_offset=%d,%d\r\n" %
+                                                self.time_step.nominal_offset)
+            fp.write("Actual_offset=%d,%d\r\n" % self.time_step.actual_offset)
+        if self.time_step.interval_type:
+            fp.write("Interval_type=%s\r\n" % ({
+                IntervalType.SUM: "sum", IntervalType.AVERAGE: "average",
+                IntervalType.MAXIMUM: "maximum", IntervalType.MINIMUM: "minimum",
+                IntervalType.VECTOR_AVERAGE: "vector_average" },))
+        fp.write("Variable=%d\r\n" % (self.variable,))
+        if self.precision is not None:
+            fp.write("Precision=%d\r\n" % (self.precision,))
+
+        fp.write("\r\n")
+        self.write(fp)
     def read_from_db(self, db):
         c = db.cursor()
         c.execute("""SELECT top, middle, bottom FROM ts_records
