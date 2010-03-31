@@ -184,8 +184,8 @@ class Timeseries(dict):
     MAX_ALL_BOTTOM=40
     ROWS_IN_TOP_BOTTOM=5
 
-    def __init__(self, id=0, time_step=None, unit='', title='', timezone='',
-        variable='', precision=None, comment=''):
+    def __init__(self, id=0, time_step=None, unit=u'', title=u'', timezone=u'',
+        variable=u'', precision=None, comment=u''):
         self.id = id
         if time_step:
             self.time_step = time_step
@@ -232,13 +232,13 @@ class Timeseries(dict):
             if end and key>end: return
             if fpconst.isNaN(self[key]): value = ''
             elif self.precision is None:
-                value = strip_trailing_zeros('%.5f' % self[key])
+                value = strip_trailing_zeros(u'%.5f' % self[key])
             else:
                 p = self.precision
                 if p<0: p = 0
-                fmtstring = '%%.%df' % (p,)
+                fmtstring = u'%%.%df' % (p,)
                 value = fmtstring % self[key]
-            fp.write('%s,%s,%s\r\n' % (isoformat_nosecs(key, ' '), value,
+            fp.write(u'%s,%s,%s\r\n' % (isoformat_nosecs(key, ' '), value,
                                      ' '.join(self[key].flags)))
     def delete_from_db(self, db):
         c = db.cursor()
@@ -252,10 +252,10 @@ class Timeseries(dict):
         blank. Raises ParsingError if next line in fp is not a valid header
         line."""
         line = fp.readline()
-        (name, value) = ''
+        (name, value) = '', ''
         if line.isspace(): return (name, value)
         if line.find('=') > 0:
-            (name, value) = line.split('=', maxsplit=1)
+            (name, value) = line.split('=', 1)
             name = name.rstrip().lower()
             value = value.strip()
         for c in name:
@@ -283,11 +283,11 @@ class Timeseries(dict):
             if name != 'version' or value != '2':
                 raise ParsingError(_("The first line must be Version=2"))
             line_number += 1
-            (name, value) = __read_meta_line(fp)
+            (name, value) = self.__read_meta_line(fp)
             while name:
                 if name == 'unit': self.unit = value
                 elif name == 'title': self.title = value
-                elif name == 'timezone': self.timezone = timezone
+                elif name == 'timezone': self.timezone = value
                 elif name == 'variable': self.variable = value
                 elif name == 'time_step':
                     minutes, months = read_minutes_months(value)
@@ -315,7 +315,7 @@ class Timeseries(dict):
                     self.comment += value
                 elif name == 'count': pass
                 line_number += 1
-                (name, value) = __read_meta_line(fp)
+                (name, value) = self.__read_meta_line(fp)
                 if not name and not value: return line_number+1
         except ParsingError as e:
             e.args = e.args + (line_count,)
@@ -324,28 +324,28 @@ class Timeseries(dict):
         line_number = self.__read_meta(fp)
         self.read(fp, line_number=line_number)
     def write_file(self, fp):
-        fp.write("Version=2\r\n")
-        fp.write("Unit=%s\r\n" % (self.unit,))
-        fp.write("Count=%d\r\n" % (len(self),))
-        fp.write("Title=%s\r\n" % (self.title,))
+        fp.write(u"Version=2\r\n")
+        fp.write(u"Unit=%s\r\n" % (self.unit,))
+        fp.write(u"Count=%d\r\n" % (len(self),))
+        fp.write(u"Title=%s\r\n" % (self.title,))
         for line in self.comment.splitlines():
-            fp.write("Comment=%s\r\n" % (line,))
-        fp.write("Timezone=%s\r\n" % (self.timezone,))
+            fp.write(u"Comment=%s\r\n" % (line,))
+        fp.write(u"Timezone=%s\r\n" % (self.timezone,))
         if self.time_step.length_minutes or self.time_step.length_months:
-            fp.write("Time_step=%d,%d\r\n" % (self.time_step.length_minutes,
+            fp.write(u"Time_step=%d,%d\r\n" % (self.time_step.length_minutes,
                                               self.time_step.length_months))
             if self.time_step.nominal_offset:
-                fp.write("Nominal_offset=%d,%d\r\n" %
+                fp.write(u"Nominal_offset=%d,%d\r\n" %
                                                 self.time_step.nominal_offset)
-            fp.write("Actual_offset=%d,%d\r\n" % self.time_step.actual_offset)
+            fp.write(u"Actual_offset=%d,%d\r\n" % self.time_step.actual_offset)
         if self.time_step.interval_type:
-            fp.write("Interval_type=%s\r\n" % ({
-                IntervalType.SUM: "sum", IntervalType.AVERAGE: "average",
-                IntervalType.MAXIMUM: "maximum", IntervalType.MINIMUM: "minimum",
-                IntervalType.VECTOR_AVERAGE: "vector_average" },))
-        fp.write("Variable=%s\r\n" % (self.variable,))
+            fp.write(u"Interval_type=%s\r\n" % ({
+                IntervalType.SUM: u"sum", IntervalType.AVERAGE: u"average",
+                IntervalType.MAXIMUM: u"maximum", IntervalType.MINIMUM: u"minimum",
+                IntervalType.VECTOR_AVERAGE: u"vector_average" },))
+        fp.write(u"Variable=%s\r\n" % (self.variable,))
         if self.precision is not None:
-            fp.write("Precision=%d\r\n" % (self.precision,))
+            fp.write(u"Precision=%d\r\n" % (self.precision,))
 
         fp.write("\r\n")
         self.write(fp)

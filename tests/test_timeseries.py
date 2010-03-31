@@ -23,7 +23,7 @@ import types
 import sys
 import textwrap
 from datetime import datetime
-from cStringIO import StringIO
+from StringIO import StringIO
 
 big_test_timeseries = textwrap.dedent("""\
             2003-07-18 18:53,93,\r
@@ -98,7 +98,7 @@ tenmin_test_timeseries = textwrap.dedent("""\
             2008-02-07 10:40,10.93,
             2008-02-07 10:50,11.10,
             2008-02-07 11:00,11.23,
-            2008-02-07 11:10,11.45,
+            2008-02-07 11:10,11.44,
             2008-02-07 11:20,11.41,
             2008-02-07 11:30,11.42,
             2008-02-07 11:40,11.54,
@@ -107,13 +107,13 @@ tenmin_test_timeseries = textwrap.dedent("""\
             2008-02-07 12:10,11.91,
             2008-02-07 12:20,12.16,
             2008-02-07 12:30,12.16,
-            2008-02-07 12:40,12.25,
+            2008-02-07 12:40,12.24,
             2008-02-07 12:50,12.13,
             2008-02-07 13:00,12.17,
             2008-02-07 13:10,12.31,
             """)
 
-tenmin_test_timeseries_file = textwrap.dedent("""\
+tenmin_test_timeseries_file = textwrap.dedent(u"""\
             Version=2\r
             Unit=°C\r
             Count=22\r
@@ -157,22 +157,22 @@ tenmin_test_timeseries_file = textwrap.dedent("""\
 aggregated_hourly_sum = textwrap.dedent("""\
             2008-02-07 10:00,31.25,MISS\r
             2008-02-07 11:00,65.47,\r
-            2008-02-07 12:00,69.3,\r
-            2008-02-07 13:00,72.78,\r
+            2008-02-07 12:00,69.29,\r
+            2008-02-07 13:00,72.77,\r
             """)
 
 aggregated_hourly_average = textwrap.dedent("""\
             2008-02-07 10:00,10.4166666666667,MISS\r
             2008-02-07 11:00,10.911666667,\r
-            2008-02-07 12:00,11.55,\r
-            2008-02-07 13:00,12.13,\r
+            2008-02-07 12:00,11.548333333,\r
+            2008-02-07 13:00,12.128333333,\r
             """)
 
 aggregated_hourly_max = textwrap.dedent("""\
             2008-02-07 10:00,10.51,MISS\r
             2008-02-07 11:00,11.23,\r
             2008-02-07 12:00,11.8,\r
-            2008-02-07 13:00,12.25,\r
+            2008-02-07 13:00,12.24,\r
             """)
 
 aggregated_hourly_min = textwrap.dedent("""\
@@ -413,17 +413,40 @@ class _Test_Timeseries_file(unittest.TestCase):
     def setUp(self):
         self.reference_ts = Timeseries(
             time_step=TimeStep(length_minutes=10, length_months=0),
-            unit='°C', title="A test 10-min time series", precision=1,
-            timezone="EET (UTC+0200)", variable="temperature",
-            comment="This timeseries is extremely important\n" 
-                + "because the comment that describes it\n"
-                + "spans five lines.\n\n"
-                + "These five lines form two paragraphs.")
+            unit=u'°C', title=u"A test 10-min time series", precision=1,
+            timezone=u"EET (UTC+0200)", variable=u"temperature",
+            comment=u"This timeseries is extremely important\n" 
+                + u"because the comment that describes it\n"
+                + u"spans five lines.\n\n"
+                + u"These five lines form two paragraphs.")
         self.reference_ts.read(StringIO(tenmin_test_timeseries))
     def test_write_file(self):
         outstring = StringIO()
         self.reference_ts.write_file(outstring)
         self.assertEqual(outstring.getvalue(), tenmin_test_timeseries_file)
+    def test_read_file(self):
+        instring = StringIO(tenmin_test_timeseries_file)
+        ts = Timeseries()
+        ts.read_file(instring)
+        self.assertEqual(ts.time_step.length_minutes,
+                                self.reference_ts.time_step.length_minutes)
+        self.assertEqual(ts.time_step.length_months,
+                                self.reference_ts.time_step.length_months)
+        self.assertEqual(ts.time_step.nominal_offset,
+                                self.reference_ts.time_step.nominal_offset)
+        self.assertEqual(ts.time_step.actual_offset,
+                                self.reference_ts.time_step.actual_offset)
+        self.assertEqual(ts.time_step.interval_type,
+                                self.reference_ts.time_step.interval_type)
+        self.assertEqual(ts.unit, self.reference_ts.unit)
+        self.assertEqual(ts.title, self.reference_ts.title)
+        self.assertEqual(ts.precision, self.reference_ts.precision)
+        self.assertEqual(ts.timezone, self.reference_ts.timezone)
+        self.assertEqual(ts.variable, self.reference_ts.variable)
+        self.assertEqual(ts.comment, self.reference_ts.comment)
+        self.assertEqual(len(ts), len(self.reference_ts))
+        for d in self.reference_ts:
+            self.assertAlmostEqual(ts[d], self.reference_ts[d], 1)
     
 class _Test_Timeseries_read(unittest.TestCase):
     # This test trusts Timeseries.write, so it must be independently tested.
