@@ -215,7 +215,9 @@ class Timeseries(dict):
             return dict.__getitem__(self, datetime_from_iso(key))
     def read(self, fp, line_number=1):
         try:
-            for line in fp:
+            for index,line in enumerate(fp):
+                if index < line_number:
+                    continue
                 (isodate, value, flags) = line.strip().split(',')
                 flags = flags.split()
                 if not value: value = fpconst.NaN
@@ -263,7 +265,7 @@ class Timeseries(dict):
                 name = ''
                 break
         if not name:
-            raise ParsingError(_("Invalid file header line"))
+            raise ParsingError(("Invalid file header line"))
         return (name, value)
     def __read_meta(self, fp):
         """Read the headers of a file in file format into the instance
@@ -276,12 +278,12 @@ class Timeseries(dict):
                 (minutes, months) = [int(x.strip()) for x in s.split(',')]
                 return minutes, months
             except Exception as e:
-                raise ParsingError(_('Value should be "minutes, months"'))
+                raise ParsingError(('Value should be "minutes, months"'))
         line_number = 1
         try:
             (name, value) = self.__read_meta_line(fp)
             if name != 'version' or value != '2':
-                raise ParsingError(_("The first line must be Version=2"))
+                raise ParsingError(("The first line must be Version=2"))
             line_number += 1
             (name, value) = self.__read_meta_line(fp)
             while name:
@@ -306,7 +308,7 @@ class Timeseries(dict):
                     elif v=='minimum': self.time_step.interval_type = it.MINIMUM
                     elif v=='vector_average': self.time_step.interval_type = it.VECTOR_AVERAGE
                     elif v=='': self.time_step.interval_type = None
-                    else: raise ParsingError(_("Invalid interval type"))
+                    else: raise ParsingError(("Invalid interval type"))
                 elif name == 'precision':
                     try: self.precision = int(value)
                     except TypeError as e: raise ParsingError(e.args)
@@ -318,7 +320,7 @@ class Timeseries(dict):
                 (name, value) = self.__read_meta_line(fp)
                 if not name and not value: return line_number+1
         except ParsingError as e:
-            e.args = e.args + (line_count,)
+            e.args = e.args + (line_number,)
             raise
     def read_file(self, fp):
         line_number = self.__read_meta(fp)
@@ -337,7 +339,8 @@ class Timeseries(dict):
             if self.time_step.nominal_offset:
                 fp.write(u"Nominal_offset=%d,%d\r\n" %
                                                 self.time_step.nominal_offset)
-            fp.write(u"Actual_offset=%d,%d\r\n" % self.time_step.actual_offset)
+            if self.time_step.actual_offset:
+                fp.write(u"Actual_offset=%d,%d\r\n" % self.time_step.actual_offset)
         if self.time_step.interval_type:
             fp.write(u"Interval_type=%s\r\n" % ({
                 IntervalType.SUM: u"sum", IntervalType.AVERAGE: u"average",
