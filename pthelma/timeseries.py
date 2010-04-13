@@ -343,12 +343,12 @@ class Timeseries(dict):
         if self.time_step.length_minutes or self.time_step.length_months:
             fp.write(u"Time_step=%d,%d\r\n" % (self.time_step.length_minutes,
                                               self.time_step.length_months))
-            if not self.time_step.nominal_offset == (None,None):
+            if self.time_step.nominal_offset:
                 fp.write(u"Nominal_offset=%d,%d\r\n" %
                                                 self.time_step.nominal_offset)
-            if not self.time_step.actual_offset == (None,None):
-                fp.write(u"Actual_offset=%d,%d\r\n" %
-                                                self.time_step.actual_offset)
+
+            fp.write(u"Actual_offset=%d,%d\r\n" %
+                                            self.time_step.actual_offset)
         if self.time_step.interval_type:
             fp.write(u"Interval_type=%s\r\n" % ({
                 IntervalType.SUM: u"sum", IntervalType.AVERAGE: u"average",
