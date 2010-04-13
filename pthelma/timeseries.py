@@ -314,7 +314,7 @@ class Timeseries(dict):
                     except TypeError as e: raise ParsingError(e.args)
                 elif name == 'comment':
                     if self.comment: self.comment += '\n'
-                    self.comment += value
+                    self.comment += value.decode('utf-8')
                 elif name == 'count': pass
                 line_number += 1
                 (name, value) = self.__read_meta_line(fp)
@@ -336,11 +336,12 @@ class Timeseries(dict):
         if self.time_step.length_minutes or self.time_step.length_months:
             fp.write(u"Time_step=%d,%d\r\n" % (self.time_step.length_minutes,
                                               self.time_step.length_months))
-            if self.time_step.nominal_offset:
+            if not self.time_step.nominal_offset == (None,None):
                 fp.write(u"Nominal_offset=%d,%d\r\n" %
                                                 self.time_step.nominal_offset)
-            if self.time_step.actual_offset:
-                fp.write(u"Actual_offset=%d,%d\r\n" % self.time_step.actual_offset)
+            if not self.time_step.actual_offset == (None,None):
+                fp.write(u"Actual_offset=%d,%d\r\n" %
+                                                self.time_step.actual_offset)
         if self.time_step.interval_type:
             fp.write(u"Interval_type=%s\r\n" % ({
                 IntervalType.SUM: u"sum", IntervalType.AVERAGE: u"average",
