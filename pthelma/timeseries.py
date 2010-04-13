@@ -55,14 +55,20 @@ class IntervalType:
     VECTOR_AVERAGE = 5
 
 class TimeStep:
-    def __init__(self, length_minutes=0, length_months=0, nominal_offset=(0,0),
-        actual_offset=(0,0), interval_type=None):
+    def __init__(self, length_minutes=0, length_months=0, interval_type=None,
+                            nominal_offset=None, actual_offset=(0,0)):
         self.length_minutes = length_minutes
         self.length_months = length_months
         self.nominal_offset = nominal_offset
         self.actual_offset = actual_offset
         self.interval_type = interval_type
+    def _check_nominal_offset(self):
+        """Called whenever an operation requires a nominal offset; verifies
+        that the nominal offset is not None, otherwise raises exception."""
+        if self.nominal_offset: return
+        raise ValueError("This operation requires a nominal offset")
     def up(self, timestamp):
+        self._check_nominal_offset()
         if self.length_minutes:
             required_modulo = self.nominal_offset[0]
             if required_modulo < 0: required_modulo += self.length_minutes
@@ -89,6 +95,7 @@ class TimeStep:
             return result
 
     def down(self, timestamp):
+        self._check_nominal_offset()
         if self.length_minutes:
             required_modulo = self.nominal_offset[0]
             if required_modulo < 0: required_modulo += self.length_minutes

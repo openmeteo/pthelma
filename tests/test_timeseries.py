@@ -412,7 +412,8 @@ class _Test_Timeseries_write_nonempty(unittest.TestCase):
 class _Test_Timeseries_file(unittest.TestCase):
     def setUp(self):
         self.reference_ts = Timeseries(
-            time_step=TimeStep(length_minutes=10, length_months=0),
+            time_step=TimeStep(length_minutes=10, length_months=0,
+                                                    nominal_offset=(0,0)),
             unit=u'°C', title=u"A test 10-min time series", precision=1,
             timezone=u"EET (UTC+0200)", variable=u"temperature",
             comment=u"This timeseries is extremely important\n" 
@@ -696,10 +697,12 @@ class _Test_Timeseries_min_max_avg(unittest.TestCase):
 
 class _Test_Timeseries_aggregate(unittest.TestCase):
     def setUp(self):
-        self.ts = Timeseries(time_step=TimeStep(length_minutes=10))
+        self.ts = Timeseries(time_step=TimeStep(length_minutes=10,
+            nominal_offset=(0,0)))
         self.ts.read(StringIO(tenmin_test_timeseries))
     def test_aggregate_hourly_sum(self):
-        target_step = TimeStep(length_minutes=60, interval_type=IntervalType.SUM)
+        target_step = TimeStep(length_minutes=60, nominal_offset=(0,0),
+                                        interval_type=IntervalType.SUM)
         result, missing = self.ts.aggregate(target_step, missing_allowed=3,
             missing_flag="MISS")
         out = StringIO()
@@ -709,7 +712,7 @@ class _Test_Timeseries_aggregate(unittest.TestCase):
         missing.write(out)
         self.assertEqual(out.getvalue(),aggregated_hourly_missing)
     def test_aggregate_hourly_average(self):
-        target_step = TimeStep(length_minutes=60,
+        target_step = TimeStep(length_minutes=60, nominal_offset=(0,0),
                                     interval_type=IntervalType.AVERAGE)
         result, missing = self.ts.aggregate(target_step, missing_allowed=3,
             missing_flag="MISS")
@@ -722,7 +725,7 @@ class _Test_Timeseries_aggregate(unittest.TestCase):
         missing.write(out)
         self.assertEqual(out.getvalue(),aggregated_hourly_missing)
     def test_aggregate_hourly_max(self):
-        target_step = TimeStep(length_minutes=60,
+        target_step = TimeStep(length_minutes=60, nominal_offset=(0,0),
                                 interval_type=IntervalType.MAXIMUM)
         result, missing = self.ts.aggregate(target_step, missing_allowed=3,
             missing_flag="MISS")
@@ -733,7 +736,7 @@ class _Test_Timeseries_aggregate(unittest.TestCase):
         missing.write(out)
         self.assertEqual(out.getvalue(),aggregated_hourly_missing)
     def test_aggregate_hourly_min(self):
-        target_step = TimeStep(length_minutes=60,
+        target_step = TimeStep(length_minutes=60, nominal_offset=(0,0),
                                 interval_type=IntervalType.MINIMUM)
         result, missing = self.ts.aggregate(target_step, missing_allowed=3,
             missing_flag="MISS")
