@@ -220,7 +220,7 @@ class Timeseries(dict):
             return dict.__getitem__(self, key)
         else:
             return dict.__getitem__(self, datetime_from_iso(key))
-    def read(self, fp, line_number=1):
+    def read(self, fp, line_number=0):
         try:
             for index,line in enumerate(fp):
                 if index < line_number:
@@ -325,7 +325,7 @@ class Timeseries(dict):
                 elif name == 'count': pass
                 line_number += 1
                 (name, value) = self.__read_meta_line(fp)
-                if not name and not value: return line_number+1
+                if not name and not value: return line_number
         except ParsingError as e:
             e.args = e.args + (line_number,)
             raise
