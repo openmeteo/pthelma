@@ -220,11 +220,9 @@ class Timeseries(dict):
             return dict.__getitem__(self, key)
         else:
             return dict.__getitem__(self, datetime_from_iso(key))
-    def read(self, fp, line_number=0):
+    def read(self, fp, line_number=1):
         try:
-            for index,line in enumerate(fp):
-                if index < line_number:
-                    continue
+            for line in fp.readlines():
                 (isodate, value, flags) = line.strip().split(',')
                 flags = flags.split()
                 if not value: value = fpconst.NaN
