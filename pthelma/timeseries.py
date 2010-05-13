@@ -556,7 +556,8 @@ class Timeseries(dict):
                     assert(False)
                 s = self.time_step.next(s)
             flag = []
-            if missing/total_components > missing_allowed/total_components+1e-5:
+            if missing/total_components > missing_allowed/total_components+1e-5 or abs(
+                                       missing-total_components) < 1e-36:
                 aggregate_value = fpconst.NaN
             else:
                 if missing/total_components > 1e-36: flag = [missing_flag]

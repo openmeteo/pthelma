@@ -113,6 +113,21 @@ tenmin_test_timeseries = textwrap.dedent("""\
             2008-02-07 13:10,12.31,
             """)
 
+tenmin_allmiss_test_timeseries = textwrap.dedent("""\
+            2005-05-01 00:10,,
+            2005-05-01 00:20,,
+            2005-05-01 00:30,,
+            2005-05-01 00:40,,
+            2005-05-01 00:50,,
+            2005-05-01 01:00,,
+            2005-05-01 01:10,,
+            2005-05-01 01:20,1,
+            2005-05-01 01:30,,
+            2005-05-01 01:40,1,
+            2005-05-01 01:50,,
+            2005-05-01 02:00,1,
+            """)
+
 tenmin_vector_test_timeseries = textwrap.dedent("""\
             2005-05-01 00:10,350,
             2005-05-01 00:20,355,
@@ -207,6 +222,10 @@ aggregated_hourly_missing = textwrap.dedent("""\
 aggregated_hourly_vector_average = textwrap.dedent("""\
             2005-05-01 01:00,0,\r
             2005-05-01 02:00,270,\r
+            """)
+
+aggregated_hourly_allmiss = textwrap.dedent("""\
+            2005-05-01 02:00,3,MISS\r
             """)
 
 aggregated_hourly_vector_missing = textwrap.dedent("""\
@@ -784,3 +803,17 @@ class _Test_Timeseries_vector_aggregate(unittest.TestCase):
         out = StringIO()
         result.write(out)
         self.assertEqual(out.getvalue(),aggregated_hourly_vector_average)
+
+class _Test_Timeseries_allmiss_aggregate(unittest.TestCase):
+    def setUp(self):
+        self.ts = Timeseries(time_step=TimeStep(length_minutes=10,
+            nominal_offset=(0,0)))
+        self.ts.read(StringIO(tenmin_allmiss_test_timeseries))
+    def test_aggregate_hourly_allmiss(self):
+        target_step = TimeStep(length_minutes=60, nominal_offset=(0,0),
+                                interval_type=IntervalType.SUM)
+        result = (self.ts.aggregate(target_step, missing_allowed=6,
+                                missing_flag="MISS"))[0]
+        out = StringIO()
+        result.write(out)
+        self.assertEqual(out.getvalue(),aggregated_hourly_allmiss)
