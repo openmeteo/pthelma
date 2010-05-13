@@ -230,7 +230,7 @@ class Timeseries(dict):
                 dict.__setitem__(self, datetime_from_iso(isodate),
                                  _Tsvalue(value, flags))
                 line_number += 1
-        except Exception as e:
+        except Exception, e:
             e.args = e.args + (line_number,)
             raise
     def write(self, fp, start=None, end=None):
@@ -282,7 +282,7 @@ class Timeseries(dict):
             try:
                 (minutes, months) = [int(x.strip()) for x in s.split(',')]
                 return minutes, months
-            except Exception as e:
+            except Exception, e:
                 raise ParsingError(('Value should be "minutes, months"'))
         line_number = 1
         try:
@@ -316,7 +316,7 @@ class Timeseries(dict):
                     else: raise ParsingError(("Invalid interval type"))
                 elif name == 'precision':
                     try: self.precision = int(value)
-                    except TypeError as e: raise ParsingError(e.args)
+                    except TypeError, e: raise ParsingError(e.args)
                 elif name == 'comment':
                     if self.comment: self.comment += '\n'
                     self.comment += value.decode('utf-8')
@@ -324,7 +324,7 @@ class Timeseries(dict):
                 line_number += 1
                 (name, value) = self.__read_meta_line(fp)
                 if not name and not value: return line_number
-        except ParsingError as e:
+        except ParsingError, e:
             e.args = e.args + (line_number,)
             raise
     def read_file(self, fp):
@@ -550,8 +550,8 @@ class Timeseries(dict):
                 elif it == IntervalType.MINIMUM:
                     if pct_used > 0: aggregate_value = min(aggregate_value, self[s])
                 elif it == IntervalType.VECTOR_AVERAGE:
-                    aggregate_value[0] += cos(self[s]/180*pi)*pct_used
-                    aggregate_value[1] += sin(self[s]/180*pi)*pct_used
+                    aggregate_value = (aggregate_value[0]+cos(self[s]/180*pi)*pct_used, 
+                                       aggregate_value[1]+sin(self[s]/180*pi)*pct_used)
                 else:
                     assert(False)
                 s = self.time_step.next(s)
@@ -562,7 +562,9 @@ class Timeseries(dict):
                 if missing/total_components > 1e-36: flag = [missing_flag]
                 if it == IntervalType.AVERAGE: aggregate_value /= divider
                 elif it == IntervalType.VECTOR_AVERAGE:
-                    aggregate_value = atan2(y, x)/pi*180
+                    aggregate_value = atan2(aggregate_value[1], aggregate_value[0])/pi*180
+                    while aggregate_value<0: aggregate_value+=360
+                    if abs(aggregate_value-360)<1e-7: aggregate_value=0
             return (aggregate_value, flag), missing
 
         source_start_date, source_end_date = self.bounding_dates()

@@ -113,6 +113,21 @@ tenmin_test_timeseries = textwrap.dedent("""\
             2008-02-07 13:10,12.31,
             """)
 
+tenmin_vector_test_timeseries = textwrap.dedent("""\
+            2005-05-01 00:10,350,
+            2005-05-01 00:20,355,
+            2005-05-01 00:30,358,
+            2005-05-01 00:40,2,
+            2005-05-01 00:50,10,
+            2005-05-01 01:00,5,
+            2005-05-01 01:10,272,
+            2005-05-01 01:20,268,
+            2005-05-01 01:30,275,
+            2005-05-01 01:40,265,
+            2005-05-01 01:50,264,
+            2005-05-01 02:00,276,
+            """)
+
 tenmin_test_timeseries_file = textwrap.dedent(u"""\
             Version=2\r
             Unit=°C\r
@@ -189,6 +204,15 @@ aggregated_hourly_missing = textwrap.dedent("""\
             2008-02-07 13:00,0,\r
             """)
 
+aggregated_hourly_vector_average = textwrap.dedent("""\
+            2005-05-01 01:00,0,\r
+            2005-05-01 02:00,270,\r
+            """)
+
+aggregated_hourly_vector_missing = textwrap.dedent("""\
+            2005-05-01 01:00,0,\r
+            2005-05-01 02:00,0,\r
+            """)
 
 def extract_lines(s, from_, to):
     return ''.join(s.splitlines(True)[from_:to])
@@ -746,5 +770,17 @@ class _Test_Timeseries_aggregate(unittest.TestCase):
         out.truncate(0)
         missing.write(out)
         self.assertEqual(out.getvalue(),aggregated_hourly_missing)
-    ### def test_aggregate_hourly_vector(self):
-        ### pending
+
+class _Test_Timeseries_vector_aggregate(unittest.TestCase):
+    def setUp(self):
+        self.ts = Timeseries(time_step=TimeStep(length_minutes=10,
+            nominal_offset=(0,0)))
+        self.ts.read(StringIO(tenmin_vector_test_timeseries))
+    def test_aggregate_hourly_vector(self):
+        target_step = TimeStep(length_minutes=60, nominal_offset=(0,0),
+                                interval_type=IntervalType.VECTOR_AVERAGE)
+        result = (self.ts.aggregate(target_step, missing_allowed=0,
+                                missing_flag="MISS"))[0]
+        out = StringIO()
+        result.write(out)
+        self.assertEqual(out.getvalue(),aggregated_hourly_vector_average)
