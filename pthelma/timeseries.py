@@ -143,7 +143,14 @@ class TimeStep:
         return timestamp - timedelta(minutes=self.length_minutes)
     def actual_timestamp(self, timestamp):
         m = timestamp.month + self.actual_offset[1]
-        return timestamp.replace(month=m) + \
+        y = timestamp.year
+        while m>12:
+            m -= 12
+            y += 1
+        while m<1:
+            m += 12
+            y -= 1
+        return timestamp.replace(year=y, month=m) + \
             timedelta(minutes=self.actual_offset[0])
     def containing_interval(self, timestamp):
         result = self.down(timestamp)
