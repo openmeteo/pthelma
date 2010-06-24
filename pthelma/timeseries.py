@@ -332,12 +332,15 @@ class Timeseries(dict):
         self.read(fp, line_number=line_number)
     def write_file(self, fp):
         fp.write(u"Version=2\r\n")
-        fp.write(u"Unit=%s\r\n" % (self.unit,))
+        if self.unit:
+            fp.write(u"Unit=%s\r\n" % (self.unit,))
         fp.write(u"Count=%d\r\n" % (len(self),))
-        fp.write(u"Title=%s\r\n" % (self.title,))
+        if self.title: 
+            fp.write(u"Title=%s\r\n" % (self.title,))
         for line in self.comment.splitlines():
             fp.write(u"Comment=%s\r\n" % (line,))
-        fp.write(u"Timezone=%s\r\n" % (self.timezone,))
+        if self.timezone: 
+            fp.write(u"Timezone=%s\r\n" % (self.timezone,))
         if self.time_step.length_minutes or self.time_step.length_months:
             fp.write(u"Time_step=%d,%d\r\n" % (self.time_step.length_minutes,
                                               self.time_step.length_months))
@@ -351,8 +354,10 @@ class Timeseries(dict):
             fp.write(u"Interval_type=%s\r\n" % ({
                 IntervalType.SUM: u"sum", IntervalType.AVERAGE: u"average",
                 IntervalType.MAXIMUM: u"maximum", IntervalType.MINIMUM: u"minimum",
-                IntervalType.VECTOR_AVERAGE: u"vector_average" },))
-        fp.write(u"Variable=%s\r\n" % (self.variable,))
+                IntervalType.VECTOR_AVERAGE: u"vector_average"
+                }[self.time_step.interval_type],))
+        if self.variable:
+          fp.write(u"Variable=%s\r\n" % (self.variable,))
         if self.precision is not None:
             fp.write(u"Precision=%d\r\n" % (self.precision,))
 
