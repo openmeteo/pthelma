@@ -535,6 +535,7 @@ class Timeseries(dict):
             missing = 0.0
             total_components = 0.0
             divider = 0.0
+            source_has_missing = False
             while s <= end_nominal:
                 s_start_date, s_end_date = self.time_step.interval_endpoints(s)
                 used_interval = s_end_date - s_start_date
@@ -555,6 +556,8 @@ class Timeseries(dict):
                     s = self.time_step.next(s)
                     continue
                 divider += pct_used
+                if missing_flag in self[s].flags:
+                    source_has_missing = True
                 if it in (IntervalType.SUM, IntervalType.AVERAGE):
                     aggregate_value += self.get(s,0)*pct_used
                 elif it == IntervalType.MAXIMUM:
@@ -572,7 +575,8 @@ class Timeseries(dict):
                                        missing-total_components) < 1e-36:
                 aggregate_value = fpconst.NaN
             else:
-                if missing/total_components > 1e-36: flag = [missing_flag]
+                if (missing/total_components > 1e-36) or\
+                  source_has_missing: flag = [missing_flag]
                 if it == IntervalType.AVERAGE: aggregate_value /= divider
                 elif it == IntervalType.VECTOR_AVERAGE:
                     aggregate_value = atan2(aggregate_value[1], aggregate_value[0])/pi*180
