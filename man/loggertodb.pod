@@ -8,7 +8,7 @@ loggertodb - insert automatic meteorological station data to the database
 
 =head1 DESCRIPTION
 
-B<loggertodb> reads a plain text data file, connects to the hydria database,
+B<loggertodb> reads a plain text data file, connects to the enhydris database,
 determines which records in the file are newer than those stored in the
 database, and stores them in the database. The details of its operation are
 specified in the configuration file specified on the command line.
@@ -127,6 +127,11 @@ The B<pc208w> format is comma-delimited items in the following order:
 subset identifier, logger id (ignored), year, day of year, time in
 HHmm, measurements.
 
+=head2 zeno
+
+The B<zeno> format is space-delimited items in the following order:
+date in yy/mm/dd format, time in HH:mm format, measurements.
+
 =head1 OPERATION DETAILS
 
 B<loggertodb> connects to the server and gets the end date for each
@@ -141,20 +146,20 @@ B<datafilefields>.
 
 B<loggertodb> was written by Antonis Christofides,
 L<anthony@itia.ntua.gr>.  It is derived from B<autoupdate>, also
-written by Antonis Christofides, for the openmeteo.org database.
+written by Antonis Christofides, for the old openmeteo.org database.
 B<loggertodb> is essentially B<autoupdate> adapted to the hydria
-database for the Odysseus project.  This version of B<loggertodb> has
-nothing to do with versions prior to 1.0.0, which were completely
-different, in a different programming language (Perl rather than
-Python), and not based on B<autoupdate>.
+database for the Odysseus project, and later to the enhydris database.
+This version of B<loggertodb> has nothing to do with versions prior to
+1.0.0, which were completely different, in a different programming
+language (Perl rather than Python), and not based on B<autoupdate>.
 
-Copyright (C) 2005-2009 National Technical University of Athens
+Copyright (C) 2005-2010 National Technical University of Athens
 
 Copyright (C) 2004 Antonios Christofides.
 
 B<loggertodb> is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or (at
+the Free Software Foundation; either version 3 of the License, or (at
 your option) any later version.
 
 This program is distributed in the hope that it will be useful, but
