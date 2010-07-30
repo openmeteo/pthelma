@@ -46,8 +46,6 @@ dsn = ' '.join(["%s='%s'" % (x, config.get('General', x))
                 for x in ('host', 'dbname', 'user', 'password')])
 db = psycopg2.connect(dsn)
 c = db.cursor()
-try: c.execute("SET search_path TO hydro,public")
-finally: c.close()
 logger.info('Starting loggertodb, %s' % (datetime.today().isoformat()))
 try:
     sections = config.sections()[:]
