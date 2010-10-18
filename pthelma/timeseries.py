@@ -30,11 +30,27 @@ from ConfigParser import ParsingError
 import psycopg2
 import fpconst
 
+from ctypes import CDLL, c_int, c_longlong, c_double,\
+                   c_char_p, byref, Structure, create_string_buffer,\
+                   c_char_p
+
+class T_REC(Structure):
+    _fields_ = [("timestamp", c_longlong),
+                ("null", c_int),
+                ("value", c_double),
+                ("flags", c_char_p)]
+
+ts_core = CDLL('libts_core.so.0.1')
+
+ts_core.get_item.restype = T_REC
+
+
+re_compiled = re.compile(r'''^(\d{4})-(\d{1,2})-(\d{1,2})
+             (?: [ tT] (\d{1,2}):(\d{1,2}) )?''',
+              re.VERBOSE)
 
 def datetime_from_iso(isostring):
-    m = re.match(r'''^(\d{4})-(\d{1,2})-(\d{1,2})
-                     (?: [ tT] (\d{1,2}):(\d{1,2}) )?''',
-                 isostring, re.VERBOSE)
+    m = re_compiled.match(isostring)
     if m==None:
         raise ValueError('%s is not a valid date and time' % (isostring))
     args = []
@@ -42,7 +58,6 @@ def datetime_from_iso(isostring):
         if not (x is None):
             args.append(int(x))
     return datetime(*args)
-
 
 def isoformat_nosecs(adatetime, sep='T'):
     return adatetime.isoformat(sep)[:16]
@@ -198,6 +213,8 @@ class Timeseries(dict):
     MAX_ALL_BOTTOM=40
     ROWS_IN_TOP_BOTTOM=5
 
+    DT_BASE = datetime(1970,1,1,0,0)
+
     def __init__(self, id=0, time_step=None, unit=u'', title=u'', timezone=u'',
         variable=u'', precision=None, comment=u''):
         self.id = id
@@ -211,49 +228,153 @@ class Timeseries(dict):
         self.variable = variable
         self.precision = precision
         self.comment = comment
-    def __setitem__(self, key, value):
+        self.ts_handle = ts_core.ts_create()
+    def _key_to_timegm(self, key):
         if not isinstance(key, datetime):
             key = datetime_from_iso(key)
+        d = key - self.DT_BASE
+        return c_longlong(d.days*86400L+d.seconds)
+    def _timegm_to_date(self, timegm):
+        return self.DT_BASE+\
+               timedelta(timegm/86400L,timegm%86400L)
+    def __del__(self):
+        ts_core.ts_free(self.ts_handle)
+    def __len__(self):
+        return ts_core.ts_length(self.ts_handle)
+    def __delitem__(self, key):
+        index_c = ts_core.index_of(self.ts_handle,\
+             self._key_to_timegm(key))
+        if index_c<0:
+            raise KeyError('No such record: '+\
+                (isoformat_nosecs(key,' ') if isinstance(key,
+                     datetime) else key))
+        ts_core.delete_item(self.ts_handle, index_c)
+    def __contains__(self, key):
+        index_c = ts_core.index_of(self.ts_handle,\
+             self._key_to_timegm(key))
+        if index_c<0:
+            return False
+        else:
+            return True
+    def __setitem__(self, key, value):
+        timestamp_c = self._key_to_timegm(key)
+        index_c = ts_core.index_of(self.ts_handle, timestamp_c)
+        oldflahgs=''
+        if index_c>=0:
+            arec = ts_core.get_item(self.ts_handle, index_c)
+            oldflags = arec.flags
         if isinstance(value, _Tsvalue):
-            dict.__setitem__(self, key, value)
+            tsvalue = value
         elif isinstance(value, tuple):
-            dict.__setitem__(self, key, _Tsvalue(value[0], value[1]))
-        elif self.has_key(key):
-            dict.__setitem__(self, key, _Tsvalue(value, self[key].flags))
+            tsvalue = _Tsvalue(value[0], value[1])
+        elif index_c>=0:
+            tsvalue = _Tsvalue(value, self[key].flags)
         else:
-            dict.__setitem__(self, key, _Tsvalue(value))
+            tsvalue = _Tsvalue(value, [])
+        if fpconst.isNaN(tsvalue):
+            null_c=1
+            value_c = c_double(0)
+        else:
+            null_c=0
+            value_c = c_double(tsvalue)
+        flags_c = c_char_p(' '.join(tsvalue.flags))
+        err_no_c = c_int()
+        err_str_c = create_string_buffer(256)
+        if index_c<0:
+            index_c = c_int()
+            err_no_c = ts_core.insert_record(self.ts_handle, timestamp_c, null_c,\
+                      value_c, flags_c, byref(index_c), err_str_c)
+        else:
+            err_no_c = ts_core.set_item(self.ts_handle, index_c, null_c,\
+                      value_c, flags_c, err_str_c)
+        if err_no_c!=0:
+            raise Exception('Something wrong occured in ts_core '
+                            'function when setting a time series value')
     def __getitem__(self, key):
-        if isinstance(key, datetime):
-            return dict.__getitem__(self, key)
+        timestamp_c = self._key_to_timegm(key)
+        index_c = ts_core.index_of(self.ts_handle, timestamp_c)
+        if index_c<0:
+            raise KeyError('No such record: '+\
+                (isoformat_nosecs(key,' ') if isinstance(key,
+                     datetime) else key))
+        arec = ts_core.get_item(self.ts_handle, index_c)
+        if arec.null==1:
+            value = fpconst.NaN
         else:
-            return dict.__getitem__(self, datetime_from_iso(key))
+            value = arec.value
+        flags = arec.flags
+        flags = flags.split()
+        return _Tsvalue(value, flags)
+    def get(self, key, default=None):
+        if self.__contains__(key):
+            return self.__getitem__(key)
+        else:
+            return default
+    def keys(self):
+        a = []
+        i = 0
+        while i<ts_core.ts_length(self.ts_handle):
+            rec = ts_core.get_item(self.ts_handle, c_int(i))
+            a.append(self._timegm_to_date(rec.timestamp))
+            i+=1
+        return a
+    def iterkeys(self):
+        i = 0
+        while i<ts_core.ts_length(self.ts_handle):
+            rec = ts_core.get_item(self.ts_handle, c_int(i))
+            yield self._timegm_to_date(rec.timestamp)
+            i+=1
+    __iter__ = iterkeys
+    def clear(self):
+        i = ts_core.ts_length(self.ts_handle)
+        while i>=0:
+            ts_core.delete_item(self.ts_handle, i)
+            i-=1
     def read(self, fp, line_number=1):
+        err_str_c = create_string_buffer('\000'*256)
         try:
             for line in fp.readlines():
-                (isodate, value, flags) = line.strip().split(',')
-                flags = flags.split()
-                if not value: value = fpconst.NaN
-                else: value = float(value)
-                dict.__setitem__(self, datetime_from_iso(isodate),
-                                 _Tsvalue(value, flags))
+                if ts_core.ts_readline(c_char_p(line), self.ts_handle,
+                        err_str_c):
+                    raise Exception(repr(err_str_c.value))
                 line_number += 1
         except Exception, e:
             e.args = e.args + (line_number,)
             raise
     def write(self, fp, start=None, end=None):
-        for key in sorted(self.keys()):
-            if start and key<start: continue
-            if end and key>end: return
-            if fpconst.isNaN(self[key]): value = ''
-            elif self.precision is None:
-                value = strip_trailing_zeros(u'%.5f' % self[key])
+# create a buffer for buffered output to fp
+        buff=[]
+        for i in xrange(0,1000):
+            buff.append(u'')
+        i = 0
+        i_start=0
+        p = self.precision
+        if p is not None:
+            if p<0: p = 0
+            fmtstring = u'%%.%df' % (p,)
+        while i<ts_core.ts_length(self.ts_handle):
+            rec = ts_core.get_item(self.ts_handle, c_int(i))
+            adate = self._timegm_to_date(rec.timestamp)
+            if start and adate<start: 
+                i+=1
+                i_start=i
+                continue
+            if end and adate>end: break 
+            avalue = rec.value
+            anull = rec.null
+            aflags = rec.flags
+            if anull==1:
+                value = ''
+            elif p is None:
+                value = strip_trailing_zeros(u'%.5f' % avalue)
             else:
-                p = self.precision
-                if p<0: p = 0
-                fmtstring = u'%%.%df' % (p,)
-                value = fmtstring % self[key]
-            fp.write(u'%s,%s,%s\r\n' % (isoformat_nosecs(key, ' '), value,
-                                     ' '.join(self[key].flags)))
+                value = fmtstring % avalue
+            buff[(i-i_start)%1000] = (u'%s,%s,%s\r\n' % (isoformat_nosecs(adate, ' '), value,
+                                     aflags))
+            i+=1 
+            if ((i-i_start)%1000)==0:
+                fp.write(''.join(buff))
+        fp.write(''.join(buff[0:(i-i_start)%1000]))
     def delete_from_db(self, db):
         c = db.cursor()
         c.execute("""DELETE FROM ts_records
@@ -448,29 +569,46 @@ class Timeseries(dict):
                 +"time series to append has a date earlier than the last "
                 +"record (%s) of the timeseries to append to.")
                 % (str(min(b.keys())), str(max(self.keys()))))
-        self.update(b)
+        err_str_c = create_string_buffer('\000'*256)
+        if ts_core.merge(self.ts_handle, b.ts_handle, err_str_c)!=0:
+            raise Exception('#@$%#$^')
     def bounding_dates(self):
-        if len(self): return self.items()[0][0], self.items()[-1][0]
-        return None
+        if len(self):
+            rec1 = ts_core.get_item(self.ts_handle, c_int(0))
+            rec2 = ts_core.get_item(self.ts_handle, c_int(len(self)-1))
+            return self._timegm_to_date(rec1.timestamp),\
+                   self._timegm_to_date(rec2.timestamp)
+        else:
+            return None
     def items(self):
-        return sorted(dict.items(self), key = lambda x: x[0])
+        a = []
+        i = 0
+        while i<ts_core.ts_length(self.ts_handle):
+            rec = ts_core.get_item(self.ts_handle, c_int(i))
+            a.append((self._timegm_to_date(rec.timestamp),
+                     _Tsvalue(fpconst.NaN if rec.null else rec.value,
+                              rec.flags.split())))
+            i+=1
+        return a
     def index(self, date, downwards=False):
-        if not date is datetime: date = datetime_from_iso(date)
-        from bisect import bisect_left
-        items = self.items()
-        dates, values = [x[0] for x in items], [x[1] for x in items]
-        pos = bisect_left(dates, date)
-        if pos>=0 and pos<len(items) and items[pos][0]==date: return pos
-        if downwards: pos -= 1
+        timestamp_c = self._key_to_timegm(date)
+        if not downwards:
+            pos = ts_core.get_next(self.ts_handle, timestamp_c)
+        else:
+            pos = ts_core.get_prev(self.ts_handle, timestamp_c)
         if pos<0:
-            raise IndexError("There is no item in the timeseries on or before "
+            if downwards:
+                raise IndexError("There is no item in the timeseries on or before "
                                             +str(date))
-        if pos>=len(self):
-            raise IndexError("There is no item in the timeseries on or after "
+            else:
+                raise IndexError("There is no item in the timeseries on or after "
                                             +str(date))
         return pos
     def item(self, date, downwards=False):
-        return self.items()[self.index(date, downwards)]
+        rec = ts_core.get_item(self.ts_handle, c_int(self.index(date, downwards)))
+        return (self._timegm_to_date(rec.timestamp), 
+            _Tsvalue(fpconst.NaN if rec.null else rec.value,
+                     rec.flags.split()))
     def _get_bounding_indexes(self, start_date, end_date):
         """Return a tuple, (start_index, end_index).  If arguments are None,
         the respective bounding date is considered. The results are the start
