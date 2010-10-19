@@ -31,8 +31,7 @@ import psycopg2
 import fpconst
 
 from ctypes import CDLL, c_int, c_longlong, c_double,\
-                   c_char_p, byref, Structure, create_string_buffer,\
-                   c_char_p
+                   c_char_p, byref, Structure, create_string_buffer
 
 class T_REC(Structure):
     _fields_ = [("timestamp", c_longlong),
@@ -43,7 +42,6 @@ class T_REC(Structure):
 ts_core = CDLL('libts_core.so.0.1')
 
 ts_core.get_item.restype = T_REC
-
 
 re_compiled = re.compile(r'''^(\d{4})-(\d{1,2})-(\d{1,2})
              (?: [ tT] (\d{1,2}):(\d{1,2}) )?''',
@@ -229,6 +227,8 @@ class Timeseries(dict):
         self.precision = precision
         self.comment = comment
         self.ts_handle = ts_core.ts_create()
+#Keep library handle to succesfully free time series when needed
+        self.saved_ts_core = ts_core
     def _key_to_timegm(self, key):
         if not isinstance(key, datetime):
             key = datetime_from_iso(key)
@@ -238,7 +238,7 @@ class Timeseries(dict):
         return self.DT_BASE+\
                timedelta(timegm/86400L,timegm%86400L)
     def __del__(self):
-        ts_core.ts_free(self.ts_handle)
+        self.saved_ts_core.ts_free(self.ts_handle)
     def __len__(self):
         return ts_core.ts_length(self.ts_handle)
     def __delitem__(self, key):
@@ -279,17 +279,18 @@ class Timeseries(dict):
             value_c = c_double(tsvalue)
         flags_c = c_char_p(' '.join(tsvalue.flags))
         err_no_c = c_int()
-        err_str_c = create_string_buffer(256)
+        err_str_c = c_char_p()
         if index_c<0:
             index_c = c_int()
             err_no_c = ts_core.insert_record(self.ts_handle, timestamp_c, null_c,\
-                      value_c, flags_c, byref(index_c), err_str_c)
+                      value_c, flags_c, byref(index_c), byref(err_str_c))
         else:
             err_no_c = ts_core.set_item(self.ts_handle, index_c, null_c,\
-                      value_c, flags_c, err_str_c)
+                      value_c, flags_c, byref(err_str_c))
         if err_no_c!=0:
             raise Exception('Something wrong occured in ts_core '
-                            'function when setting a time series value')
+                            'function when setting a time series value. '+
+                            'Error message: '+repr(err_str_c.value))
     def __getitem__(self, key):
         timestamp_c = self._key_to_timegm(key)
         index_c = ts_core.index_of(self.ts_handle, timestamp_c)
@@ -331,12 +332,13 @@ class Timeseries(dict):
             ts_core.delete_item(self.ts_handle, i)
             i-=1
     def read(self, fp, line_number=1):
-        err_str_c = create_string_buffer('\000'*256)
+        err_str_c = c_char_p()
         try:
             for line in fp.readlines():
                 if ts_core.ts_readline(c_char_p(line), self.ts_handle,
-                        err_str_c):
-                    raise Exception(repr(err_str_c.value))
+                        byref(err_str_c)):
+                    raise ValueError('Error when reading time series '+
+                                     'line from I/O: '+repr(err_str_c.value))
                 line_number += 1
         except Exception, e:
             e.args = e.args + (line_number,)
@@ -569,9 +571,11 @@ class Timeseries(dict):
                 +"time series to append has a date earlier than the last "
                 +"record (%s) of the timeseries to append to.")
                 % (str(min(b.keys())), str(max(self.keys()))))
-        err_str_c = create_string_buffer('\000'*256)
-        if ts_core.merge(self.ts_handle, b.ts_handle, err_str_c)!=0:
-            raise Exception('#@$%#$^')
+        err_str_c = c_char_p()
+        if ts_core.merge(self.ts_handle, b.ts_handle, byref(err_str_c))!=0:
+            raise Exception('An exception has occured when trying to '+
+                            'merge time series. Error message: '+
+                            repr(err_str_c.value))
     def bounding_dates(self):
         if len(self):
             rec1 = ts_core.get_item(self.ts_handle, c_int(0))
