@@ -343,40 +343,40 @@ class Timeseries(dict):
         except Exception, e:
             e.args = e.args + (line_number,)
             raise
-    def write(self, fp, start=None, end=None):
-# create a buffer for buffered output to fp
-        buff=[]
-        for i in xrange(0,1000):
-            buff.append(u'')
+    def test_write(self):
         i = 0
-        i_start=0
+        aline = c_char_p()
+        errstr = c_char_p()
+        while i<ts_core.ts_length(self.ts_handle):
+            ts_core.ts_writeline(byref(aline), self.ts_handle,
+                                 c_int(i), byref(errstr))
+            print aline.value
+            i+=1
+    def write(self, fp, start=None, end=None):
+        aline = c_char_p()
+        errstr = c_char_p()
+        i = 0
         p = self.precision
         if p is not None:
             if p<0: p = 0
-            fmtstring = u'%%.%df' % (p,)
+            fmtstring = '%%.%df' % (p,)
+        else:
+            fmtstring = '%G'
         while i<ts_core.ts_length(self.ts_handle):
             rec = ts_core.get_item(self.ts_handle, c_int(i))
             adate = self._timegm_to_date(rec.timestamp)
             if start and adate<start: 
                 i+=1
-                i_start=i
                 continue
             if end and adate>end: break 
-            avalue = rec.value
-            anull = rec.null
-            aflags = rec.flags
-            if anull==1:
-                value = ''
-            elif p is None:
-                value = strip_trailing_zeros(u'%.5f' % avalue)
-            else:
-                value = fmtstring % avalue
-            buff[(i-i_start)%1000] = (u'%s,%s,%s\r\n' % (isoformat_nosecs(adate, ' '), value,
-                                     aflags))
-            i+=1 
-            if ((i-i_start)%1000)==0:
-                fp.write(''.join(buff))
-        fp.write(''.join(buff[0:(i-i_start)%1000]))
+            if ts_core.ts_writeline(byref(aline), self.ts_handle,
+                                 c_int(i), c_char_p(fmtstring),
+                                 byref(errstr))!=0:
+                raise IOError('Error when writing time series file, at'
+                              'item nr. %d. Error message: %s'%(i,
+                                                      repr(errstr.value)))
+            fp.write(aline.value)
+            i+=1
     def delete_from_db(self, db):
         c = db.cursor()
         c.execute("""DELETE FROM ts_records
