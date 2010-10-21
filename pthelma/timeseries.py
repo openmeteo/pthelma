@@ -26,6 +26,8 @@ from datetime import datetime, timedelta
 from StringIO import StringIO
 from math import sin, cos, atan2, pi
 from ConfigParser import ParsingError
+from codecs import BOM_UTF8
+from os import SEEK_CUR
 
 import psycopg2
 import fpconst
@@ -414,6 +416,9 @@ class Timeseries(dict):
                 return minutes, months
             except Exception, e:
                 raise ParsingError(('Value should be "minutes, months"'))
+#Ignore the BOM_UTF8 byte mark if present by advancing
+        if fp.read(len(BOM_UTF8))!=BOM_UTF8:
+            fp.seek(-len(BOM_UTF8), SEEK_CUR)
         line_number = 1
         try:
             (name, value) = self.__read_meta_line(fp)
