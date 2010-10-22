@@ -33,7 +33,7 @@ import psycopg2
 import fpconst
 
 from ctypes import CDLL, c_int, c_longlong, c_double,\
-                   c_char_p, byref, Structure, create_string_buffer
+                   c_char_p, byref, Structure, c_void_p
 
 class T_REC(Structure):
     _fields_ = [("timestamp", c_longlong),
@@ -228,7 +228,10 @@ class Timeseries(dict):
         self.variable = variable
         self.precision = precision
         self.comment = comment
-        self.ts_handle = ts_core.ts_create()
+        self.ts_handle = c_void_p(ts_core.ts_create())
+        if self.ts_handle==0:
+            raise Exception.Create('Could not allocate memory '+
+                                   'for time series object.')
 #Keep library handle to succesfully free time series when needed
         self.saved_ts_core = ts_core
     def _key_to_timegm(self, key):
@@ -240,7 +243,9 @@ class Timeseries(dict):
         return self.DT_BASE+\
                timedelta(timegm/86400L,timegm%86400L)
     def __del__(self):
-        self.saved_ts_core.ts_free(self.ts_handle)
+        if self.ts_handle!=0:
+            self.saved_ts_core.ts_free(self.ts_handle)
+        self.ts_handle=0
     def __len__(self):
         return ts_core.ts_length(self.ts_handle)
     def __delitem__(self, key):
