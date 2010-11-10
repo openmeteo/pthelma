@@ -41,7 +41,7 @@ class T_REC(Structure):
                 ("value", c_double),
                 ("flags", c_char_p)]
 
-dickinson = CDLL('libdickinson.so.0.1')
+dickinson = CDLL('libdickinson.so')
 
 dickinson.get_item.restype = T_REC
 
