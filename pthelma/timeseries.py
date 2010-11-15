@@ -350,15 +350,6 @@ class Timeseries(dict):
         except Exception, e:
             e.args = e.args + (line_number,)
             raise
-    def test_write(self):
-        i = 0
-        aline = c_char_p()
-        errstr = c_char_p()
-        while i<dickinson.ts_length(self.ts_handle):
-            dickinson.ts_writeline(byref(aline), self.ts_handle,
-                                 c_int(i), byref(errstr))
-            print aline.value
-            i+=1
     def write(self, fp, start=None, end=None):
         aline = c_char_p()
         errstr = c_char_p()
