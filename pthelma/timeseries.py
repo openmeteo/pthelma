@@ -354,12 +354,6 @@ class Timeseries(dict):
         aline = c_char_p()
         errstr = c_char_p()
         i = 0
-        p = self.precision
-        if p is not None:
-            if p<0: p = 0
-            fmtstring = '%%.%df' % (p,)
-        else:
-            fmtstring = '%G'
         while i<dickinson.ts_length(self.ts_handle):
             rec = dickinson.get_item(self.ts_handle, c_int(i))
             adate = self._timegm_to_date(rec.timestamp)
@@ -367,9 +361,9 @@ class Timeseries(dict):
                 i+=1
                 continue
             if end and adate>end: break 
-            if dickinson.ts_writeline(byref(aline), self.ts_handle,
-                                 c_int(i), c_char_p(fmtstring),
-                                 byref(errstr))!=0:
+            if dickinson.ts_writeline(byref(aline), self.ts_handle, c_int(i),
+                            c_int(self.precision if self.precision is not None
+                            else -9999), byref(errstr))!=0:
                 raise IOError('Error when writing time series file, at'
                               'item nr. %d. Error message: %s'%(i,
                                                       repr(errstr.value)))
