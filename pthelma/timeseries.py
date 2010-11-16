@@ -41,7 +41,9 @@ class T_REC(Structure):
                 ("value", c_double),
                 ("flags", c_char_p)]
 
-dickinson = CDLL('libdickinson.so')
+import platform
+dickinson = CDLL('dickinson.dll' if platform.system()=='Windows'
+                                                    else 'libdickinson.so')
 
 dickinson.get_item.restype = T_REC
 
