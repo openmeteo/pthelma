@@ -45,7 +45,7 @@ import platform
 dickinson = CDLL('dickinson.dll' if platform.system()=='Windows'
                                                     else 'libdickinson.so')
 
-dickinson.get_item.restype = T_REC
+dickinson.ts_get_item.restype = T_REC
 
 re_compiled = re.compile(r'''^(\d{4})-(\d{1,2})-(\d{1,2})
              (?: [ tT] (\d{1,2}):(\d{1,2}) )?''',
@@ -251,15 +251,15 @@ class Timeseries(dict):
     def __len__(self):
         return dickinson.ts_length(self.ts_handle)
     def __delitem__(self, key):
-        index_c = dickinson.index_of(self.ts_handle,\
+        index_c = dickinson.ts_index_of(self.ts_handle,\
              self._key_to_timegm(key))
         if index_c<0:
             raise KeyError('No such record: '+\
                 (isoformat_nosecs(key,' ') if isinstance(key,
                      datetime) else key))
-        dickinson.delete_item(self.ts_handle, index_c)
+        dickinson.ts_delete_item(self.ts_handle, index_c)
     def __contains__(self, key):
-        index_c = dickinson.index_of(self.ts_handle,\
+        index_c = dickinson.ts_index_of(self.ts_handle,\
              self._key_to_timegm(key))
         if index_c<0:
             return False
@@ -267,10 +267,10 @@ class Timeseries(dict):
             return True
     def __setitem__(self, key, value):
         timestamp_c = self._key_to_timegm(key)
-        index_c = dickinson.index_of(self.ts_handle, timestamp_c)
+        index_c = dickinson.ts_index_of(self.ts_handle, timestamp_c)
         oldflahgs=''
         if index_c>=0:
-            arec = dickinson.get_item(self.ts_handle, index_c)
+            arec = dickinson.ts_get_item(self.ts_handle, index_c)
             oldflags = arec.flags
         if isinstance(value, _Tsvalue):
             tsvalue = value
@@ -291,10 +291,10 @@ class Timeseries(dict):
         err_str_c = c_char_p()
         if index_c<0:
             index_c = c_int()
-            err_no_c = dickinson.insert_record(self.ts_handle, timestamp_c,
+            err_no_c = dickinson.ts_insert_record(self.ts_handle, timestamp_c,
                 null_c, value_c, flags_c, byref(index_c), byref(err_str_c))
         else:
-            err_no_c = dickinson.set_item(self.ts_handle, index_c, null_c,\
+            err_no_c = dickinson.ts_set_item(self.ts_handle, index_c, null_c,\
                       value_c, flags_c, byref(err_str_c))
         if err_no_c!=0:
             raise Exception('Something wrong occured in dickinson '
@@ -302,12 +302,12 @@ class Timeseries(dict):
                             'Error message: '+repr(err_str_c.value))
     def __getitem__(self, key):
         timestamp_c = self._key_to_timegm(key)
-        index_c = dickinson.index_of(self.ts_handle, timestamp_c)
+        index_c = dickinson.ts_index_of(self.ts_handle, timestamp_c)
         if index_c<0:
             raise KeyError('No such record: '+\
                 (isoformat_nosecs(key,' ') if isinstance(key,
                      datetime) else key))
-        arec = dickinson.get_item(self.ts_handle, index_c)
+        arec = dickinson.ts_get_item(self.ts_handle, index_c)
         if arec.null==1:
             value = fpconst.NaN
         else:
@@ -324,21 +324,21 @@ class Timeseries(dict):
         a = []
         i = 0
         while i<dickinson.ts_length(self.ts_handle):
-            rec = dickinson.get_item(self.ts_handle, c_int(i))
+            rec = dickinson.ts_get_item(self.ts_handle, c_int(i))
             a.append(self._timegm_to_date(rec.timestamp))
             i+=1
         return a
     def iterkeys(self):
         i = 0
         while i<dickinson.ts_length(self.ts_handle):
-            rec = dickinson.get_item(self.ts_handle, c_int(i))
+            rec = dickinson.ts_get_item(self.ts_handle, c_int(i))
             yield self._timegm_to_date(rec.timestamp)
             i+=1
     __iter__ = iterkeys
     def clear(self):
         i = dickinson.ts_length(self.ts_handle)
         while i>=0:
-            dickinson.delete_item(self.ts_handle, i)
+            dickinson.ts_delete_item(self.ts_handle, i)
             i-=1
     def read(self, fp, line_number=1):
         err_str_c = c_char_p()
@@ -357,7 +357,7 @@ class Timeseries(dict):
         errstr = c_char_p()
         i = 0
         while i<dickinson.ts_length(self.ts_handle):
-            rec = dickinson.get_item(self.ts_handle, c_int(i))
+            rec = dickinson.ts_get_item(self.ts_handle, c_int(i))
             adate = self._timegm_to_date(rec.timestamp)
             if start and adate<start: 
                 i+=1
@@ -569,14 +569,14 @@ class Timeseries(dict):
                 +"record (%s) of the timeseries to append to.")
                 % (str(min(b.keys())), str(max(self.keys()))))
         err_str_c = c_char_p()
-        if dickinson.merge(self.ts_handle, b.ts_handle, byref(err_str_c))!=0:
+        if dickinson.ts_merge(self.ts_handle, b.ts_handle, byref(err_str_c))!=0:
             raise Exception('An exception has occured when trying to '+
                             'merge time series. Error message: '+
                             repr(err_str_c.value))
     def bounding_dates(self):
         if len(self):
-            rec1 = dickinson.get_item(self.ts_handle, c_int(0))
-            rec2 = dickinson.get_item(self.ts_handle, c_int(len(self)-1))
+            rec1 = dickinson.ts_get_item(self.ts_handle, c_int(0))
+            rec2 = dickinson.ts_get_item(self.ts_handle, c_int(len(self)-1))
             return self._timegm_to_date(rec1.timestamp),\
                    self._timegm_to_date(rec2.timestamp)
         else:
@@ -585,7 +585,7 @@ class Timeseries(dict):
         a = []
         i = 0
         while i<dickinson.ts_length(self.ts_handle):
-            rec = dickinson.get_item(self.ts_handle, c_int(i))
+            rec = dickinson.ts_get_item(self.ts_handle, c_int(i))
             a.append((self._timegm_to_date(rec.timestamp),
                      _Tsvalue(fpconst.NaN if rec.null else rec.value,
                               rec.flags.split())))
@@ -594,9 +594,9 @@ class Timeseries(dict):
     def index(self, date, downwards=False):
         timestamp_c = self._key_to_timegm(date)
         if not downwards:
-            pos = dickinson.get_next(self.ts_handle, timestamp_c)
+            pos = dickinson.ts_get_next(self.ts_handle, timestamp_c)
         else:
-            pos = dickinson.get_prev(self.ts_handle, timestamp_c)
+            pos = dickinson.ts_get_prev(self.ts_handle, timestamp_c)
         if pos<0:
             if downwards:
                 raise IndexError("There is no item in the timeseries on or before "
@@ -606,7 +606,7 @@ class Timeseries(dict):
                                             +str(date))
         return pos
     def item(self, date, downwards=False):
-        rec = dickinson.get_item(self.ts_handle, c_int(self.index(date,
+        rec = dickinson.ts_get_item(self.ts_handle, c_int(self.index(date,
                                                                 downwards)))
         return (self._timegm_to_date(rec.timestamp), 
             _Tsvalue(fpconst.NaN if rec.null else rec.value,
