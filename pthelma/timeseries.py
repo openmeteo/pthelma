@@ -287,15 +287,11 @@ class Timeseries(dict):
             null_c=0
             value_c = c_double(tsvalue)
         flags_c = c_char_p(' '.join(tsvalue.flags))
-        err_no_c = c_int()
         err_str_c = c_char_p()
-        if index_c<0:
-            index_c = c_int()
-            err_no_c = dickinson.ts_insert_record(self.ts_handle, timestamp_c,
-                null_c, value_c, flags_c, byref(index_c), byref(err_str_c))
-        else:
-            err_no_c = dickinson.ts_set_item(self.ts_handle, index_c, null_c,\
-                      value_c, flags_c, byref(err_str_c))
+        index_c = c_int()
+        err_no_c = dickinson.ts_insert_record(self.ts_handle, timestamp_c,
+            null_c, value_c, flags_c, c_int(1), byref(index_c),
+            byref(err_str_c))
         if err_no_c!=0:
             raise Exception('Something wrong occured in dickinson '
                             'function when setting a time series value. '+
