@@ -46,6 +46,7 @@ dickinson = CDLL('dickinson.dll' if platform.system()=='Windows'
                                                     else 'libdickinson.so')
 
 dickinson.ts_get_item.restype = T_REC
+dickinson.ts_create.restype = c_void_p
 
 re_compiled = re.compile(r'''^(\d{4})-(\d{1,2})-(\d{1,2})
              (?: [ tT] (\d{1,2}):(\d{1,2}) )?''',
@@ -231,11 +232,13 @@ class Timeseries(dict):
         self.precision = precision
         self.comment = comment
         self.ts_handle = c_void_p(dickinson.ts_create())
-        if self.ts_handle==0:
-            raise Exception.Create('Could not allocate memory '+
+        if self.ts_handle.value==0:
+            raise MemoryError.Create('Could not allocate memory '+
                                    'for time series object.')
-#Keep library handle to succesfully free time series when needed
-        self.saved_dickinson = dickinson
+        # When the object is being destroyed, it doesn't always have access
+        # to module globals (see Python documentation on the __del__ special
+        # method), and therefore we keep a copy of the required globals here.
+        self.__dickinson = dickinson
     def _key_to_timegm(self, key):
         if not isinstance(key, datetime):
             key = datetime_from_iso(key)
@@ -245,9 +248,9 @@ class Timeseries(dict):
         return self.DT_BASE+\
                timedelta(timegm/86400L,timegm%86400L)
     def __del__(self):
-        if self.ts_handle!=0:
-            self.saved_dickinson.ts_free(self.ts_handle)
-        self.ts_handle=0
+        if self.ts_handle.value!=0:
+            self.__dickinson.ts_free(self.ts_handle)
+        self.ts_handle.value=0
     def __len__(self):
         return dickinson.ts_length(self.ts_handle)
     def __delitem__(self, key):
