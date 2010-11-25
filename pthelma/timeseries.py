@@ -254,7 +254,7 @@ class Timeseries(dict):
     def __len__(self):
         return dickinson.ts_length(self.ts_handle)
     def __delitem__(self, key):
-        index_c = dickinson.ts_index_of(self.ts_handle,\
+        index_c = dickinson.ts_get_i(self.ts_handle,\
              self._key_to_timegm(key))
         if index_c<0:
             raise KeyError('No such record: '+\
@@ -262,7 +262,7 @@ class Timeseries(dict):
                      datetime) else key))
         dickinson.ts_delete_item(self.ts_handle, index_c)
     def __contains__(self, key):
-        index_c = dickinson.ts_index_of(self.ts_handle,\
+        index_c = dickinson.ts_get_i(self.ts_handle,\
              self._key_to_timegm(key))
         if index_c<0:
             return False
@@ -270,7 +270,7 @@ class Timeseries(dict):
             return True
     def __setitem__(self, key, value):
         timestamp_c = self._key_to_timegm(key)
-        index_c = dickinson.ts_index_of(self.ts_handle, timestamp_c)
+        index_c = dickinson.ts_get_i(self.ts_handle, timestamp_c)
         oldflahgs=''
         if index_c>=0:
             arec = dickinson.ts_get_item(self.ts_handle, index_c)
@@ -301,7 +301,7 @@ class Timeseries(dict):
                             'Error message: '+repr(err_str_c.value))
     def __getitem__(self, key):
         timestamp_c = self._key_to_timegm(key)
-        index_c = dickinson.ts_index_of(self.ts_handle, timestamp_c)
+        index_c = dickinson.ts_get_i(self.ts_handle, timestamp_c)
         if index_c<0:
             raise KeyError('No such record: '+\
                 (isoformat_nosecs(key,' ') if isinstance(key,
@@ -593,9 +593,9 @@ class Timeseries(dict):
     def index(self, date, downwards=False):
         timestamp_c = self._key_to_timegm(date)
         if not downwards:
-            pos = dickinson.ts_get_next(self.ts_handle, timestamp_c)
+            pos = dickinson.ts_get_next_i(self.ts_handle, timestamp_c)
         else:
-            pos = dickinson.ts_get_prev(self.ts_handle, timestamp_c)
+            pos = dickinson.ts_get_prev_i(self.ts_handle, timestamp_c)
         if pos<0:
             if downwards:
                 raise IndexError("There is no item in the timeseries on or before "
