@@ -41,6 +41,18 @@ class T_REC(Structure):
                 ("value", c_double),
                 ("flags", c_char_p)]
 
+class T_INTERVAL(Structure):
+    _fields_ = [("start_date", c_longlong),
+                ("end_date", c_longlong)]
+
+class T_INTERVALLIST(Structure):
+    _fields = [("intervals", c_void_p),
+               ("n", c_int)]
+
+class T_TIMESERIESLIST(Structure):
+    _fields = [("ts", c_void_p),
+               ("n", c_int)]
+
 import platform
 dickinson = CDLL('dickinson.dll' if platform.system()=='Windows'
                                                     else 'libdickinson.so')
@@ -650,6 +662,11 @@ class Timeseries(dict):
             return sum/divider
         else:
             return fpconst.NaN
+    def identify_events(self, ts_list,
+                        start_threshold, ntimeseries_start_threshold,
+                        end_threshold, ntimeseries_end_threshold,
+                        start_date=None, end_date=None, reverse=False):
+        pass
     def aggregate(self, target_step, missing_allowed=0.0, missing_flag=""):
         def aggregate_one_step(d):
             """Return tuple of ((result value, flags), missing) for a single target stamp d."""
