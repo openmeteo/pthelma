@@ -64,6 +64,7 @@ re_compiled = re.compile(r'''^(\d{4})-(\d{1,2})-(\d{1,2})
              (?: [ tT] (\d{1,2}):(\d{1,2}) )?''',
               re.VERBOSE)
 
+
 def datetime_from_iso(isostring):
     m = re_compiled.match(isostring)
     if m==None:
@@ -74,8 +75,10 @@ def datetime_from_iso(isostring):
             args.append(int(x))
     return datetime(*args)
 
+
 def isoformat_nosecs(adatetime, sep='T'):
     return adatetime.isoformat(sep)[:16]
+
 
 class IntervalType:
     SUM = 1
@@ -84,7 +87,9 @@ class IntervalType:
     MAXIMUM = 4
     VECTOR_AVERAGE = 5
 
+
 class TimeStep:
+
     def __init__(self, length_minutes=0, length_months=0, interval_type=None,
                             nominal_offset=None, actual_offset=(0,0)):
         self.length_minutes = length_minutes
@@ -92,11 +97,13 @@ class TimeStep:
         self.nominal_offset = nominal_offset
         self.actual_offset = actual_offset
         self.interval_type = interval_type
+
     def _check_nominal_offset(self):
         """Called whenever an operation requires a nominal offset; verifies
         that the nominal offset is not None, otherwise raises exception."""
         if self.nominal_offset: return
         raise ValueError("This operation requires a nominal offset")
+
     def up(self, timestamp):
         self._check_nominal_offset()
         if self.length_minutes:
@@ -106,7 +113,8 @@ class TimeStep:
             d = timestamp - reference_date
             diff_in_minutes = d.days*1440 + d.seconds/60
             actual_modulo = diff_in_minutes % self.length_minutes
-            result = timestamp - timedelta(minutes=actual_modulo-required_modulo)
+            result = timestamp - timedelta(minutes = actual_modulo -
+                                                            required_modulo)
             while result < timestamp:
                 result += timedelta(minutes=self.length_minutes)
             return result
@@ -133,7 +141,8 @@ class TimeStep:
             d = timestamp - reference_date
             diff_in_minutes = d.days*1440 + d.seconds/60
             actual_modulo = diff_in_minutes % self.length_minutes
-            result = timestamp + timedelta(minutes=required_modulo-actual_modulo)
+            result = timestamp + timedelta(minutes = required_modulo -
+                                                                actual_modulo)
             while result > timestamp:
                 result -= timedelta(minutes=self.length_minutes)
         elif self.length_months:
@@ -151,6 +160,7 @@ class TimeStep:
         else:
             assert(False)
         return result
+
     def next(self, timestamp):
         timestamp = self.up(timestamp)
         m = timestamp.month
@@ -161,6 +171,7 @@ class TimeStep:
             y += 1
         timestamp = timestamp.replace(year=y, month=m)
         return timestamp + timedelta(minutes=self.length_minutes)
+
     def previous(self, timestamp):
         timestamp = self.down(timestamp)
         m = timestamp.month
@@ -171,6 +182,7 @@ class TimeStep:
             y -= 1
         timestamp = timestamp.replace(year=y, month=m)
         return timestamp - timedelta(minutes=self.length_minutes)
+
     def actual_timestamp(self, timestamp):
         m = timestamp.month + self.actual_offset[1]
         y = timestamp.year
@@ -182,6 +194,7 @@ class TimeStep:
             y -= 1
         return timestamp.replace(year=y, month=m) + \
             timedelta(minutes=self.actual_offset[0])
+
     def containing_interval(self, timestamp):
         result = self.down(timestamp)
         while self.actual_timestamp(result) >= timestamp:
@@ -189,16 +202,21 @@ class TimeStep:
         while self.actual_timestamp(result) < timestamp:
             result = self.next(result)
         return result
+
     def interval_endpoints(self, nominal_timestamp):
         end_date = self.actual_timestamp(nominal_timestamp)
         start_date = self.actual_timestamp(self.previous(nominal_timestamp))
         return start_date, end_date
 
+
 class _Tsvalue(float):
+
     def __new__(cls, value, flags=[]):
         return super(_Tsvalue, cls).__new__(cls, value)
+
     def __init__(self, value, flags=[]):
         self.flags = set(flags)
+
 
 def strip_trailing_zeros(s):
     last_nonzero = -1
@@ -209,6 +227,7 @@ def strip_trailing_zeros(s):
             else: return s[:last_nonzero+1]
         if c!='0' and last_nonzero==-1: last_nonzero = i
     return s
+
 
 class Timeseries(dict):
 
@@ -251,20 +270,25 @@ class Timeseries(dict):
         # to module globals (see Python documentation on the __del__ special
         # method), and therefore we keep a copy of the required globals here.
         self.__dickinson = dickinson
+
     def _key_to_timegm(self, key):
         if not isinstance(key, datetime):
             key = datetime_from_iso(key)
         d = key - self.DT_BASE
         return c_longlong(d.days*86400L+d.seconds)
+
     def _timegm_to_date(self, timegm):
         return self.DT_BASE+\
                timedelta(timegm/86400L,timegm%86400L)
+
     def __del__(self):
         if self.ts_handle.value!=0:
             self.__dickinson.ts_free(self.ts_handle)
         self.ts_handle.value=0
+
     def __len__(self):
         return dickinson.ts_length(self.ts_handle)
+
     def __delitem__(self, key):
         index_c = dickinson.ts_get_i(self.ts_handle,\
              self._key_to_timegm(key))
@@ -273,6 +297,7 @@ class Timeseries(dict):
                 (isoformat_nosecs(key,' ') if isinstance(key,
                      datetime) else key))
         dickinson.ts_delete_item(self.ts_handle, index_c)
+
     def __contains__(self, key):
         index_c = dickinson.ts_get_i(self.ts_handle,\
              self._key_to_timegm(key))
@@ -280,6 +305,7 @@ class Timeseries(dict):
             return False
         else:
             return True
+
     def __setitem__(self, key, value):
         timestamp_c = self._key_to_timegm(key)
         index_c = dickinson.ts_get_i(self.ts_handle, timestamp_c)
@@ -311,6 +337,7 @@ class Timeseries(dict):
             raise Exception('Something wrong occured in dickinson '
                             'function when setting a time series value. '+
                             'Error message: '+repr(err_str_c.value))
+
     def __getitem__(self, key):
         timestamp_c = self._key_to_timegm(key)
         index_c = dickinson.ts_get_i(self.ts_handle, timestamp_c)
@@ -326,11 +353,13 @@ class Timeseries(dict):
         flags = arec.flags
         flags = flags.split()
         return _Tsvalue(value, flags)
+
     def get(self, key, default=None):
         if self.__contains__(key):
             return self.__getitem__(key)
         else:
             return default
+
     def keys(self):
         a = []
         i = 0
@@ -339,6 +368,7 @@ class Timeseries(dict):
             a.append(self._timegm_to_date(rec.timestamp))
             i+=1
         return a
+
     def iterkeys(self):
         i = 0
         while i<dickinson.ts_length(self.ts_handle):
@@ -346,11 +376,13 @@ class Timeseries(dict):
             yield self._timegm_to_date(rec.timestamp)
             i+=1
     __iter__ = iterkeys
+
     def clear(self):
         i = dickinson.ts_length(self.ts_handle)
         while i>=0:
             dickinson.ts_delete_item(self.ts_handle, i)
             i-=1
+
     def read(self, fp, line_number=1):
         err_str_c = c_char_p()
         try:
@@ -363,6 +395,7 @@ class Timeseries(dict):
         except Exception, e:
             e.args = e.args + (line_number,)
             raise
+
     def write(self, fp, start=None, end=None):
         aline = c_char_p()
         errstr = c_char_p()
@@ -382,12 +415,14 @@ class Timeseries(dict):
                                                       repr(errstr.value)))
             fp.write(aline.value)
             i+=1
+
     def delete_from_db(self, db):
         c = db.cursor()
         c.execute("""DELETE FROM ts_records
                      WHERE id=%d""" % (self.id))
         self.clear()
         c.close()
+
     def __read_meta_line(self, fp):
         """Read one line from a file format header and return a (name, value)
         tuple, where name is lowercased. Returns ('', '') if the next line is
@@ -407,6 +442,7 @@ class Timeseries(dict):
         if not name:
             raise ParsingError(("Invalid file header line"))
         return (name, value)
+
     def __read_meta(self, fp):
         """Read the headers of a file in file format into the instance
         attributes and return the line number of the first data line of the
@@ -419,7 +455,7 @@ class Timeseries(dict):
                 return minutes, months
             except Exception, e:
                 raise ParsingError(('Value should be "minutes, months"'))
-#Ignore the BOM_UTF8 byte mark if present by advancing
+        #Ignore the BOM_UTF8 byte mark if present by advancing
         if fp.read(len(BOM_UTF8))!=BOM_UTF8:
             fp.seek(-len(BOM_UTF8), SEEK_CUR)
         line_number = 1
@@ -446,7 +482,7 @@ class Timeseries(dict):
                     it = IntervalType
                     v = value.lower()
                     if v=='sum': self.time_step.interval_type = it.SUM
-                    elif v=='average': self.time_step.interval_type = it.AVERAGE
+                    elif v=='average':self.time_step.interval_type = it.AVERAGE
                     elif v=='maximum': self.time_step.interval_type = it.MAXIMUM
                     elif v=='minimum': self.time_step.interval_type = it.MINIMUM
                     elif v=='vector_average': self.time_step.interval_type = it.VECTOR_AVERAGE
@@ -465,9 +501,11 @@ class Timeseries(dict):
         except ParsingError, e:
             e.args = e.args + (line_number,)
             raise
+
     def read_file(self, fp):
         line_number = self.__read_meta(fp)
         self.read(fp, line_number=line_number)
+
     def write_file(self, fp):
         fp.write(u"Version=2\r\n")
         if self.unit:
@@ -491,7 +529,8 @@ class Timeseries(dict):
         if self.time_step.interval_type:
             fp.write(u"Interval_type=%s\r\n" % ({
                 IntervalType.SUM: u"sum", IntervalType.AVERAGE: u"average",
-                IntervalType.MAXIMUM: u"maximum", IntervalType.MINIMUM: u"minimum",
+                IntervalType.MAXIMUM: u"maximum",
+                IntervalType.MINIMUM: u"minimum",
                 IntervalType.VECTOR_AVERAGE: u"vector_average"
                 }[self.time_step.interval_type],))
         if self.variable:
@@ -501,6 +540,7 @@ class Timeseries(dict):
 
         fp.write("\r\n")
         self.write(fp)
+
     def read_from_db(self, db):
         c = db.cursor()
         c.execute("""SELECT top, middle, bottom FROM ts_records
@@ -514,6 +554,7 @@ class Timeseries(dict):
                 self.read(StringIO(zlib.decompress(middle)))
             self.read(StringIO(bottom))
         c.close()
+
     def write_to_db(self, db, transaction=None, commit=True):
         if transaction is None: transaction = db
         fp = StringIO()
@@ -541,8 +582,10 @@ class Timeseries(dict):
                                                        bottom))
         c.close()
         if commit: transaction.commit()
+
     def append_to_db(self, db, transaction=None, commit=True):
-        """Append the contained records to the timeseries stored in the database."""
+        """Append the contained records to the timeseries stored in the
+        database."""
         if transaction is None: transaction = db
         if not len(self): return
         c = db.cursor()
@@ -573,6 +616,7 @@ class Timeseries(dict):
             ts.append(self)
             ts.write_to_db(db, transaction=transaction, commit=commit)
         c.close()
+
     def append(self, b):
         if len(self) and len(b) and max(self.keys())>=min(b.keys()):
             raise ValueError(("Cannot append: the first record (%s) of the "
@@ -584,6 +628,7 @@ class Timeseries(dict):
             raise Exception('An exception has occured when trying to '+
                             'merge time series. Error message: '+
                             repr(err_str_c.value))
+
     def bounding_dates(self):
         if len(self):
             rec1 = dickinson.ts_get_item(self.ts_handle, c_int(0))
@@ -592,6 +637,7 @@ class Timeseries(dict):
                    self._timegm_to_date(rec2.timestamp)
         else:
             return None
+
     def items(self):
         a = []
         i = 0
@@ -602,6 +648,7 @@ class Timeseries(dict):
                               rec.flags.split())))
             i+=1
         return a
+
     def index(self, date, downwards=False):
         timestamp_c = self._key_to_timegm(date)
         if not downwards:
@@ -609,19 +656,17 @@ class Timeseries(dict):
         else:
             pos = dickinson.ts_get_prev_i(self.ts_handle, timestamp_c)
         if pos<0:
-            if downwards:
-                raise IndexError("There is no item in the timeseries on or before "
-                                            +str(date))
-            else:
-                raise IndexError("There is no item in the timeseries on or after "
-                                            +str(date))
+            raise IndexError("There is no item in the timeseries on or %s %s"
+                    % ("before" if downwards else "after", str(date)))
         return pos
+
     def item(self, date, downwards=False):
         rec = dickinson.ts_get_item(self.ts_handle, c_int(self.index(date,
                                                                 downwards)))
         return (self._timegm_to_date(rec.timestamp), 
             _Tsvalue(fpconst.NaN if rec.null else rec.value,
                      rec.flags.split()))
+
     def _get_bounding_indexes(self, start_date, end_date):
         """Return a tuple, (start_index, end_index).  If arguments are None,
         the respective bounding date is considered. The results are the start
@@ -632,6 +677,7 @@ class Timeseries(dict):
         if not start_date: start_date =  s
         if not end_date: end_date =  e
         return (self.index(start_date), self.index(end_date, downwards=True))
+
     def min(self, start_date=None, end_date=None):
         start, end = self._get_bounding_indexes(start_date, end_date)
         items = self.items()
@@ -640,6 +686,7 @@ class Timeseries(dict):
             if fpconst.isNaN(result) or items[i][1]<result:
                 result = items[i][1]
         return result
+
     def max(self, start_date=None, end_date=None):
         start, end = self._get_bounding_indexes(start_date, end_date)
         items = self.items()
@@ -648,6 +695,7 @@ class Timeseries(dict):
             if fpconst.isNaN(result) or items[i][1]>result:
                 result = items[i][1]
         return result
+
     def average(self, start_date=None, end_date=None):
         start, end = self._get_bounding_indexes(start_date, end_date)
         items = self.items()
@@ -662,14 +710,18 @@ class Timeseries(dict):
             return sum/divider
         else:
             return fpconst.NaN
+
     def identify_events(self, ts_list,
                         start_threshold, ntimeseries_start_threshold,
                         end_threshold, ntimeseries_end_threshold,
                         start_date=None, end_date=None, reverse=False):
         pass
+
     def aggregate(self, target_step, missing_allowed=0.0, missing_flag=""):
+
         def aggregate_one_step(d):
-            """Return tuple of ((result value, flags), missing) for a single target stamp d."""
+            """Return tuple of ((result value, flags), missing) for a single
+            target stamp d."""
 
             def timedeltadivide(a, b):
                 """Divide timedelta a by timedelta b."""
@@ -717,25 +769,30 @@ class Timeseries(dict):
                 if it in (IntervalType.SUM, IntervalType.AVERAGE):
                     aggregate_value += self.get(s,0)*pct_used
                 elif it == IntervalType.MAXIMUM:
-                    if pct_used > 0: aggregate_value = max(aggregate_value, self[s])
+                    if pct_used > 0: aggregate_value = max(aggregate_value,
+                                                                    self[s])
                 elif it == IntervalType.MINIMUM:
-                    if pct_used > 0: aggregate_value = min(aggregate_value, self[s])
+                    if pct_used > 0: aggregate_value = min(aggregate_value,
+                                                                    self[s])
                 elif it == IntervalType.VECTOR_AVERAGE:
-                    aggregate_value = (aggregate_value[0]+cos(self[s]/180*pi)*pct_used, 
-                                       aggregate_value[1]+sin(self[s]/180*pi)*pct_used)
+                    aggregate_value = (
+                            aggregate_value[0] + cos(self[s]/180*pi)*pct_used, 
+                            aggregate_value[1] + sin(self[s]/180*pi)*pct_used)
                 else:
                     assert(False)
                 s = self.time_step.next(s)
             flag = []
-            if missing/total_components > missing_allowed/total_components+1e-5 or abs(
-                                       missing-total_components) < 1e-36:
+            if missing/total_components > \
+                                missing_allowed/total_components+1e-5 \
+                                or abs(missing-total_components) < 1e-36:
                 aggregate_value = fpconst.NaN
             else:
                 if (missing/total_components > 1e-36) or\
                   source_has_missing: flag = [missing_flag]
                 if it == IntervalType.AVERAGE: aggregate_value /= divider
                 elif it == IntervalType.VECTOR_AVERAGE:
-                    aggregate_value = atan2(aggregate_value[1], aggregate_value[0])/pi*180
+                    aggregate_value = atan2(aggregate_value[1],
+                                                    aggregate_value[0])/pi*180
                     while aggregate_value<0: aggregate_value+=360
                     if abs(aggregate_value-360)<1e-7: aggregate_value=0
             return (aggregate_value, flag), missing
