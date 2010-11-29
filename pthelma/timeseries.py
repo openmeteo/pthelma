@@ -32,8 +32,8 @@ from os import SEEK_CUR
 import psycopg2
 import fpconst
 
-from ctypes import CDLL, c_int, c_longlong, c_double,\
-                   c_char_p, byref, Structure, c_void_p
+from ctypes import CDLL, c_int, c_longlong, c_double, c_char_p, byref, \
+                   Structure, c_void_p, pointer, POINTER
 
 class T_REC(Structure):
     _fields_ = [("timestamp", c_longlong),
@@ -46,7 +46,7 @@ class T_INTERVAL(Structure):
                 ("end_date", c_longlong)]
 
 class T_INTERVALLIST(Structure):
-    _fields = [("intervals", c_void_p),
+    _fields = [("intervals", POINTER(T_INTERVAL)),
                ("n", c_int)]
 
 class T_TIMESERIESLIST(Structure):
@@ -59,6 +59,7 @@ dickinson = CDLL('dickinson.dll' if platform.system()=='Windows'
 
 dickinson.ts_get_item.restype = T_REC
 dickinson.ts_create.restype = c_void_p
+dickinson.tsl_create.restype = POINTER(T_TIMESERIESLIST)
 
 re_compiled = re.compile(r'''^(\d{4})-(\d{1,2})-(\d{1,2})
              (?: [ tT] (\d{1,2}):(\d{1,2}) )?''',
@@ -713,9 +714,42 @@ class Timeseries(dict):
 
     def identify_events(self, ts_list,
                         start_threshold, ntimeseries_start_threshold,
-                        end_threshold, ntimeseries_end_threshold,
+                        time_separator,
+                        end_threshold=None, ntimeseries_end_threshold=None,
                         start_date=None, end_date=None, reverse=False):
-        pass
+        if end_threshold is None: end_threshold = start_threshold
+        if ntimeseries_end_threshold is None:
+            ntimeseries_end_threshold = ntimeseries_start_threshold
+        range_start_date = c_longlong(dickinson.LONG_TIME_T_MIN) \
+                if start_date is None else self._key_to_timegm(start_date)
+        range_end_date = c_longlong(dickinson.LONG_TIME_T_MAX) \
+                if end_date is None else self._key_to_timegm(end_date)
+        search_range = T_INTERVAL(range_start_date, range_end_date)
+        try:
+            a_timeseries_list = dickinson.tsl_create();
+            if a_timeseries_list.value==0:
+                raise MemoryError('Insufficient memory')
+            for t in ts_list:
+                if dickinson.tsl_append(a_timeseries_list, t.ts_handle):
+                    raise MemoryError('Insufficient memory')
+            a_interval_list = dickinson.il_create()
+            if a_interval_list.value==0:
+                raise MemoryError('Insufficient memory')
+            errstr = c_char_p()
+            if dickinson.ts_identify_events(pointer(a_timeseries_list),
+                        search_range, c_int(reverse), c_double(start_threshold),
+                        c_double(end_threshold), ntimeseries_start_threshold,
+                        ntimeseries_end_threshold, c_longlong(time_separator),
+                        pointer(a_interval_list), byref(errstr)):
+                raise Exception(str(errstr))
+            result = []
+            for i in range(a_interval_list.n):
+                a_interval = a_interval_list.intervals.contents[i]
+                result.append((a_interval.start_date, a_interval.end_date))
+            return result
+        finally:
+            dickinson.free(a_interval_list)
+            dickinson.free(a_timeseries_list)
 
     def aggregate(self, target_step, missing_allowed=0.0, missing_flag=""):
 
