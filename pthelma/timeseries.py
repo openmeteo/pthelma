@@ -81,6 +81,19 @@ def isoformat_nosecs(adatetime, sep='T'):
     return adatetime.isoformat(sep)[:16]
 
 
+_DT_BASE = datetime(1970,1,1,0,0)
+def _datetime_to_time_t(d):
+    """Convert d (a datetime or iso string) to number of seconds since 1970"""
+    if not isinstance(d, datetime):
+        d = datetime_from_iso(d)
+    delta = d - _DT_BASE
+    return c_longlong(delta.days*86400L+delta.seconds)
+
+def _time_t_to_datetime(t):
+    """Convert t (number of seconds since 1970) to datetime."""
+    return _DT_BASE + timedelta(t/86400, t%86400)
+
+
 class IntervalType:
     SUM = 1
     AVERAGE = 2
@@ -248,8 +261,6 @@ class Timeseries(dict):
     MAX_ALL_BOTTOM=40
     ROWS_IN_TOP_BOTTOM=5
 
-    DT_BASE = datetime(1970,1,1,0,0)
-
     def __init__(self, id=0, time_step=None, unit=u'', title=u'', timezone=u'',
         variable=u'', precision=None, comment=u''):
         self.id = id
@@ -272,16 +283,6 @@ class Timeseries(dict):
         # method), and therefore we keep a copy of the required globals here.
         self.__dickinson = dickinson
 
-    def _key_to_timegm(self, key):
-        if not isinstance(key, datetime):
-            key = datetime_from_iso(key)
-        d = key - self.DT_BASE
-        return c_longlong(d.days*86400L+d.seconds)
-
-    def _timegm_to_date(self, timegm):
-        return self.DT_BASE+\
-               timedelta(timegm/86400L,timegm%86400L)
-
     def __del__(self):
         if self.ts_handle.value!=0:
             self.__dickinson.ts_free(self.ts_handle)
@@ -291,8 +292,7 @@ class Timeseries(dict):
         return dickinson.ts_length(self.ts_handle)
 
     def __delitem__(self, key):
-        index_c = dickinson.ts_get_i(self.ts_handle,\
-             self._key_to_timegm(key))
+        index_c = dickinson.ts_get_i(self.ts_handle, _datetime_to_time_t(key))
         if index_c<0:
             raise KeyError('No such record: '+\
                 (isoformat_nosecs(key,' ') if isinstance(key,
@@ -300,15 +300,14 @@ class Timeseries(dict):
         dickinson.ts_delete_item(self.ts_handle, index_c)
 
     def __contains__(self, key):
-        index_c = dickinson.ts_get_i(self.ts_handle,\
-             self._key_to_timegm(key))
+        index_c = dickinson.ts_get_i(self.ts_handle, _datetime_to_time_t(key))
         if index_c<0:
             return False
         else:
             return True
 
     def __setitem__(self, key, value):
-        timestamp_c = self._key_to_timegm(key)
+        timestamp_c = _datetime_to_time_t(key)
         index_c = dickinson.ts_get_i(self.ts_handle, timestamp_c)
         oldflahgs=''
         if index_c>=0:
@@ -340,7 +339,7 @@ class Timeseries(dict):
                             'Error message: '+repr(err_str_c.value))
 
     def __getitem__(self, key):
-        timestamp_c = self._key_to_timegm(key)
+        timestamp_c = _datetime_to_time_t(key)
         index_c = dickinson.ts_get_i(self.ts_handle, timestamp_c)
         if index_c<0:
             raise KeyError('No such record: '+\
@@ -366,7 +365,7 @@ class Timeseries(dict):
         i = 0
         while i<dickinson.ts_length(self.ts_handle):
             rec = dickinson.ts_get_item(self.ts_handle, c_int(i))
-            a.append(self._timegm_to_date(rec.timestamp))
+            a.append(_time_t_to_datetime(rec.timestamp))
             i+=1
         return a
 
@@ -374,7 +373,7 @@ class Timeseries(dict):
         i = 0
         while i<dickinson.ts_length(self.ts_handle):
             rec = dickinson.ts_get_item(self.ts_handle, c_int(i))
-            yield self._timegm_to_date(rec.timestamp)
+            yield _time_t_to_datetime(rec.timestamp)
             i+=1
     __iter__ = iterkeys
 
@@ -403,7 +402,7 @@ class Timeseries(dict):
         i = 0
         while i<dickinson.ts_length(self.ts_handle):
             rec = dickinson.ts_get_item(self.ts_handle, c_int(i))
-            adate = self._timegm_to_date(rec.timestamp)
+            adate = _time_t_to_datetime(rec.timestamp)
             if start and adate<start: 
                 i+=1
                 continue
@@ -634,8 +633,8 @@ class Timeseries(dict):
         if len(self):
             rec1 = dickinson.ts_get_item(self.ts_handle, c_int(0))
             rec2 = dickinson.ts_get_item(self.ts_handle, c_int(len(self)-1))
-            return self._timegm_to_date(rec1.timestamp),\
-                   self._timegm_to_date(rec2.timestamp)
+            return _time_t_to_datetime(rec1.timestamp),\
+                   _time_t_to_datetime(rec2.timestamp)
         else:
             return None
 
@@ -644,14 +643,14 @@ class Timeseries(dict):
         i = 0
         while i<dickinson.ts_length(self.ts_handle):
             rec = dickinson.ts_get_item(self.ts_handle, c_int(i))
-            a.append((self._timegm_to_date(rec.timestamp),
+            a.append((_time_t_to_datetime(rec.timestamp),
                      _Tsvalue(fpconst.NaN if rec.null else rec.value,
                               rec.flags.split())))
             i+=1
         return a
 
     def index(self, date, downwards=False):
-        timestamp_c = self._key_to_timegm(date)
+        timestamp_c = _datetime_to_time_t(date)
         if not downwards:
             pos = dickinson.ts_get_next_i(self.ts_handle, timestamp_c)
         else:
@@ -664,7 +663,7 @@ class Timeseries(dict):
     def item(self, date, downwards=False):
         rec = dickinson.ts_get_item(self.ts_handle, c_int(self.index(date,
                                                                 downwards)))
-        return (self._timegm_to_date(rec.timestamp), 
+        return (_time_t_to_datetime(rec.timestamp), 
             _Tsvalue(fpconst.NaN if rec.null else rec.value,
                      rec.flags.split()))
 
@@ -711,45 +710,6 @@ class Timeseries(dict):
             return sum/divider
         else:
             return fpconst.NaN
-
-    def identify_events(self, ts_list,
-                        start_threshold, ntimeseries_start_threshold,
-                        time_separator,
-                        end_threshold=None, ntimeseries_end_threshold=None,
-                        start_date=None, end_date=None, reverse=False):
-        if end_threshold is None: end_threshold = start_threshold
-        if ntimeseries_end_threshold is None:
-            ntimeseries_end_threshold = ntimeseries_start_threshold
-        range_start_date = c_longlong(dickinson.LONG_TIME_T_MIN) \
-                if start_date is None else self._key_to_timegm(start_date)
-        range_end_date = c_longlong(dickinson.LONG_TIME_T_MAX) \
-                if end_date is None else self._key_to_timegm(end_date)
-        search_range = T_INTERVAL(range_start_date, range_end_date)
-        try:
-            a_timeseries_list = dickinson.tsl_create();
-            if a_timeseries_list.value==0:
-                raise MemoryError('Insufficient memory')
-            for t in ts_list:
-                if dickinson.tsl_append(a_timeseries_list, t.ts_handle):
-                    raise MemoryError('Insufficient memory')
-            a_interval_list = dickinson.il_create()
-            if a_interval_list.value==0:
-                raise MemoryError('Insufficient memory')
-            errstr = c_char_p()
-            if dickinson.ts_identify_events(pointer(a_timeseries_list),
-                        search_range, c_int(reverse), c_double(start_threshold),
-                        c_double(end_threshold), ntimeseries_start_threshold,
-                        ntimeseries_end_threshold, c_longlong(time_separator),
-                        pointer(a_interval_list), byref(errstr)):
-                raise Exception(str(errstr))
-            result = []
-            for i in range(a_interval_list.n):
-                a_interval = a_interval_list.intervals.contents[i]
-                result.append((a_interval.start_date, a_interval.end_date))
-            return result
-        finally:
-            dickinson.free(a_interval_list)
-            dickinson.free(a_timeseries_list)
 
     def aggregate(self, target_step, missing_allowed=0.0, missing_flag=""):
 
@@ -849,3 +809,45 @@ class Timeseries(dict):
             del missing[target_end_date]
             target_end_date = target_step.previous(target_end_date)
         return result, missing
+
+
+def identify_events(ts_list,
+                    start_threshold, ntimeseries_start_threshold,
+                    time_separator,
+                    end_threshold=None, ntimeseries_end_threshold=None,
+                    start_date=None, end_date=None, reverse=False):
+    if end_threshold is None: end_threshold = start_threshold
+    if ntimeseries_end_threshold is None:
+        ntimeseries_end_threshold = ntimeseries_start_threshold
+    range_start_date = c_longlong(dickinson.LONG_TIME_T_MIN) \
+            if start_date is None else _datetime_to_time_t(start_date)
+    range_end_date = c_longlong(dickinson.LONG_TIME_T_MAX) \
+            if end_date is None else _datetime_to_time_t(end_date)
+    search_range = T_INTERVAL(range_start_date, range_end_date)
+    try:
+        a_timeseries_list = dickinson.tsl_create();
+        if a_timeseries_list.value==0:
+            raise MemoryError('Insufficient memory')
+        for t in ts_list:
+            if dickinson.tsl_append(a_timeseries_list, t.ts_handle):
+                raise MemoryError('Insufficient memory')
+        a_interval_list = dickinson.il_create()
+        if a_interval_list.value==0:
+            raise MemoryError('Insufficient memory')
+        errstr = c_char_p()
+        if dickinson.ts_identify_events(pointer(a_timeseries_list),
+                    search_range, c_int(reverse), c_double(start_threshold),
+                    c_double(end_threshold), ntimeseries_start_threshold,
+                    ntimeseries_end_threshold,
+                    c_longlong(time_separator.days*86400L +
+                                                    time_separator.seconds),
+                    pointer(a_interval_list), byref(errstr)):
+            raise Exception(str(errstr))
+        result = []
+        for i in range(a_interval_list.n):
+            a_interval = a_interval_list.intervals.contents[i]
+            result.append((a_interval.start_date, a_interval.end_date))
+        return result
+    finally:
+        dickinson.free(a_interval_list)
+        dickinson.free(a_timeseries_list)

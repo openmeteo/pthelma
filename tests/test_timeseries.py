@@ -868,7 +868,7 @@ events_test_timeseries_2 = textwrap.dedent("""\
                     2008-02-07 13:10,-4.87,
                     """)
 
-events_test_timeseries_2 = textwrap.dedent("""\
+events_test_timeseries_3 = textwrap.dedent("""\
                     2008-02-07 09:40,4.06,
                     2008-02-07 09:50,2.60,
                     2008-02-07 10:00,5.05,
