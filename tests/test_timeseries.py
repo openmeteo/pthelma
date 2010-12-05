@@ -22,7 +22,7 @@ import unittest
 import types
 import sys
 import textwrap
-from datetime import datetime
+from datetime import datetime, timedelta
 from StringIO import StringIO
 
 big_test_timeseries = textwrap.dedent("""\
@@ -907,5 +907,12 @@ class _Test_Timeseries_identify_events(unittest.TestCase):
         self.ts2.read(StringIO(events_test_timeseries_2))
         self.ts3.read(StringIO(events_test_timeseries_3))
 
-    def test_find_positive_events(self):
-        pass
+    def test_find_events_more_than_4(self):
+        events = identify_events((self.ts1, self.ts2, self.ts3), 0.0, 2,
+                        timedelta(minutes=30), ntimeseries_end_threshold=1)
+        assertEqual(len(events), 2)
+        assertEqual(events[0][0], datetime(2008, 2, 7, 10, 40))
+        assertEqual(events[0][1], datetime(2008, 2, 7, 11, 0))
+        assertEqual(events[1][0], datetime(2008, 2, 7, 11, 30))
+        assertEqual(events[0][1], datetime(2008, 2, 7, 12, 00))
+
