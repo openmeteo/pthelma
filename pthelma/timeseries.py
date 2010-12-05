@@ -60,6 +60,7 @@ dickinson = CDLL('dickinson.dll' if platform.system()=='Windows'
 dickinson.ts_get_item.restype = T_REC
 dickinson.ts_create.restype = c_void_p
 dickinson.tsl_create.restype = POINTER(T_TIMESERIESLIST)
+dickinson.il_create.restype = POINTER(T_INTERVALLIST)
 
 re_compiled = re.compile(r'''^(\d{4})-(\d{1,2})-(\d{1,2})
              (?: [ tT] (\d{1,2}):(\d{1,2}) )?''',
@@ -819,21 +820,19 @@ def identify_events(ts_list,
     if end_threshold is None: end_threshold = start_threshold
     if ntimeseries_end_threshold is None:
         ntimeseries_end_threshold = ntimeseries_start_threshold
-    range_start_date = c_longlong(dickinson.LONG_TIME_T_MIN) \
-            if start_date is None else _datetime_to_time_t(start_date)
-    range_end_date = c_longlong(dickinson.LONG_TIME_T_MAX) \
-            if end_date is None else _datetime_to_time_t(end_date)
+    range_start_date = c_longlong.in_dll(dickinson, "LONG_TIME_T_MIN") \
+        if start_date is None else c_longlong(_datetime_to_time_t(start_date))
+    range_end_date = c_longlong.in_dll(dickinson, "LONG_TIME_T_MAX") \
+        if end_date is None else c_longlong(_datetime_to_time_t(end_date))
     search_range = T_INTERVAL(range_start_date, range_end_date)
     try:
         a_timeseries_list = dickinson.tsl_create();
-        if a_timeseries_list.value==0:
+        a_interval_list = dickinson.il_create()
+        if (not a_timeseries_list) or (not a_interval_list):
             raise MemoryError('Insufficient memory')
         for t in ts_list:
             if dickinson.tsl_append(a_timeseries_list, t.ts_handle):
                 raise MemoryError('Insufficient memory')
-        a_interval_list = dickinson.il_create()
-        if a_interval_list.value==0:
-            raise MemoryError('Insufficient memory')
         errstr = c_char_p()
         if dickinson.ts_identify_events(pointer(a_timeseries_list),
                     search_range, c_int(reverse), c_double(start_threshold),
@@ -842,7 +841,7 @@ def identify_events(ts_list,
                     c_longlong(time_separator.days*86400L +
                                                     time_separator.seconds),
                     pointer(a_interval_list), byref(errstr)):
-            raise Exception(str(errstr))
+            raise Exception(errstr)
         result = []
         for i in range(a_interval_list.n):
             a_interval = a_interval_list.intervals.contents[i]
