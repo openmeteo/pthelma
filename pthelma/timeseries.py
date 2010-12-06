@@ -88,7 +88,7 @@ def _datetime_to_time_t(d):
     if not isinstance(d, datetime):
         d = datetime_from_iso(d)
     delta = d - _DT_BASE
-    return c_longlong(delta.days*86400L+delta.seconds)
+    return delta.days*86400L+delta.seconds
 
 def _time_t_to_datetime(t):
     """Convert t (number of seconds since 1970) to datetime."""
@@ -293,7 +293,8 @@ class Timeseries(dict):
         return dickinson.ts_length(self.ts_handle)
 
     def __delitem__(self, key):
-        index_c = dickinson.ts_get_i(self.ts_handle, _datetime_to_time_t(key))
+        index_c = dickinson.ts_get_i(self.ts_handle,
+                                        c_longlong(_datetime_to_time_t(key)))
         if index_c<0:
             raise KeyError('No such record: '+\
                 (isoformat_nosecs(key,' ') if isinstance(key,
@@ -301,14 +302,15 @@ class Timeseries(dict):
         dickinson.ts_delete_item(self.ts_handle, index_c)
 
     def __contains__(self, key):
-        index_c = dickinson.ts_get_i(self.ts_handle, _datetime_to_time_t(key))
+        index_c = dickinson.ts_get_i(self.ts_handle,
+                                        c_longlong(_datetime_to_time_t(key)))
         if index_c<0:
             return False
         else:
             return True
 
     def __setitem__(self, key, value):
-        timestamp_c = _datetime_to_time_t(key)
+        timestamp_c = c_longlong(_datetime_to_time_t(key))
         index_c = dickinson.ts_get_i(self.ts_handle, timestamp_c)
         oldflahgs=''
         if index_c>=0:
@@ -331,16 +333,16 @@ class Timeseries(dict):
         flags_c = c_char_p(' '.join(tsvalue.flags))
         err_str_c = c_char_p()
         index_c = c_int()
-        err_no_c = dickinson.ts_insert_record(self.ts_handle, timestamp_c,
-            null_c, value_c, flags_c, c_int(1), byref(index_c),
-            byref(err_str_c))
+        err_no_c = dickinson.ts_insert_record(self.ts_handle,
+            timestamp_c, null_c, value_c, flags_c, c_int(1),
+            byref(index_c), byref(err_str_c))
         if err_no_c!=0:
             raise Exception('Something wrong occured in dickinson '
                             'function when setting a time series value. '+
                             'Error message: '+repr(err_str_c.value))
 
     def __getitem__(self, key):
-        timestamp_c = _datetime_to_time_t(key)
+        timestamp_c = c_longlong(_datetime_to_time_t(key))
         index_c = dickinson.ts_get_i(self.ts_handle, timestamp_c)
         if index_c<0:
             raise KeyError('No such record: '+\
@@ -651,7 +653,7 @@ class Timeseries(dict):
         return a
 
     def index(self, date, downwards=False):
-        timestamp_c = _datetime_to_time_t(date)
+        timestamp_c = c_longlong(_datetime_to_time_t(date))
         if not downwards:
             pos = dickinson.ts_get_next_i(self.ts_handle, timestamp_c)
         else:

@@ -915,4 +915,27 @@ class _Test_Timeseries_identify_events(unittest.TestCase):
         self.assertEqual(events[0][1], datetime(2008, 2, 7, 11, 0))
         self.assertEqual(events[1][0], datetime(2008, 2, 7, 11, 30))
         self.assertEqual(events[1][1], datetime(2008, 2, 7, 13, 10))
+    def test_find_events_less_than_zero(self):
+        events = identify_events((self.ts1, self.ts2, self.ts3), 0.0, 3,
+                        timedelta(minutes=20), ntimeseries_end_threshold=2,
+                        reverse=True)
+        self.assertEqual(len(events), 4)
+        self.assertEqual(events[0][0], datetime(2008, 2, 7, 10, 20))
+        self.assertEqual(events[0][1], datetime(2008, 2, 7, 10, 30))
+        self.assertEqual(events[1][0], datetime(2008, 2, 7, 11, 20))
+        self.assertEqual(events[1][1], datetime(2008, 2, 7, 11, 20))
+        self.assertEqual(events[2][0], datetime(2008, 2, 7, 11, 50))
+        self.assertEqual(events[2][1], datetime(2008, 2, 7, 11, 50))
+        self.assertEqual(events[3][0], datetime(2008, 2, 7, 12, 10))
+        self.assertEqual(events[3][1], datetime(2008, 2, 7, 12, 30))
+    def test_find_events_in_only_one_timeseries(self):
+        events = identify_events((self.ts1,), 4.0, 1, timedelta(minutes=30),
+                    start_date=datetime(2008, 2, 7, 10,0))
+        self.assertEqual(len(events), 3)
+        self.assertEqual(events[0][0], datetime(2008, 2, 7, 10, 40))
+        self.assertEqual(events[0][1], datetime(2008, 2, 7, 10, 50))
+        self.assertEqual(events[1][0], datetime(2008, 2, 7, 11, 40))
+        self.assertEqual(events[1][1], datetime(2008, 2, 7, 12, 20))
+        self.assertEqual(events[2][0], datetime(2008, 2, 7, 13, 10))
+        self.assertEqual(events[2][1], datetime(2008, 2, 7, 13, 10))
 
