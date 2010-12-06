@@ -46,7 +46,7 @@ class T_INTERVAL(Structure):
                 ("end_date", c_longlong)]
 
 class T_INTERVALLIST(Structure):
-    _fields = [("intervals", POINTER(T_INTERVAL)),
+    _fields_ = [("intervals", POINTER(T_INTERVAL)),
                ("n", c_int)]
 
 class T_TIMESERIESLIST(Structure):
@@ -834,19 +834,20 @@ def identify_events(ts_list,
             if dickinson.tsl_append(a_timeseries_list, t.ts_handle):
                 raise MemoryError('Insufficient memory')
         errstr = c_char_p()
-        if dickinson.ts_identify_events(pointer(a_timeseries_list),
+        if dickinson.ts_identify_events(a_timeseries_list,
                     search_range, c_int(reverse), c_double(start_threshold),
                     c_double(end_threshold), ntimeseries_start_threshold,
                     ntimeseries_end_threshold,
                     c_longlong(time_separator.days*86400L +
                                                     time_separator.seconds),
-                    pointer(a_interval_list), byref(errstr)):
-            raise Exception(errstr)
+                    a_interval_list, byref(errstr)):
+            raise Exception(errstr.value)
         result = []
-        for i in range(a_interval_list.n):
-            a_interval = a_interval_list.intervals.contents[i]
-            result.append((a_interval.start_date, a_interval.end_date))
+        for i in range(a_interval_list.contents.n):
+            a_interval = a_interval_list.contents.intervals[i]
+            result.append((_time_t_to_datetime(a_interval.start_date),
+                           _time_t_to_datetime(a_interval.end_date)))
         return result
     finally:
-        dickinson.free(a_interval_list)
-        dickinson.free(a_timeseries_list)
+        dickinson.il_free(a_interval_list)
+        dickinson.tsl_free(a_timeseries_list)
