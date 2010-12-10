@@ -838,8 +838,8 @@ def identify_events(ts_list,
         errstr = c_char_p()
         if dickinson.ts_identify_events(a_timeseries_list,
                     search_range, c_int(reverse), c_double(start_threshold),
-                    c_double(end_threshold), ntimeseries_start_threshold,
-                    ntimeseries_end_threshold,
+                    c_double(end_threshold), c_int(ntimeseries_start_threshold),
+                    c_int(ntimeseries_end_threshold),
                     c_longlong(time_separator.days*86400L +
                                                     time_separator.seconds),
                     a_interval_list, byref(errstr)):
