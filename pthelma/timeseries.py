@@ -714,6 +714,156 @@ class Timeseries(dict):
         else:
             return fpconst.NaN
 
+    def sum(self, start_date=None, end_date=None):
+        start, end = self._get_bounding_indexes(start_date, end_date)
+        items = self.items()
+        sum = fpconst.NaN
+        for i in range(start, end+1):
+            value = items[i][1]
+            if fpconst.isNaN(value): continue
+            if fpconst.isNaN(sum): sum = 0
+            sum += value
+        return sum
+
+    def aggregate(self, target_step, missing_allowed=0.0, missing_flag=""):
+
+        def aggregate_one_step(d):
+            """Return tuple of ((result value, flags), missing) for a single
+            target stamp d."""
+
+            def timedeltadivide(a, b):
+                """Divide timedelta a by timedelta b."""
+                a = a.days*86400+a.seconds
+                b = b.days*86400+b.seconds
+                return a/b
+
+            d_start_date, d_end_date = target_step.interval_endpoints(d)
+            start_nominal = self.time_step.containing_interval(d_start_date)
+            end_nominal = self.time_step.containing_interval(d_end_date)
+            s = start_nominal
+            it = target_step.interval_type
+            if it in (IntervalType.SUM, IntervalType.AVERAGE):
+                aggregate_value = 0.0
+            elif it == IntervalType.MAXIMUM: aggregate_value = -1e38
+            elif it == IntervalType.MINIMUM: aggregate_value = 1e38
+            elif it == IntervalType.VECTOR_AVERAGE: aggregate_value = (0, 0)
+            else: assert(False)
+            missing = 0.0
+            total_components = 0.0
+            divider = 0.0
+            source_has_missing = False
+            while s <= end_nominal:
+                s_start_date, s_end_date = self.time_step.interval_endpoints(s)
+                used_interval = s_end_date - s_start_date
+                unused_interval = timedelta()
+                if s_start_date < d_start_date:
+                    out = d_start_date - s_start_date
+                    unused_interval += out
+                    used_interval -= out
+                if s_end_date > d_end_date:
+                    out = s_end_date - d_end_date
+                    unused_interval += out
+                    used_interval -= out
+                pct_used = timedeltadivide(used_interval,
+                                (unused_interval+used_interval))
+                total_components += pct_used
+                if fpconst.isNaN(self.get(s, fpconst.NaN)):
+                    missing += pct_used
+                    s = self.time_step.next(s)
+                    continue
+                divider += pct_used
+                if missing_flag in self[s].flags:
+                    source_has_missing = True
+                if it in (IntervalType.SUM, IntervalType.AVERAGE):
+                    aggregate_value += self.get(s,0)*pct_used
+                elif it == IntervalType.MAXIMUM:
+                    if pct_used > 0: aggregate_value = max(aggregate_value,
+                                                                    self[s])
+                elif it == IntervalType.MINIMUM:
+                    if pct_used > 0: aggregate_value = min(aggregate_value,
+                                                                    self[s])
+                elif it == IntervalType.VECTOR_AVERAGE:
+                    aggregate_value = (
+                            aggregate_value[0] + cos(self[s]/180*pi)*pct_used, 
+                            aggregate_value[1] + sin(self[s]/180*pi)*pct_used)
+                else:
+                    assert(False)
+                s = self.time_step.next(s)
+            flag = []
+            if missing/total_components > \
+                                missing_allowed/total_components+1e-5 \
+                                or abs(missing-total_components) < 1e-36:
+                aggregate_value = fpconst.NaN
+            else:
+                if (missing/total_components > 1e-36) or\
+                  source_has_missing: flag = [missing_flag]
+                if it == IntervalType.AVERAGE: aggregate_value /= divider
+                elif it == IntervalType.VECTOR_AVERAGE:
+                    aggregate_value = atan2(aggregate_value[1],
+                                                    aggregate_value[0])/pi*180
+                    while aggregate_value<0: aggregate_value+=360
+                    if abs(aggregate_value-360)<1e-7: aggregate_value=0
+            return (aggregate_value, flag), missing
+
+        source_start_date, source_end_date = self.bounding_dates()
+        target_start_date = target_step.previous(source_start_date)
+        target_end_date = target_step.next(source_end_date)
+        result = Timeseries(time_step=target_step)
+        missing = Timeseries(time_step=target_step)
+        d = target_start_date
+        while d <= target_end_date:
+            result[d], missing[d] = aggregate_one_step(d)
+            d = target_step.next(d)
+        while fpconst.isNaN(result.get(target_start_date, 0)):
+            del result[target_start_date]
+            del missing[target_start_date]
+            target_start_date = target_step.next(target_start_date)
+        while fpconst.isNaN(result.get(target_end_date, 0)):
+            del result[target_end_date]
+            del missing[target_end_date]
+            target_end_date = target_step.previous(target_end_date)
+        return result, missing
+
+
+def identify_events(ts_list,
+                    start_threshold, ntimeseries_start_threshold,
+                    time_separator,
+                    end_threshold=None, ntimeseries_end_threshold=None,
+                    start_date=None, end_date=None, reverse=False):
+    if end_threshold is None: end_threshold = start_threshold
+    if ntimeseries_end_threshold is None:
+        ntimeseries_end_threshold = ntimeseries_start_threshold
+    range_start_date = c_longlong.in_dll(dickinson, "LONG_TIME_T_MIN") \
+        if start_date is None else c_longlong(_datetime_to_time_t(start_date))
+    range_end_date = c_longlong.in_dll(dickinson, "LONG_TIME_T_MAX") \
+        if end_date is None else c_longlong(_datetime_to_time_t(end_date))
+    search_range = T_INTERVAL(range_start_date, range_end_date)
+    try:
+        a_timeseries_list = dickinson.tsl_create();
+        a_interval_list = dickinson.il_create()
+        if (not a_timeseries_list) or (not a_interval_list):
+            raise MemoryError('Insufficient memory')
+        for t in ts_list:
+            if dickinson.tsl_append(a_timeseries_list, t.ts_handle):
+                raise MemoryError('Insufficient memory')
+        errstr = c_char_p()
+        if dickinson.ts_identify_events(a_timeseries_list,
+                    search_range, c_int(reverse), c_double(start_threshold),
+                    c_double(end_threshold), c_int(ntimeseries_start_threshold),
+                    c_int(ntimeseries_end_threshold),
+                    c_longlong(time_separator.days*86400L +
+                                                    time_separator.seconds),
+                    a_interval_list, byref(errstr)):
+            raise Exception(errstr.value)
+        result = []
+        for i in range(a_interval_list.contents.n):
+            a_interval = a_interval_list.contents.intervals[i]
+            result.append((_time_t_to_datetime(a_interval.start_date),
+                           _time_t_to_datetime(a_interval.end_date)))
+        return result
+    finally:
+        dickinson.il_free(a_interval_list)
+        dickinson.tsl_free(a_timeseries_list)
     def aggregate(self, target_step, missing_allowed=0.0, missing_flag=""):
 
         def aggregate_one_step(d):

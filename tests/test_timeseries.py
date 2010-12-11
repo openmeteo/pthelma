@@ -715,7 +715,7 @@ class _Test_Timeseries_item(unittest.TestCase):
         self.assertRaises(IndexError, self.ts.item, '2003-07-18 18:52',
                                                     downwards=True)
 
-class _Test_Timeseries_min_max_avg(unittest.TestCase):
+class _Test_Timeseries_min_max_avg_sum(unittest.TestCase):
     def setUp(self):
         self.ts = Timeseries(time_step=TimeStep(length_minutes=10))
         self.ts.read(StringIO(big_test_timeseries))
@@ -728,6 +728,9 @@ class _Test_Timeseries_min_max_avg(unittest.TestCase):
     def test_average(self):
         value = self.ts.average('2004-08-18 00:00', '2004-08-22 00:00')
         self.assertAlmostEqual(value, 76.66666666667)
+    def test_sum(self):
+        value = self.ts.sum('2004-08-18 00:00', '2004-08-22 00:00')
+        self.assertAlmostEqual(value, 230.0)
     def test_min_nan(self):
         value = self.ts.min('2004-08-21 00:00', '2004-08-22 12:00')
         self.assert_(fpconst.isNaN(value))
@@ -737,6 +740,10 @@ class _Test_Timeseries_min_max_avg(unittest.TestCase):
     def test_average_nan(self):
         value = self.ts.average('2004-08-21 00:00', '2004-08-22 12:00')
         self.assert_(fpconst.isNaN(value))
+    def test_sum_nan(self):
+        value = self.ts.sum('2004-08-21 00:00', '2004-08-22 12:00')
+        self.assert_(fpconst.isNaN(value))
+
 
 class _Test_Timeseries_aggregate(unittest.TestCase):
     def setUp(self):
