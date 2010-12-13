@@ -33,7 +33,7 @@ import psycopg2
 import fpconst
 
 from ctypes import CDLL, c_int, c_longlong, c_double, c_char_p, byref, \
-                   Structure, c_void_p, pointer, POINTER
+                   Structure, c_void_p, pointer, POINTER, create_string_buffer
 
 class T_REC(Structure):
     _fields_ = [("timestamp", c_longlong),
@@ -404,9 +404,8 @@ class Timeseries(dict):
             raise
 
     def write(self, fp, start=None, end=None):
-        aline = c_char_p()
-        errstr = c_char_p()
         i = 0
+        s = create_string_buffer(250)
         while i<dickinson.ts_length(self.ts_handle):
             rec = dickinson.ts_get_item(self.ts_handle, c_int(i))
             adate = _time_t_to_datetime(rec.timestamp)
@@ -414,13 +413,11 @@ class Timeseries(dict):
                 i+=1
                 continue
             if end and adate>end: break 
-            if dickinson.ts_writeline(byref(aline), self.ts_handle, c_int(i),
-                            c_int(self.precision if self.precision is not None
-                            else -9999), byref(errstr))!=0:
-                raise IOError('Error when writing time series file, at'
-                              'item nr. %d. Error message: %s'%(i,
-                                                      repr(errstr.value)))
-            fp.write(aline.value)
+            if not dickinson.ts_writeline(pointer(rec), c_int(self.precision
+                            if self.precision is not None else -9999), s, 250):
+                raise IOError('Error when writing time series file, at '
+                              'item nr. %d.'%(i,))
+            fp.write(s.value)
             i+=1
 
     def delete_from_db(self, db):
