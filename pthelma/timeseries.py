@@ -61,6 +61,10 @@ dickinson.ts_get_item.restype = T_REC
 dickinson.ts_create.restype = c_void_p
 dickinson.tsl_create.restype = POINTER(T_TIMESERIESLIST)
 dickinson.il_create.restype = POINTER(T_INTERVALLIST)
+dickinson.ts_min.restype = c_double
+dickinson.ts_max.restype = c_double
+dickinson.ts_average.restype = c_double
+dickinson.ts_sum.restype = c_double
 
 re_compiled = re.compile(r'''^(\d{4})-(\d{1,2})-(\d{1,2})
              (?: [ tT] (\d{1,2}):(\d{1,2}) )?''',
@@ -682,48 +686,36 @@ class Timeseries(dict):
         return (self.index(start_date), self.index(end_date, downwards=True))
 
     def min(self, start_date=None, end_date=None):
-        start, end = self._get_bounding_indexes(start_date, end_date)
-        items = self.items()
-        result = fpconst.NaN
-        for i in range(start, end+1):
-            if fpconst.isNaN(result) or items[i][1]<result:
-                result = items[i][1]
-        return result
+        start_date = c_longlong.in_dll(dickinson, "LONG_TIME_T_MIN") \
+            if start_date is None \
+            else c_longlong(_datetime_to_time_t(start_date))
+        end_date = c_longlong.in_dll(dickinson, "LONG_TIME_T_MAX") \
+            if end_date is None else c_longlong(_datetime_to_time_t(end_date))
+        return dickinson.ts_min(self.ts_handle, start_date, end_date)
 
     def max(self, start_date=None, end_date=None):
-        start, end = self._get_bounding_indexes(start_date, end_date)
-        items = self.items()
-        result = fpconst.NaN
-        for i in range(start, end+1):
-            if fpconst.isNaN(result) or items[i][1]>result:
-                result = items[i][1]
-        return result
+        start_date = c_longlong.in_dll(dickinson, "LONG_TIME_T_MIN") \
+            if start_date is None \
+            else c_longlong(_datetime_to_time_t(start_date))
+        end_date = c_longlong.in_dll(dickinson, "LONG_TIME_T_MAX") \
+            if end_date is None else c_longlong(_datetime_to_time_t(end_date))
+        return dickinson.ts_max(self.ts_handle, start_date, end_date)
 
     def average(self, start_date=None, end_date=None):
-        start, end = self._get_bounding_indexes(start_date, end_date)
-        items = self.items()
-        sum = 0
-        divider = 0
-        for i in range(start, end+1):
-            value = items[i][1]
-            if fpconst.isNaN(value): continue
-            sum += value
-            divider += 1
-        if divider:
-            return sum/divider
-        else:
-            return fpconst.NaN
+        start_date = c_longlong.in_dll(dickinson, "LONG_TIME_T_MIN") \
+            if start_date is None \
+            else c_longlong(_datetime_to_time_t(start_date))
+        end_date = c_longlong.in_dll(dickinson, "LONG_TIME_T_MAX") \
+            if end_date is None else c_longlong(_datetime_to_time_t(end_date))
+        return dickinson.ts_average(self.ts_handle, start_date, end_date)
 
     def sum(self, start_date=None, end_date=None):
-        start, end = self._get_bounding_indexes(start_date, end_date)
-        items = self.items()
-        sum = fpconst.NaN
-        for i in range(start, end+1):
-            value = items[i][1]
-            if fpconst.isNaN(value): continue
-            if fpconst.isNaN(sum): sum = 0
-            sum += value
-        return sum
+        start_date = c_longlong.in_dll(dickinson, "LONG_TIME_T_MIN") \
+            if start_date is None \
+            else c_longlong(_datetime_to_time_t(start_date))
+        end_date = c_longlong.in_dll(dickinson, "LONG_TIME_T_MAX") \
+            if end_date is None else c_longlong(_datetime_to_time_t(end_date))
+        return dickinson.ts_sum(self.ts_handle, start_date, end_date)
 
     def aggregate(self, target_step, missing_allowed=0.0, missing_flag=""):
 

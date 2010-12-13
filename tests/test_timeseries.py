@@ -740,9 +740,9 @@ class _Test_Timeseries_min_max_avg_sum(unittest.TestCase):
     def test_average_nan(self):
         value = self.ts.average('2004-08-21 00:00', '2004-08-22 12:00')
         self.assert_(fpconst.isNaN(value))
-    def test_sum_nan(self):
+    def test_sum_zero(self):
         value = self.ts.sum('2004-08-21 00:00', '2004-08-22 12:00')
-        self.assert_(fpconst.isNaN(value))
+        self.assertAlmostEqual(value, 0.0)
 
 
 class _Test_Timeseries_aggregate(unittest.TestCase):
