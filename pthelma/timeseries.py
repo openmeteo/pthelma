@@ -32,8 +32,9 @@ from os import SEEK_CUR
 import psycopg2
 import fpconst
 
-from ctypes import CDLL, c_int, c_longlong, c_double, c_char_p, byref, \
-                   Structure, c_void_p, pointer, POINTER, create_string_buffer
+from ctypes import CDLL, c_int, c_longlong, c_double, c_char, c_char_p, byref, \
+                   Structure, c_void_p, pointer, POINTER, create_string_buffer,\
+                   string_at
 
 class T_REC(Structure):
     _fields_ = [("timestamp", c_longlong),
@@ -65,6 +66,7 @@ dickinson.ts_min.restype = c_double
 dickinson.ts_max.restype = c_double
 dickinson.ts_average.restype = c_double
 dickinson.ts_sum.restype = c_double
+dickinson.ts_write.restype = POINTER(c_char)
 
 re_compiled = re.compile(r'''^(\d{4})-(\d{1,2})-(\d{1,2})
              (?: [ tT] (\d{1,2}):(\d{1,2}) )?''',
@@ -404,21 +406,21 @@ class Timeseries(dict):
             raise
 
     def write(self, fp, start=None, end=None):
-        i = 0
-        s = create_string_buffer(250)
-        while i<dickinson.ts_length(self.ts_handle):
-            rec = dickinson.ts_get_item(self.ts_handle, c_int(i))
-            adate = _time_t_to_datetime(rec.timestamp)
-            if start and adate<start: 
-                i+=1
-                continue
-            if end and adate>end: break 
-            if not dickinson.ts_writeline(pointer(rec), c_int(self.precision
-                            if self.precision is not None else -9999), s, 250):
-                raise IOError('Error when writing time series file, at '
-                              'item nr. %d.'%(i,))
-            fp.write(s.value)
-            i+=1
+        errstr = c_char_p()
+        start_date = c_longlong.in_dll(dickinson, "LONG_TIME_T_MIN") \
+            if start is None else c_longlong(_datetime_to_time_t(start))
+        end_date = c_longlong.in_dll(dickinson, "LONG_TIME_T_MAX") \
+            if end is None else c_longlong(_datetime_to_time_t(end))
+        text = dickinson.ts_write(self.ts_handle,
+            c_int(self.precision if self.precision is not None else -9999),
+            start_date, end_date, byref(errstr))
+        if not text:
+            if not errstr: return
+            raise IOError('Error when writing time series: %s' % (errstr.value))
+        try:
+            fp.write(string_at(text))
+        finally:
+            dickinson.freemem(text)
 
     def delete_from_db(self, db):
         c = db.cursor()
