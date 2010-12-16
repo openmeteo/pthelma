@@ -415,7 +415,9 @@ class Timeseries(dict):
             c_int(self.precision if self.precision is not None else -9999),
             start_date, end_date, byref(errstr))
         if not text:
-            if not errstr: return
+            if not errstr:
+                fp.write('')
+                return
             raise IOError('Error when writing time series: %s' % (errstr.value))
         try:
             fp.write(string_at(text))
