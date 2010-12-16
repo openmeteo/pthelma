@@ -451,6 +451,10 @@ class _Test_Timeseries_write_nonempty(unittest.TestCase):
             2005-08-25 23:59,28.3,HEARTS SPADES\r
             2005-08-26 00:02,,\r
             """))
+    def test_with_start_and_end2(self):
+        self.ts.write(self.c, start=datetime_from_iso("2005-08-24 19:53"),
+                      end=datetime_from_iso("2005-08-24 19:54"))
+        self.assertEqual(self.c.getvalue(), "")
 
 class _Test_Timeseries_file(unittest.TestCase):
     def setUp(self):
