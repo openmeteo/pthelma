@@ -29,6 +29,7 @@ defaults = (('General', 'loglevel', 'WARNING'),
             ('General', 'password', 'dummy'),
             ('General', 'all_or_nothing', 'false'),
             ('General', 'no_commit', 'false'),
+            ('General', 'abort_on_error', 'false'),
            )
 if len(sys.argv)!=2:
     raise RuntimeError, 'usage: %s configfile' % (sys.argv[0])
@@ -44,7 +45,11 @@ else:
    logger.addHandler(logging.StreamHandler())
 dsn = ' '.join(["%s='%s'" % (x, config.get('General', x))
                 for x in ('host', 'dbname', 'user', 'password')])
-db = psycopg2.connect(dsn)
+try:
+    db = psycopg2.connect(dsn)
+except psycopg2.Error, e:
+    logger.error('Database connection failure. Exception message: %s' % e.__str__())
+    raise
 c = db.cursor()
 logger.info('Starting loggertodb, %s' % (datetime.today().isoformat()))
 try:
@@ -52,16 +57,28 @@ try:
     sections.remove('General')
     all_or_nothing = config.getboolean('General', 'all_or_nothing')
     no_commit = config.getboolean('General', 'no_commit')
+    abort_on_error = config.getboolean('General', 'abort_on_error')
     for section in sections:
         datafileclass = eval('meteologger.Datafile_%s' %
                             (config.get(section, 'datafile_format'),))
         adatafile = datafileclass(db, dict(config.items(section)), logger)
-        adatafile.update_database()
-        if not all_or_nothing and not no_commit: db.commit()
+        try:
+            adatafile.update_database()
+        except meteologger.MeteologgerReadError, e:
+            if abort_on_error:
+                raise
+            else:
+                sys.stderr.write('Error while parsing data from loggertodb configuration '
+                                 'section: %s with error message: %s'%(section, 
+                                   e.__str__()))
+                pass
     if all_or_nothing and not no_commit: db.commit()
     if no_commit: db.rollback()
-except:
+except Exception, e:
     db.rollback()
+    errmsg = 'Stop condition while trying to read logger data file, or '\
+             'other unhandled exception - Error message: %s' % e.__str__()
+    logger.error(errmsg)
     raise
 finally:
    logger.info('Loggertodb finished, %s' % (datetime.today().isoformat()))

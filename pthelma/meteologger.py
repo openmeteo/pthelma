@@ -20,6 +20,9 @@ from datetime import datetime, timedelta
 from xreverse import xreverse
 from timeseries import Timeseries, datetime_from_iso, isoformat_nosecs
 
+class MeteologgerReadError(RuntimeError):
+    pass
+
 class Datafile:
     def __init__(self, db, datafiledict, logger=None):
         self.db = db
@@ -75,9 +78,12 @@ class Datafile:
                 self.logger.info('First date in datafile tail: %s' %
                 (self.tail[0]['date'].isoformat(),))
         ts = Timeseries(self.ts)
-        for line in self.tail:
-            ts[isoformat_nosecs(line['date'])] = \
-                self.extract_value_and_flags(line['line'], self.seq)
+        try:
+            for line in self.tail:
+                ts[isoformat_nosecs(line['date'])] = \
+                    self.extract_value_and_flags(line['line'], self.seq)
+        except ValueError, e:
+            self.raise_error(line, 'parsing error while trying to read values')
         self.logger.info('Appending %d records' % (len(ts)))
         if len(ts):
             self.logger.info('First appended record: %s' %
@@ -120,7 +126,9 @@ class Datafile:
         raise Exception("Internal error: datafile.extract_value_and_flags " +
                 "is an abstract function")
     def raise_error(self, line, msg):
-        raise RuntimeError, '%s: "%s": %s' % (self.filename, line, msg)
+        errmessage = '%s: "%s": %s' % (self.filename, line, msg)
+        self.logger.error("Error while parsing, message: %s" % errmessage)
+        raise MeteologgerReadError(errmessage)
 
 class Datafile_deltacom(Datafile):
     deltacom_flags = { '#': 'LOGOVERRUN',
@@ -176,6 +184,9 @@ class Datafile_lastem(Datafile):
 
 class Datafile_zeno(Datafile):
     def extract_date(self, line):
-        return datetime.strptime(line[:14], '%y/%m/%d %H:%M')
+        try:
+            return datetime.strptime(line[:14], '%y/%m/%d %H:%M')
+        except ValueError:
+            self.raise_error(line, 'parse error or invalid date')
     def extract_value_and_flags(self, line, seq):
         return line.split()[seq+1]
