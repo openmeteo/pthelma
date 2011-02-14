@@ -19,6 +19,7 @@ GNU General Public License for more details.
 from datetime import datetime, timedelta
 from xreverse import xreverse
 from timeseries import Timeseries, datetime_from_iso, isoformat_nosecs
+from fpconst import NaN
 
 class MeteologgerReadError(RuntimeError):
     pass
@@ -33,6 +34,7 @@ class Datafile:
         self.delimiter = datafiledict.get('delimiter', '')
         self.decimalseparator = datafiledict.get('decimalseparator', '')
         self.dateformat = datafiledict.get('dateformat', '')
+        self.nullstr = datafiledict.get('nullstr', '')
         self.logger = logger
         if not self.logger:
             import logging
@@ -144,6 +146,9 @@ class Datafile_deltacom(Datafile):
         if item[-1] in self.deltacom_flags.keys():
             flags = self.deltacom_flags[item[-1]]
             item = item[:-1]
+        if self.nullstr:
+            if item==self.nullstr:
+                item = NaN
         return (item, flags)
 
 class Datafile_pc208w(Datafile):
@@ -161,7 +166,11 @@ class Datafile_pc208w(Datafile):
         except StandardError:
             self.raise_error(line, 'parse error or invalid date')
     def extract_value_and_flags(self, line, seq):
-        return (line.split(',')[seq+4].strip(), '')
+        item = line.split(',')[seq+4].strip()
+        if self.nullstr:
+            if item==self.nullstr:
+                item = NaN
+        return (item, '')
     def subset_identifiers_match(self, line):
         si = line.split(',')[0].strip()
         return si==self.subset_identifiers
@@ -175,7 +184,11 @@ class Datafile_lastem(Datafile):
             self.raise_error(line, 'parse error or invalid date')
     def extract_value_and_flags(self, line, seq):
         value = line.split(self.delimiter)[seq+3]
-        value = value.replace(self.decimal_separator, '.')
+        if self.nullstr:
+            if value==self.nullstr:
+                value = NaN
+        if value!=NaN:
+            value = value.replace(self.decimal_separator, '.')
         return (value, '')
     def subset_identifiers_match(self, line):
         si = [x.strip() for x in line.split(self.delimiter)[0:3]]
@@ -189,4 +202,8 @@ class Datafile_zeno(Datafile):
         except ValueError:
             self.raise_error(line, 'parse error or invalid date')
     def extract_value_and_flags(self, line, seq):
-        return line.split()[seq+1]
+        item = line.split()[seq+1]
+        if self.nullstr:
+            if item==self.nullstr:
+                item = NaN
+        return item
