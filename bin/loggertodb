@@ -29,7 +29,6 @@ defaults = (('General', 'loglevel', 'WARNING'),
             ('General', 'password', 'dummy'),
             ('General', 'all_or_nothing', 'false'),
             ('General', 'no_commit', 'false'),
-            ('General', 'abort_on_error', 'false'),
            )
 if len(sys.argv)!=2:
     raise RuntimeError, 'usage: %s configfile' % (sys.argv[0])
@@ -57,7 +56,6 @@ try:
     sections.remove('General')
     all_or_nothing = config.getboolean('General', 'all_or_nothing')
     no_commit = config.getboolean('General', 'no_commit')
-    abort_on_error = config.getboolean('General', 'abort_on_error')
     for section in sections:
         datafileclass = eval('meteologger.Datafile_%s' %
                             (config.get(section, 'datafile_format'),))
@@ -65,12 +63,13 @@ try:
         try:
             adatafile.update_database()
         except meteologger.MeteologgerReadError, e:
-            if abort_on_error:
+            if all_or_nothing:
                 raise
             else:
                 sys.stderr.write('Error while parsing data from loggertodb configuration '
                                  'section: %s with error message: %s'%(section, 
                                    e.__str__()))
+                db.rollback()
                 pass
     if all_or_nothing and not no_commit: db.commit()
     if no_commit: db.rollback()
