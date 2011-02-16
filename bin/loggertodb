@@ -62,6 +62,7 @@ try:
         adatafile = datafileclass(db, dict(config.items(section)), logger)
         try:
             adatafile.update_database()
+            if not all_or_nothing and not no_commit: db.commit()
         except meteologger.MeteologgerReadError, e:
             if all_or_nothing:
                 raise
