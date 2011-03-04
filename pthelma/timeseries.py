@@ -100,6 +100,16 @@ def _time_t_to_datetime(t):
     """Convert t (number of seconds since 1970) to datetime."""
     return _DT_BASE + timedelta(t/86400, t%86400)
 
+def read_timeseries_tail_from_db(db, id):
+    c = db.cursor()
+    c.execute("""SELECT bottom FROM ts_records
+                 WHERE id=%d""" % (id,))
+    r = c.fetchone()
+    bottom_lines = r[0].strip().splitlines()
+    c.close()
+    if not bottom_lines:
+        raise ValueError('No time series with id=%d found'%(d,))
+    return bottom_lines[-1].split(',')[:2]
 
 class IntervalType:
     SUM = 1
