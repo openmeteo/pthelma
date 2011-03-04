@@ -549,7 +549,7 @@ class Timeseries(dict):
         fp.write("\r\n")
         self.write(fp)
 
-    def read_from_db(self, db):
+    def read_from_db(self, db, onlybottom=False):
         c = db.cursor()
         c.execute("""SELECT top, middle, bottom FROM ts_records
                      WHERE id=%d""" % (self.id))
@@ -557,7 +557,7 @@ class Timeseries(dict):
         self.clear()
         if r:
             (top, middle, bottom) = r
-            if top:
+            if top and not onlybottom:
                 self.read(StringIO(top))
                 self.read(StringIO(zlib.decompress(middle)))
             self.read(StringIO(bottom))
