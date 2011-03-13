@@ -358,6 +358,9 @@ class Timeseries(dict):
                             'Error message: '+repr(err_str_c.value))
 
     def __getitem__(self, key):
+        if not isinstance(key, datetime) and ((not isinstance(key, unicode) and
+        not isinstance(key, str)) or len(key)<4 or not key[0].isdigit()):
+            raise KeyError(key)
         timestamp_c = c_longlong(_datetime_to_time_t(key))
         index_c = dickinson.ts_get_i(self.ts_handle, timestamp_c)
         if index_c<0:
