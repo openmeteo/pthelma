@@ -564,13 +564,20 @@ class Timeseries(dict):
 
     def read_from_db(self, db, onlybottom=False):
         c = db.cursor()
-        c.execute("""SELECT top, middle, bottom FROM ts_records
-                     WHERE id=%d""" % (self.id))
+        if not onlybottom:
+            querystr = """SELECT top, middle, bottom FROM ts_records
+                          WHERE id=%d"""
+        else:
+            querystr = """SELECT bottom FROM ts_records WHERE id=%d"""
+        c.execute(querystr % (self.id))
         r = c.fetchone()
         self.clear()
         if r:
-            (top, middle, bottom) = r
-            if top and not onlybottom:
+            if onlybottom:
+                (bottom,) = r
+            else:
+                (top, middle, bottom) = r
+            if not onlybottom and top:
                 self.read(StringIO(top))
                 self.read(StringIO(zlib.decompress(middle)))
             self.read(StringIO(bottom))
