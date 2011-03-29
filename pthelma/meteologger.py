@@ -207,3 +207,16 @@ class Datafile_zeno(Datafile):
             if item==self.nullstr:
                 item = NaN
         return item
+
+class Datafile_xyz(Datafile):
+    def extract_date(self, line):
+        try:
+            return datetime.strptime(line[:19], '%d/%m/%Y %H:%M:%S')
+        except ValueError:
+            self.raise_error(line, 'parse error or invalid date')
+    def extract_value_and_flags(self, line, seq):
+        item = line.split()[seq+1]
+        if self.nullstr:
+            if item==self.nullstr:
+                item = NaN
+        return item

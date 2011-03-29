@@ -132,6 +132,11 @@ HHmm, measurements.
 The B<zeno> format is space-delimited items in the following order:
 date in yy/mm/dd format, time in HH:mm format, measurements.
 
+=head2 xyz
+
+The B<xyz> format is whitespace-delimited items in the following order:
+date in dd/mm/yyyy format, time in HH:mm:ss format, measurements.
+
 =head1 OPERATION DETAILS
 
 B<loggertodb> connects to the server and gets the end date for each
