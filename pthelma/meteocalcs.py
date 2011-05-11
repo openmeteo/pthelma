@@ -28,3 +28,13 @@ def SSI(Tc, RH):
     Tf = float(Tc)*9/5 + 32
     ssi =  1.98*(Tf-(0.55-0.0055*RH)*(Tf-58))-56.83
     return (ssi-32)*5/9
+
+def IDM(T, Precip, is_annual=False):
+    """Return the de Martonne Aridity Index. T in degrees C,
+    Precip in mm. If is_annual=False values should be monthly
+    or else annual.
+    """
+    if isNaN(T) or isNaN(Precip):
+        return NaN
+    f=1 if is_annual else 12
+    return f*Precip/(T+10)

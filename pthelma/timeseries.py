@@ -111,6 +111,18 @@ def read_timeseries_tail_from_db(db, id):
         raise ValueError('No time series with id=%d found'%(d,))
     return bottom_lines[-1].split(',')[:2]
 
+
+def timeseries_bounding_dates_from_db(db, id):
+    c = db.cursor()
+    c.execute("""SELECT timeseries_start_date(%d)""" % (id,))
+    r = c.fetchone()
+    start_date = r[0]
+    c.execute("""SELECT timeseries_end_date(%d)""" % (id,))
+    r = c.fetchone()
+    end_date = r[0]
+    return start_date, end_date
+
+
 class IntervalType:
     SUM = 1
     AVERAGE = 2
@@ -273,10 +285,10 @@ class Timeseries(dict):
     # they are less than MAX_ALL_BOTTOM; otherwise ROWS_IN_TOP_BOTTOM
     # go to top, another as much go to bottom, the rest goes to
     # middle.
-    MAX_BOTTOM=100
-    MAX_BOTTOM_NOISE=10
-    MAX_ALL_BOTTOM=40
-    ROWS_IN_TOP_BOTTOM=5
+    MAX_BOTTOM=1000
+    MAX_BOTTOM_NOISE=150
+    MAX_ALL_BOTTOM=80
+    ROWS_IN_TOP_BOTTOM=20
 
     def __init__(self, id=0, time_step=None, unit=u'', title=u'', timezone=u'',
         variable=u'', precision=None, comment=u''):
