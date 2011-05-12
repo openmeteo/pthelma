@@ -1,4 +1,5 @@
-from pthelma.timeseries import Timeseries
+from pthelma.timeseries import (Timeseries, 
+                               timeseries_bounding_dates_from_db)
 import fpconst
 from meteocalcs import HeatIndex, SSI
 import copy
@@ -75,7 +76,7 @@ def MultiTimeseriesProcessDb(method, timeseries_arg, out_timeseries_id,
         ts = Timeseries(id=timeseries_arg[key])
         if 'append_only' in opts:
             ts.read_from_db(db, onlybottom=True)
-            if ts.bounding_dates[0]>opts['start_date']:
+            if ts.bounding_dates()[0]>opts['start_date']:
                 ts.read_from_db(db)
         else:
             ts.read_from_db(db)
