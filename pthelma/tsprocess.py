@@ -67,12 +67,18 @@ def MultiTimeseriesProcessDb(method, timeseries_arg, out_timeseries_id,
     out_timeseries = Timeseries(id = out_timeseries_id)
     opts = copy.deepcopy(options)
     if 'append_only' in opts:
-        opts['start_date'] = timeseries_bounding_dates_from_db(db, id)[1]
+        opts['start_date'] = timeseries_bounding_dates_from_db(db, 
+                                                   id = out_timeseries_id)[1]
         opts['interval_exclusive'] = True
     tseries_arg={}
     for key in timeseries_arg:
         ts = Timeseries(id=timeseries_arg[key])
-        ts.read_from_db(db)
+        if 'append_only' in opts:
+            ts.read_from_db(db, onlybottom=True)
+            if ts.bounding_dates[0]>opts['start_date']:
+                ts.read_from_db(db)
+        else:
+            ts.read_from_db(db)
         tseries_arg[key] = ts
     MultiTimeseriesProcess(method, tseries_arg, out_timeseries, opts)
     if 'append_only' in opts:
