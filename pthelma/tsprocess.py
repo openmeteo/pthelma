@@ -88,3 +88,24 @@ def MultiTimeseriesProcessDb(method, timeseries_arg, out_timeseries_id,
     else:
         out_timeseries.write_to_db(db=db, transaction=transaction, 
                                    commit=commit)
+
+
+def AggregateDbTimeseries(source_id, dest_id, db, read_tstep_func, transaction=None,
+                          commit=None, missing_allowed=0.0,
+                          missing_flag='MISSING', append_only=False):
+    source = Timeseries(id=source_id, time_step=read_tstep_func(source_id))
+    dest_step = read_tstep_func(dest_id)
+    if append_only:
+        end_date = timeseries_bounding_dates_from_db(db = db, id = dest_id)[1]
+    source.read_from_db(db)
+    dest = source.aggregate(target_step=dest_step,
+                            missing_allowed=missing_allowed, 
+                            missing_flag=missing_flag)[0]
+    dest.id = dest_id
+    if append_only:
+        for date in dest.iterkeys():
+            if date<=end_date:
+                del(dest[date])
+        dest.append_to_db(db=db, transaction=transaction, commit=commit)
+    else:
+        dest.write_to_db(db=db, transaction=transaction, commit=commit)
