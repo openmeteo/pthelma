@@ -68,13 +68,14 @@ def MultiTimeseriesProcessDb(method, timeseries_arg, out_timeseries_id,
     out_timeseries = Timeseries(id = out_timeseries_id)
     opts = copy.deepcopy(options)
     if 'append_only' in opts:
-        opts['start_date'] = timeseries_bounding_dates_from_db(db, 
-                                                   id = out_timeseries_id)[1]
+        bounds = timeseries_bounding_dates_from_db(db, 
+                                                   id = out_timeseries_id)
+        opts['start_date'] = bounds[1] if bounds else None;
         opts['interval_exclusive'] = True
     tseries_arg={}
     for key in timeseries_arg:
         ts = Timeseries(id=timeseries_arg[key])
-        if 'append_only' in opts:
+        if 'append_only' in opts and opts['start_date'] is not None:
             ts.read_from_db(db, onlybottom=True)
             if ts.bounding_dates()[0]>opts['start_date']:
                 ts.read_from_db(db)
@@ -96,7 +97,8 @@ def AggregateDbTimeseries(source_id, dest_id, db, read_tstep_func, transaction=N
     source = Timeseries(id=source_id, time_step=read_tstep_func(source_id))
     dest_step = read_tstep_func(dest_id)
     if append_only:
-        end_date = timeseries_bounding_dates_from_db(db = db, id = dest_id)[1]
+        bounds = timeseries_bounding_dates_from_db(db = db, id = dest_id)
+        end_date = bounds[1] if bounds else None
     source.read_from_db(db)
     dest = source.aggregate(target_step=dest_step,
                             missing_allowed=missing_allowed, 
@@ -104,7 +106,7 @@ def AggregateDbTimeseries(source_id, dest_id, db, read_tstep_func, transaction=N
     dest.id = dest_id
     if append_only:
         d=dest.bounding_dates()
-        while (d is not None) and d[0]<=end_date:
+        while (d is not None) and (end_date is not None) and d[0]<=end_date:
             del dest[d[0]]
             d=dest.bounding_dates()
         dest.append_to_db(db=db, transaction=transaction, commit=commit)
