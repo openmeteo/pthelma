@@ -2,7 +2,7 @@
 """
 meteologger - utilities to read files of meteorological loggers
 
-Copyright (C) 2005-2009 National Technical University of Athens
+Copyright (C) 2005-2011 National Technical University of Athens
 Copyright (C) 2005 Antonios Christofides
 
 This program is free software; you can redistribute it and/or modify

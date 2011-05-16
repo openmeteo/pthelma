@@ -3,7 +3,7 @@
 Timeseries processing
 =====================
 
-Copyright (C) 2005-2010 National Technical University of Athens
+Copyright (C) 2005-2011 National Technical University of Athens
 
 Copyright (C) 2005 Antonis Christofides
 

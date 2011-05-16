@@ -1,3 +1,21 @@
+#!/usr/bin/python
+"""
+tsprocess - time series processing
+
+Copyright (C) 2005-2011 National Technical University of Athens
+Copyright (C) 2011 Stefanos Kozanis, Antonis Christofides
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+"""
+
 from pthelma.timeseries import (Timeseries, 
                                timeseries_bounding_dates_from_db)
 import fpconst
