@@ -103,6 +103,7 @@ def plot_contours(filename, points, options):
     if options['compose_background']:
         from PIL import Image, ImageChops
         contours = Image.open(filename)
+        contours = contours.convert("RGB")
         cmethod = options['compose_method']
         size = contours.size
         background = Image.open(os.path.join(options['backgrounds_path'], options['background_image']))
