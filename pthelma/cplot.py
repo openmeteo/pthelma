@@ -41,15 +41,31 @@ def plot_contours(filename, points, options):
     # calculate the contours, and we crop it so that only its middle part is
     # shown. We call this grid the "greater" grid, so we suffix variables with
     # "gr" when they refer to it.
-    xgr0, ygr0, xgr1, ygr1 = (x0-width, y0-height, x1+width, y1+height)
-    a.append((xgr0, ygr0, 0.0, 'virtual'))
-    a.append((xgr1, ygr0, 0.0, 'virtual'))
-    a.append((xgr0, ygr1, 0.0, 'virtual'))
-    a.append((xgr1, ygr1, 0.0, 'virtual'))
-    a.append((xgr0+width/2, ygr0, 0.0, 'virtual'))
-    a.append((xgr0+width/2, ygr1, 0.0, 'virtual'))
-    a.append((xgr0, ygr0+height/2, 0.0, 'virtual'))
-    a.append((xgr1, ygr0+height/2, 0.0, 'virtual'))
+    # New update (2011-05-30 by Stefanos). The distance of boundary
+    # can be altered by a factor (default value is 1) as well as
+    # boundary value (default should be 0). Boundary mode 0 is for a
+    # constant value, 1 for a ratio of the mean value
+    bfac = options.get('boundary_distance_factor', 1)
+    bvalue = options.get('boundary_value', 0)
+    if options.get('boundary_mode', 0)==1:
+        mean, count = 0, 0
+        for p in a:
+            if p:
+                mean+=p[2]
+                count+=1
+        if count>0:
+            mean/= count
+            bvalue*= mean
+    bwidth, bheight = bfac*width, bfac*height
+    xgr0, ygr0, xgr1, ygr1 = (x0-bwidth, y0-bheight, x1+bwidth, y1+bheight)
+    a.append((xgr0, ygr0, bvalue, 'virtual'))
+    a.append((xgr1, ygr0, bvalue, 'virtual'))
+    a.append((xgr0, ygr1, bvalue, 'virtual'))
+    a.append((xgr1, ygr1, bvalue, 'virtual'))
+    a.append((xgr0+bwidth/2, ygr0, bvalue, 'virtual'))
+    a.append((xgr0+bwidth/2, ygr1, bvalue, 'virtual'))
+    a.append((xgr0, ygr0+bheight/2, bvalue, 'virtual'))
+    a.append((xgr1, ygr0+bheight/2, bvalue, 'virtual'))
 
     # Now interpolate
     x = [i[0] for i in a]
@@ -106,12 +122,12 @@ def plot_contours(filename, points, options):
         contours = contours.convert("RGB")
         cmethod = options['compose_method']
         size = contours.size
-        background = Image.open(os.path.join(options['backgrounds_path'], options['background_image']))
+        background = Image.open(os.path.join(options['backgrounds_path'], options['background_image'])).convert("RGB").convert("RGB")
         background_size = background.size
         if size!=background_size:
             background = background.resize(size)
         if cmethod=='composite':
-            mask = Image.open(os.path.join(options['backgrounds_path'], options['mask_image']))
+            mask = Image.open(os.path.join(options['backgrounds_path'], options['mask_image'])).convert("RGB")
             mask_size = mask.size
             if size!=mask_size:
                 mask = mask.resize(size)
