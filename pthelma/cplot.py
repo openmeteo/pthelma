@@ -122,12 +122,12 @@ def plot_contours(filename, points, options):
         contours = contours.convert("RGB")
         cmethod = options['compose_method']
         size = contours.size
-        background = Image.open(os.path.join(options['backgrounds_path'], options['background_image'])).convert("RGB").convert("RGB")
+        background = Image.open(os.path.join(options['backgrounds_path'], options['background_image'])).convert("RGB")
         background_size = background.size
         if size!=background_size:
             background = background.resize(size)
         if cmethod=='composite':
-            mask = Image.open(os.path.join(options['backgrounds_path'], options['mask_image'])).convert("RGB")
+            mask = Image.open(os.path.join(options['backgrounds_path'], options['mask_image']))
             mask_size = mask.size
             if size!=mask_size:
                 mask = mask.resize(size)
