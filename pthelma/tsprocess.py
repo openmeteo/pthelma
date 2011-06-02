@@ -19,7 +19,7 @@ GNU General Public License for more details.
 from pthelma.timeseries import (Timeseries, 
                                timeseries_bounding_dates_from_db)
 import fpconst
-from meteocalcs import HeatIndex, SSI
+from meteocalcs import HeatIndex, SSI, IDM
 import copy
 
 
