@@ -27,7 +27,7 @@ from StringIO import StringIO
 from math import sin, cos, atan2, pi
 from ConfigParser import ParsingError
 from codecs import BOM_UTF8
-from os import SEEK_CUR
+from os import SEEK_CUR, SEEK_SET
 
 import psycopg2
 import fpconst
@@ -493,9 +493,18 @@ class Timeseries(dict):
             fp.seek(-len(BOM_UTF8), SEEK_CUR)
         line_number = 1
         try:
-            (name, value) = self.__read_meta_line(fp)
-            if name != 'version' or value != '2':
-                raise ParsingError(("The first line must be Version=2"))
+# Changed the behavior when 'version=2' is not present..
+# If version=2 not parsed, then the file is considered as
+# a plain text file with time series data only, withoud
+# head section with meta information. Stefanos, 2011-06-10
+            try:
+                saved_pos = fp.tell()
+                (name, value) = self.__read_meta_line(fp)
+                if name != 'version' or value != '2':
+                    raise ParsingError(("The first line must be Version=2"))
+            except ParsingError:
+                fp.seek(saved_pos, SEEK_SET)
+                return line_number
             line_number += 1
             (name, value) = self.__read_meta_line(fp)
             while name:
