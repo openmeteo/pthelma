@@ -19,7 +19,7 @@ GNU General Public License for more details.
 from pthelma.timeseries import (Timeseries, 
                                timeseries_bounding_dates_from_db)
 import fpconst
-from meteocalcs import HeatIndex, SSI, IDM
+from meteocalcs import HeatIndex, SSI, IDM, BarometricFormula
 import copy
 
 
@@ -76,6 +76,9 @@ def MultiTimeseriesProcess(method, timeseries_arg, out_timeseries,
         elif method == 'IDM_annual':
             v = IDM(timeseries_arg['temp'][date],
                     timeseries_arg['precip'][date], True)
+        elif method == 'BaromFormula':
+            v = BarometricFormula(timeseries_arg['temp'][date],
+                    timeseries_arg['press'][date], options['hdiff'])
         else:
             assert(False)
         out_timeseries[date] = v

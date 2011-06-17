@@ -18,6 +18,15 @@ GNU General Public License for more details.
 """
 
 from fpconst import isNaN, NaN
+from math import exp
+
+#Gravitational acceleration at phi=45deg m^2/s
+g0 = 9.80665
+#Universal gas constant for air in N.m/(mol.K)
+Rs = 8.31432
+#Molar mass of Earth's air in kg/mol
+Mair = 0.0289644
+
 
 def HeatIndex(Tc, RH):
     """Return the Heat Index in degrees C. Tc in degrees C,
@@ -57,3 +66,16 @@ def IDM(T, Precip, is_annual=False):
         return NaN
     f=1 if is_annual else 12
     return f*Precip/(T+10)
+
+def BarometricFormula(T, Pb, hdiff):
+    """Return the barometric pressure at a level
+    h if the pressure Pb at an altutde hb is given for
+    atmospheric temperature T, according to the
+    barometric formula. hdiff is h-hb.
+    """
+    for v in (T, Pb, hdiff):
+        if isNaN(v):
+            return NaN
+            break
+    T+= 273.75
+    return Pb * exp( (-g0*Mair*hdiff)/(Rs * T) )
