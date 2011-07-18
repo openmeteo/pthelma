@@ -803,10 +803,10 @@ class Timeseries(dict):
                                 (unused_interval+used_interval))
                 total_components += pct_used
                 if fpconst.isNaN(self.get(s, fpconst.NaN)):
+                    missing += pct_used
                     if last_incomplete:
                         if s>self.bounding_dates()[1]:
-                            break;
-                    missing += pct_used
+                            missing -= pct_used
                     s = self.time_step.next(s)
                     continue
                 divider += pct_used
