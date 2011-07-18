@@ -759,7 +759,8 @@ class Timeseries(dict):
             if end_date is None else c_longlong(_datetime_to_time_t(end_date))
         return dickinson.ts_sum(self.ts_handle, start_date, end_date)
 
-    def aggregate(self, target_step, missing_allowed=0.0, missing_flag=""):
+    def aggregate(self, target_step, missing_allowed=0.0, missing_flag="",
+                  last_incomplete=False):
 
         def aggregate_one_step(d):
             """Return tuple of ((result value, flags), missing) for a single
@@ -802,6 +803,9 @@ class Timeseries(dict):
                                 (unused_interval+used_interval))
                 total_components += pct_used
                 if fpconst.isNaN(self.get(s, fpconst.NaN)):
+                    if last_incomplete:
+                        if s>self.bounding_dates()[1]:
+                            break;
                     missing += pct_used
                     s = self.time_step.next(s)
                     continue
