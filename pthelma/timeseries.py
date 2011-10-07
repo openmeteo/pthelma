@@ -760,9 +760,9 @@ class Timeseries(dict):
         return dickinson.ts_sum(self.ts_handle, start_date, end_date)
 
     def aggregate(self, target_step, missing_allowed=0.0, missing_flag="",
-                  last_incomplete=False):
+                  last_incomplete=False, all_incomplete=False):
 
-        def aggregate_one_step(d):
+        def aggregate_one_step(d, test_run=False, explicit_components=0):
             """Return tuple of ((result value, flags), missing) for a single
             target stamp d."""
 
@@ -804,9 +804,12 @@ class Timeseries(dict):
                 total_components += pct_used
                 if fpconst.isNaN(self.get(s, fpconst.NaN)):
                     missing += pct_used
-                    if last_incomplete:
+                    if last_incomplete or all_incomplete:
                         if s>self.bounding_dates()[1]:
                             missing -= pct_used
+                            if test_run:
+                                explicit_components = total_components-pct_used
+                                break
                     s = self.time_step.next(s)
                     continue
                 divider += pct_used
@@ -826,9 +829,12 @@ class Timeseries(dict):
                             aggregate_value[1] + sin(self[s]/180*pi)*pct_used)
                 else:
                     assert(False)
+                if all_incomplete and not test_run:
+                    if total_components>=explicit_components:
+                        break
                 s = self.time_step.next(s)
             flag = []
-            if missing/total_components > \
+            if not test_run and missing/total_components > \
                                 missing_allowed/total_components+1e-5 \
                                 or abs(missing-total_components) < 1e-36:
                 aggregate_value = fpconst.NaN
@@ -841,16 +847,32 @@ class Timeseries(dict):
                                                     aggregate_value[0])/pi*180
                     while aggregate_value<0: aggregate_value+=360
                     if abs(aggregate_value-360)<1e-7: aggregate_value=0
-            return (aggregate_value, flag), missing
+            return (aggregate_value, flag), missing, explicit_components
 
         source_start_date, source_end_date = self.bounding_dates()
         target_start_date = target_step.previous(source_start_date)
         target_end_date = target_step.next(source_end_date)
         result = Timeseries(time_step=target_step)
         missing = Timeseries(time_step=target_step)
+        ec=0
+        it=0
+
+        if all_incomplete:
+            d = target_end_date
+            while d>=target_start_date:
+                dummy1, dummy2, ec = aggregate_one_step(d, test_run=True, 
+                                                        explicit_components=ec)
+                it+=1
+                if ec>0 or it>3:
+                    break
+                d = target_step.previous(d)
+            if ec==0:
+                ec=1e9
+
         d = target_start_date
         while d <= target_end_date:
-            result[d], missing[d] = aggregate_one_step(d)
+            result[d], missing[d], dummy3 = aggregate_one_step(d, test_run=False, 
+                                                       explicit_components=ec)
             d = target_step.next(d)
         while fpconst.isNaN(result.get(target_start_date, 0)):
             del result[target_start_date]
