@@ -308,13 +308,14 @@ class TransientCurveList(object):
         ext_curve = self.find(date, True)
         if not normal_curve.value_over_curve(value):
             return normal_curve.interpolate(value)
-        if ext_curve.value_in_curve_range(value):
+        if ext_curve.value_in_curve_range(value) or \
+                    ext_curve.value_over_curve(value):
             return ext_curve.interpolate(value)
         curve = InterpolatingCurve(logarithmic =\
-                                              normal_curve.logarithmic,
+                                            normal_curve.logarithmic,
                                    offset = normal_curve.offset)
         curve[0:2] = [normal_curve.last(), ext_curve.first()]
-        curve.interpolate(value)
+        return curve.interpolate(value)
 
     def interpolate_ts(self, timeseries):
         result = Timeseries(time_step=timeseries.time_step)
