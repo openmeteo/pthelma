@@ -114,12 +114,12 @@ class InterpolatingCurve(object):
     def last(self):
         return self.container[len(self.container)-1]
 
-    def value_over_curve(self, value):
-        return value>self.last().independent
+    def value_over_curve(self, value, reverse=False):
+        return value>self.last().v(reverse)[0]
 
-    def value_in_curve_range(self, value):
-        return value<=self.last().independent and\
-               value>=self.first().independent
+    def value_in_curve_range(self, value, reverse=False):
+        return value<=self.last().v(reverse)[0] and\
+               value>=self.first().v(reverse)[0]
 
     def read_line(self, line, columns=(0,1)):
         values = [float(x) for x in line.split(',')]
