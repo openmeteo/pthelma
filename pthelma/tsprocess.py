@@ -19,7 +19,10 @@ GNU General Public License for more details.
 from pthelma.timeseries import (Timeseries, 
                                timeseries_bounding_dates_from_db)
 import fpconst
-from meteocalcs import HeatIndex, SSI, IDM, BarometricFormula
+from StringIO import StringIO
+from pthelma.meteocalcs import HeatIndex, SSI, IDM, BarometricFormula
+from pthelma.curves import (CurvePoint, TransientCurveList,
+                            TransientCurve,)
 import copy
 
 
@@ -88,7 +91,7 @@ def MultiTimeseriesProcessDb(method, timeseries_arg, out_timeseries_id,
                              db, transaction=None, commit=True, options={}):
     out_timeseries = Timeseries(id = out_timeseries_id)
     opts = copy.deepcopy(options)
-    if 'append_only' in opts:
+    if 'append_only' in opts and opts['append_only']:
         bounds = timeseries_bounding_dates_from_db(db, 
                                                    id = out_timeseries_id)
         opts['start_date'] = bounds[1] if bounds else None;
@@ -96,7 +99,8 @@ def MultiTimeseriesProcessDb(method, timeseries_arg, out_timeseries_id,
     tseries_arg={}
     for key in timeseries_arg:
         ts = Timeseries(id=timeseries_arg[key])
-        if 'append_only' in opts and opts['start_date'] is not None:
+        if ('append_only' in opts and opts['append_only']) \
+                         and opts['start_date'] is not None:
             ts.read_from_db(db, onlybottom=True)
             if ts.bounding_dates()[0]>opts['start_date']:
                 ts.read_from_db(db)
@@ -104,7 +108,7 @@ def MultiTimeseriesProcessDb(method, timeseries_arg, out_timeseries_id,
             ts.read_from_db(db)
         tseries_arg[key] = ts
     MultiTimeseriesProcess(method, tseries_arg, out_timeseries, opts)
-    if 'append_only' in opts:
+    if 'append_only' in opts and opts['append_only']:
         out_timeseries.append_to_db(db=db, transaction=transaction,
                                     commit=commit)
     else:
@@ -136,3 +140,43 @@ def AggregateDbTimeseries(source_id, dest_id, db, read_tstep_func, transaction=N
         dest.append_to_db(db=db, transaction=transaction, commit=commit)
     else:
         dest.write_to_db(db=db, transaction=transaction, commit=commit)
+
+
+def InterpolateDbTimeseries(source_id, dest_id, curve_type, curve_data,
+                            db, data_columns=(0,1), logarithmic=False,
+                            offset=0, append_only=False,
+                            transaction=None, commit=True):
+    if append_only:
+        bounds = timeseries_bounding_dates_from_db(db, id = dest_id)
+        start_date = bounds[1] if bounds else None;
+    ts = Timeseries(id=source_id)
+    if append_only and start_date is not None:
+        ts.read_from_db(db, onlybottom=True)
+        if ts.bounding_dates()[0]>start_date:
+            ts.read_from_db(db)
+        while ts.bounding_dates()[0]<=start_date:
+            del(ts[ts.bounding_dates()[0]])
+            if len(ts)==0: return
+    else:
+        ts.read_from_db(db)
+    curve_list = TransientCurveList()
+    if curve_type=='SingleCurve':
+        curve_list.add(logarithmic=logarithmic, 
+                       offset=CurvePoint(offset, 0))
+        super(TransientCurve, 
+              curve_list[0]).read_fp(StringIO(curve_data),
+                                                data_columns)
+    elif curve_type=='StageDischargeMulti':
+        curve_list.read_fp(StringIO(curve_data))
+    else:
+        assert(False)
+    out_timeseries = curve_list.interpolate_ts(ts)
+    out_timeseries.id = dest_id
+    if append_only:
+        out_timeseries.append_to_db(db=db, transaction=transaction,
+                                    commit=commit)
+    else:
+        out_timeseries.write_to_db(db=db, transaction=transaction, 
+                                   commit=commit)
+
+

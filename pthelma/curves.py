@@ -201,7 +201,7 @@ class TransientCurve(InterpolatingCurve):
         self.end_date = end_date
         self.extension_line=extension_line
 
-    def read_fp(self, fp):
+    def read_fp(self, fp, columns=(0,1)):
         (name, value) = read_meta_line(fp)
         while name:
             if name=='extension':
@@ -215,7 +215,7 @@ class TransientCurve(InterpolatingCurve):
             elif name in ('end_date', 'enddate'):
                 self.end_date=datetime_from_iso(value)
             (name, value) = read_meta_line(fp)
-        super(TransientCurve, self).read_fp(fp)
+        super(TransientCurve, self).read_fp(fp, columns)
 
 class NoInterpolCurveError(Exception): pass
 
@@ -302,7 +302,7 @@ class TransientCurveList(object):
         return False
 
     def interpolate(self, date, value):
-        if not self.has_extension_lines:
+        if not self.has_extension_lines():
             return self.find(date).interpolate(value)
         normal_curve = self.find(date)
         ext_curve = self.find(date, True)
