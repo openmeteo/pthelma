@@ -66,6 +66,7 @@ def MultiTimeseriesProcess(method, timeseries_arg, out_timeseries,
                     interval_exclusive = interval_exclusive, reject_nulls=False)
     out_timeseries.clear()
     v = 0.0000
+    first_timeseries = timeseries_arg[timeseries_arg.keys()[0]]
     for date in common_period:
         if method == 'HeatIndex':
             v = HeatIndex(timeseries_arg['temp'][date],
@@ -83,21 +84,19 @@ def MultiTimeseriesProcess(method, timeseries_arg, out_timeseries,
             v = BarometricFormula(timeseries_arg['temp'][date],
                     timeseries_arg['press'][date], options['hdiff'])
         elif method == 'OneStepDiff':
-            index = timeseries_arg[timeseries_arg.keys()[0]].index(date)
-            if index==0: 
+            prev_date = first_timeseries.time_step.previous(date)
+            if prev_date<first_timeseries.bounding_dates()[0]:
                 v = fpconst.NaN
             else:
-                v = timeseries_arg[timeseries_arg.keys()[0]].\
-                                               items(pos=index)[0][1]-\
-                    timeseries_arg[timeseries_arg.keys()[0]].\
-                                               items(pos=index-1)[0][1]
+                v = first_timeseries[date]-first_timeseries[prev_date]
         else:
             assert(False)
         out_timeseries[date] = v
         
 
 def MultiTimeseriesProcessDb(method, timeseries_arg, out_timeseries_id,
-                             db, transaction=None, commit=True, options={}):
+                             db, read_tstep_func, transaction=None, 
+                             commit=True, options={}):
     out_timeseries = Timeseries(id = out_timeseries_id)
     opts = copy.deepcopy(options)
     if 'append_only' in opts and opts['append_only']:
@@ -115,6 +114,7 @@ def MultiTimeseriesProcessDb(method, timeseries_arg, out_timeseries_id,
                 ts.read_from_db(db)
         else:
             ts.read_from_db(db)
+        ts.time_step = read_tstep_func(ts.id)
         tseries_arg[key] = ts
     MultiTimeseriesProcess(method, tseries_arg, out_timeseries, opts)
     if 'append_only' in opts and opts['append_only']:
