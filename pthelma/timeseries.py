@@ -687,14 +687,21 @@ class Timeseries(dict):
         else:
             return None
 
-    def items(self):
+    def items(self, pos=None):
         a = []
         i = 0
+        if pos is not None:
+            if pos<0 or pos>=dickinson.ts_length(self.ts_handle):
+                raise IndexError("Index (%d) out of "
+                                 "bounds (%d, %d)"%(pos, 0, 
+                             dickinson.ts_length(self.ts_handle)-1,))
+            i = pos
         while i<dickinson.ts_length(self.ts_handle):
             rec = dickinson.ts_get_item(self.ts_handle, c_int(i))
             a.append((_time_t_to_datetime(rec.timestamp),
                      _Tsvalue(fpconst.NaN if rec.null else rec.value,
                               rec.flags.split())))
+            if pos is not None: break
             i+=1
         return a
 

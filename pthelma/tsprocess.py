@@ -82,6 +82,15 @@ def MultiTimeseriesProcess(method, timeseries_arg, out_timeseries,
         elif method == 'BaromFormula':
             v = BarometricFormula(timeseries_arg['temp'][date],
                     timeseries_arg['press'][date], options['hdiff'])
+        elif method == 'OneStepDiff':
+            index = timeseries_arg[timeseries_arg.keys()[0]].index(date)
+            if index==0: 
+                v = fpconst.NaN
+            else:
+                v = timeseries_arg[timeseries_arg.keys()[0]].\
+                                               items(pos=index)[0][1]-\
+                    timeseries_arg[timeseries_arg.keys()[0]].\
+                                               items(pos=index-1)[0][1]
         else:
             assert(False)
         out_timeseries[date] = v
