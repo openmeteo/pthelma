@@ -161,12 +161,11 @@ class InterpolatingCurve(object):
         y1 = self[i].v(reverse)[1]+y0
         y2 = self[i+1].v(reverse)[1]+y0
         if self.logarithmic:
-            try:
-                if x>0:
-                    return exp( (log(x)-log(x1))/(log(x2)-log(x1))*\
-                                (log(y2)-log(y1)) + log(y1)) - y0
-                else:
-                    return fpconst.NaN
+            if x>0:
+                return exp( (log(x)-log(x1))/(log(x2)-log(x1))*\
+                            (log(y2)-log(y1)) + log(y1)) - y0
+            else:
+                return fpconst.NaN
         else:
             return (x-x1)/(x2-x1)*(y2-y1)+y1
 
