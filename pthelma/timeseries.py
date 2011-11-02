@@ -789,6 +789,7 @@ class Timeseries(dict):
             elif it == IntervalType.MAXIMUM: aggregate_value = -1e38
             elif it == IntervalType.MINIMUM: aggregate_value = 1e38
             elif it == IntervalType.VECTOR_AVERAGE: aggregate_value = (0, 0)
+            elif it is None: aggregate_value = fpconst.NaN
             else: assert(False)
             missing = 0.0
             total_components = 0.0
@@ -834,6 +835,11 @@ class Timeseries(dict):
                     aggregate_value = (
                             aggregate_value[0] + cos(self[s]/180*pi)*pct_used, 
                             aggregate_value[1] + sin(self[s]/180*pi)*pct_used)
+                elif it is None:
+                    total_components, missing = 1,1
+                    aggregate_value = self.get(end_nominal,fpconst.NaN)
+                    if not fpconst.isNaN(aggregate_value): missing = 0
+                    break
                 else:
                     assert(False)
                 if all_incomplete and not test_run:
