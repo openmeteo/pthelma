@@ -104,7 +104,7 @@ class Datafile:
                 self.logger.debug(line)
                 if not line.strip(): continue # skip empty lines
                 if not self.subset_identifiers_match(line): continue
-                date = self.extract_date(line)
+                date = self.extract_date(line).replace(second=0)
                 if date == prev_date:
                     self.logger.warning(
                        'WARNING: Omitting line with repeated date %s'
