@@ -23,7 +23,7 @@ import random
 import re
 import textwrap
 from datetime import datetime, timedelta
-from StringIO import StringIO
+from cStringIO import StringIO
 from math import sin, cos, atan2, pi
 from ConfigParser import ParsingError
 from codecs import BOM_UTF8
@@ -419,13 +419,14 @@ class Timeseries(dict):
 
     def read(self, fp, line_number=1):
         err_str_c = c_char_p()
+        errline = c_int()
         try:
-            for line in fp.readlines():
-                if dickinson.ts_readline(c_char_p(line), self.ts_handle,
-                        byref(err_str_c)):
-                    raise ValueError('Error when reading time series '+
-                                     'line from I/O: '+repr(err_str_c.value))
-                line_number += 1
+            if dickinson.ts_readfromstring(c_char_p(fp.read()),
+                self.ts_handle, byref(errline), byref(err_str_c)):
+                line_number+= errline.value-1
+                raise ValueError('Error when reading time series '+
+                                'line from I/O: '+repr(err_str_c.value))
+            line_number+= errline.value-1
         except Exception, e:
             e.args = e.args + (line_number,)
             raise
