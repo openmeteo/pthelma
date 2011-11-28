@@ -166,7 +166,10 @@ class Datafile_pc208w(Datafile):
         except StandardError:
             self.raise_error(line, 'parse error or invalid date')
     def extract_value_and_flags(self, line, seq):
-        item = line.split(',')[seq+4].strip()
+        try:
+            item = line.split(',')[seq+4].strip()
+        except IndexError:
+            raise ValueError()
         if self.nullstr:
             if item==self.nullstr:
                 item = NaN
