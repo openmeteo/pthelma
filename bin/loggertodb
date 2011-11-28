@@ -68,7 +68,7 @@ try:
                 raise
             else:
                 sys.stderr.write('Error while parsing data from loggertodb configuration '
-                                 'section: %s with error message: %s'%(section, 
+                                 'section: %s with error message: %s\n'%(section, 
                                    e.__str__()))
                 db.rollback()
                 pass
