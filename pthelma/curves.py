@@ -304,31 +304,95 @@ class TransientCurveList(object):
                 return True
         return False
 
-    def interpolate(self, date, value):
+    def interpolate(self, date, value, reverse=False):
         if not self.has_extension_lines():
-            return self.find(date).interpolate(value)
+            return self.find(date).interpolate(value, reverse)
         normal_curve = self.find(date)
+        if not normal_curve.value_over_curve(value, reverse):
+            return normal_curve.interpolate(value, reverse)
         ext_curve = self.find(date, True)
-        if not normal_curve.value_over_curve(value):
-            return normal_curve.interpolate(value)
-        if ext_curve.value_in_curve_range(value) or \
-                    ext_curve.value_over_curve(value):
-            return ext_curve.interpolate(value)
+        if ext_curve.value_in_curve_range(value, reverse) or \
+                    ext_curve.value_over_curve(value, reverse):
+            return ext_curve.interpolate(value, reverse)
         curve = InterpolatingCurve(logarithmic =\
                                             normal_curve.logarithmic,
                                    offset = normal_curve.offset)
         curve[0:2] = [normal_curve.last(), ext_curve.first()]
-        return curve.interpolate(value)
+        return curve.interpolate(value, reverse)
 
-    def interpolate_ts(self, timeseries):
+    def interpolate_ts(self, timeseries, reverse=False):
         result = Timeseries(time_step=timeseries.time_step)
         for date in timeseries.iterkeys():
             value = timeseries[date]
             if fpconst.isNaN(value):
                 result[date] = fpconst.NaN
             else:
-                result[date] = self.interpolate(date, value)
+                result[date] = self.interpolate(date, value, reverse)
         return result
+
+    def stout_correction_series(self, stage, discharge):
+        result = self.interpolate_ts(discharge, reverse=True)
+        for date in result.iterkeys():
+            value = timeseries[date]
+            if (not fponst.isNaN(value)) and (not fpconst.isNaN(stage[date])):
+                result[date] = stage[date]-result[date]
+            else:
+                result[date] = fpconst.NaN
+        return result
+
+    def stout_correct_stage_series(self, timeseries, stage, discharge):
+
+        def timedeltadivide(a, b):
+            """Divide timedelta a by timedelta b."""
+            a = a.days*86400+a.seconds
+            b = b.days*86400+b.seconds
+            return a/b
+
+        correction_series = self.stout_correction_series(stage,
+                                                         discharge)
+        result = Timeseries(time_step=timeseries.time_step)
+        assert(len(correction_series)>0)
+        i1=i2=0
+        d1=d2=correction_series.bounding_dates[0]
+        v1=v2=correction_series[d1]
+        for date in timeseries.iterkeys():
+            if date>d1:
+                i2+=1
+                i1 = i2-1
+                i2=max(i2, len(correction_series)-1)
+                d1 = correction_series.items(pos=i1)[0]
+                d2 = correction_series.items(pos=i2)[0]
+                v1 = correction_series[d1]
+                v2 = correction_series[d2]
+            if d1!=d2:
+                dh = v1*timedeltadivide(d2-date, d2-d1) +\
+                     v2*timedeltadivide(date-d1, d2-d1)
+            else:
+                dh = v1
+            if fpconst.isNaN(timeseries[date]):
+                result[date]=fpconst.NaN
+            else: 
+                result[date]=timeseries[date]-dh
+            if not self.has_extension_lines():
+                continue
+            normal_curve = self.find(date)
+            if not normal_curve.value_over_curve(timeseries[date]):
+                continue
+            ext_curve = self.find(date, True)
+            if ext_curve.value_in_curve_range(timeseries[date]) or \
+                    ext_curve.value_over_curve(timeseries[date]):
+                result[date]=timeseries[date]
+                continue
+            curve = InterpolatingCurve(logarithmic = False,
+                                       offset = normal_curve.offset)
+            curve[0:2] = [CurvePoint(normal_curve.last().v()[0],0), 
+                          CurvePoint(ext_curve.first().v()[0],dh)]
+            result[date]+=curve.interpolate(timeseries[date])
+
+    def calc_stout_discharge(self, timeseries, stage, discharge):
+        corrected_stage = stout_correct_stage_series(timeseries,
+                                                     stage, discharge)
+        return corrected_stage, interpolate_ts(corrected_stage)
 
     def read_fp(self, fp):
         (name, value) = read_meta_line(fp)
