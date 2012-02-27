@@ -21,7 +21,7 @@ GNU General Public License for more details.
 
 from math import log, exp
 from datetime import datetime, MINYEAR, MAXYEAR
-import fpconst
+import math
 from ConfigParser import ParsingError
 from pthelma.timeseries import Timeseries, datetime_from_iso
 
@@ -165,7 +165,7 @@ class InterpolatingCurve(object):
                 return exp( (log(x)-log(x1))/(log(x2)-log(x1))*\
                             (log(y2)-log(y1)) + log(y1)) - y0
             else:
-                return fpconst.NaN
+                return float('NaN')
         else:
             return (x-x1)/(x2-x1)*(y2-y1)+y1
 
@@ -324,8 +324,8 @@ class TransientCurveList(object):
         result = Timeseries(time_step=timeseries.time_step)
         for date in timeseries.iterkeys():
             value = timeseries[date]
-            if fpconst.isNaN(value):
-                result[date] = fpconst.NaN
+            if math.isnan(value):
+                result[date] = float('NaN')
             else:
                 result[date] = self.interpolate(date, value, reverse)
         return result
@@ -334,10 +334,10 @@ class TransientCurveList(object):
         result = self.interpolate_ts(discharge, reverse=True)
         for date in result.iterkeys():
             value = timeseries[date]
-            if (not fponst.isNaN(value)) and (not fpconst.isNaN(stage[date])):
+            if (not math.isnan(value)) and (not math.isnan(stage[date])):
                 result[date] = stage[date]-result[date]
             else:
-                result[date] = fpconst.NaN
+                result[date] = float('NaN')
         return result
 
     def stout_correct_stage_series(self, timeseries, stage, discharge):
@@ -369,8 +369,8 @@ class TransientCurveList(object):
                      v2*timedeltadivide(date-d1, d2-d1)
             else:
                 dh = v1
-            if fpconst.isNaN(timeseries[date]):
-                result[date]=fpconst.NaN
+            if math.isnan(timeseries[date]):
+                result[date]=float('NaN')
             else: 
                 result[date]=timeseries[date]-dh
             if not self.has_extension_lines():

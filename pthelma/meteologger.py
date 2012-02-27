@@ -19,7 +19,7 @@ GNU General Public License for more details.
 from datetime import datetime, timedelta
 from xreverse import xreverse
 from timeseries import Timeseries, datetime_from_iso, isoformat_nosecs
-from fpconst import NaN
+import math
 
 class MeteologgerReadError(RuntimeError):
     pass
@@ -148,7 +148,7 @@ class Datafile_deltacom(Datafile):
             item = item[:-1]
         if self.nullstr:
             if item==self.nullstr:
-                item = NaN
+                item = float('NaN')
         return (item, flags)
 
 class Datafile_pc208w(Datafile):
@@ -172,7 +172,7 @@ class Datafile_pc208w(Datafile):
             raise ValueError()
         if self.nullstr:
             if item==self.nullstr:
-                item = NaN
+                item = float('NaN')
         return (item, '')
     def subset_identifiers_match(self, line):
         si = line.split(',')[0].strip()
@@ -189,8 +189,8 @@ class Datafile_lastem(Datafile):
         value = line.split(self.delimiter)[seq+3]
         if self.nullstr:
             if value==self.nullstr:
-                value = NaN
-        if value!=NaN:
+                value = float('NaN')
+        if not math.isnan(value):
             value = value.replace(self.decimal_separator, '.')
         return (value, '')
     def subset_identifiers_match(self, line):
@@ -208,7 +208,7 @@ class Datafile_zeno(Datafile):
         item = line.split()[seq+1]
         if self.nullstr:
             if item==self.nullstr:
-                item = NaN
+                item = float('NaN')
         return item
 
 class Datafile_xyz(Datafile_zeno):

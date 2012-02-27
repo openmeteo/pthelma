@@ -18,7 +18,7 @@ GNU General Public License for more details.
 
 from pthelma.timeseries import (Timeseries, 
                                timeseries_bounding_dates_from_db)
-import fpconst
+import math
 from StringIO import StringIO
 from pthelma.meteocalcs import HeatIndex, SSI, IDM, BarometricFormula
 from pthelma.curves import (CurvePoint, TransientCurveList,
@@ -38,11 +38,11 @@ def GetTimeseriesCommonPeriod(tslist, start_date=None, end_date=None,
                            else date>=end_date) :
             break
         value_rejected = False
-        if reject_nulls and fpconst.isNaN(tslist[0][date]):
+        if reject_nulls and math.isnan(tslist[0][date]):
             continue
         for i in xrange(1, len(tslist)):
             if (not date in tslist[i]) or \
-                       (reject_nulls and fpconst.isNaN(tslist[i][date])):
+                       (reject_nulls and math.isnan(tslist[i][date])):
                 value_rejected = True
                 break
         if not value_rejected:
@@ -86,7 +86,7 @@ def MultiTimeseriesProcess(method, timeseries_arg, out_timeseries,
         elif method == 'OneStepDiff':
             prev_date = first_timeseries.time_step.previous(date)
             if prev_date<first_timeseries.bounding_dates()[0]:
-                v = fpconst.NaN
+                v = float('NaN')
             else:
                 v = first_timeseries[date]-first_timeseries[prev_date]
         else:

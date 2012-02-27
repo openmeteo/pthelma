@@ -17,8 +17,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 """
 
-from fpconst import isNaN, NaN
-from math import exp
+from math import exp, isnan
 
 #Gravitational acceleration at phi=45deg m^2/s
 g0 = 9.80665
@@ -33,8 +32,8 @@ def HeatIndex(Tc, RH):
     RH rel. hum. in % (e.g. 40%). When Tc<26.7
     returns the actual Tc.
     """
-    if isNaN(Tc) or isNaN(RH):
-        return NaN
+    if isnan(Tc) or isnan(RH):
+        return float('NaN')
     if Tc<26.7:
         return Tc
     Tf = float(Tc)*9/5 + 32
@@ -49,8 +48,8 @@ def SSI(Tc, RH):
     RH rel. hum. in % (e.g. 40%). When Tc<22
     returns the actual Tc.
     """
-    if isNaN(Tc) or isNaN(RH):
-        return NaN
+    if isnan(Tc) or isnan(RH):
+        return float('NaN')
     if Tc<22:
         return Tc
     Tf = float(Tc)*9/5 + 32
@@ -62,8 +61,8 @@ def IDM(T, Precip, is_annual=False):
     Precip in mm. If is_annual=False values should be monthly
     or else annual.
     """
-    if isNaN(T) or isNaN(Precip):
-        return NaN
+    if isnan(T) or isnan(Precip):
+        return float('NaN')
     f=1 if is_annual else 12
     return f*Precip/(T+10)
 
@@ -74,8 +73,8 @@ def BarometricFormula(T, Pb, hdiff):
     barometric formula. hdiff is h-hb.
     """
     for v in (T, Pb, hdiff):
-        if isNaN(v):
-            return NaN
+        if isnan(v):
+            return float('NaN')
             break
     T+= 273.75
     return Pb * exp( (-g0*Mair*hdiff)/(Rs * T) )

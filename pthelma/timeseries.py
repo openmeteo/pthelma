@@ -30,7 +30,7 @@ from codecs import BOM_UTF8
 from os import SEEK_CUR, SEEK_SET
 
 import psycopg2
-import fpconst
+import math 
 
 from ctypes import CDLL, c_int, c_longlong, c_double, c_char, c_char_p, byref, \
                    Structure, c_void_p, pointer, POINTER, create_string_buffer,\
@@ -352,7 +352,7 @@ class Timeseries(dict):
             tsvalue = _Tsvalue(value, self[key].flags)
         else:
             tsvalue = _Tsvalue(value, [])
-        if fpconst.isNaN(tsvalue):
+        if math.isnan(tsvalue):
             null_c=1
             value_c = c_double(0)
         else:
@@ -381,7 +381,7 @@ class Timeseries(dict):
                      datetime) else key))
         arec = dickinson.ts_get_item(self.ts_handle, index_c)
         if arec.null==1:
-            value = fpconst.NaN
+            value = float('NaN')
         else:
             value = arec.value
         flags = arec.flags
@@ -700,7 +700,7 @@ class Timeseries(dict):
         while i<dickinson.ts_length(self.ts_handle):
             rec = dickinson.ts_get_item(self.ts_handle, c_int(i))
             a.append((_time_t_to_datetime(rec.timestamp),
-                     _Tsvalue(fpconst.NaN if rec.null else rec.value,
+                     _Tsvalue(float('NaN') if rec.null else rec.value,
                               rec.flags.split())))
             if pos is not None: break
             i+=1
@@ -721,7 +721,7 @@ class Timeseries(dict):
         rec = dickinson.ts_get_item(self.ts_handle, c_int(self.index(date,
                                                                 downwards)))
         return (_time_t_to_datetime(rec.timestamp), 
-            _Tsvalue(fpconst.NaN if rec.null else rec.value,
+            _Tsvalue(float('NaN') if rec.null else rec.value,
                      rec.flags.split()))
 
     def _get_bounding_indexes(self, start_date, end_date):
@@ -790,7 +790,7 @@ class Timeseries(dict):
             elif it == IntervalType.MAXIMUM: aggregate_value = -1e38
             elif it == IntervalType.MINIMUM: aggregate_value = 1e38
             elif it == IntervalType.VECTOR_AVERAGE: aggregate_value = (0, 0)
-            elif it is None: aggregate_value = fpconst.NaN
+            elif it is None: aggregate_value = float('NaN')
             else: assert(False)
             missing = 0.0
             total_components = 0.0
@@ -811,7 +811,7 @@ class Timeseries(dict):
                 pct_used = timedeltadivide(used_interval,
                                 (unused_interval+used_interval))
                 total_components += pct_used
-                if fpconst.isNaN(self.get(s, fpconst.NaN)):
+                if math.isnan(self.get(s, float('NaN'))):
                     missing += pct_used
                     if last_incomplete or all_incomplete:
                         if s>self.bounding_dates()[1]:
@@ -838,8 +838,8 @@ class Timeseries(dict):
                             aggregate_value[1] + sin(self[s]/180*pi)*pct_used)
                 elif it is None:
                     total_components, missing = 1,1
-                    aggregate_value = self.get(end_nominal,fpconst.NaN)
-                    if not fpconst.isNaN(aggregate_value): missing = 0
+                    aggregate_value = self.get(end_nominal,float('NaN'))
+                    if not math.isnan(aggregate_value): missing = 0
                     break
                 else:
                     assert(False)
@@ -851,7 +851,7 @@ class Timeseries(dict):
             if not test_run and missing/total_components > \
                                 missing_allowed/total_components+1e-5 \
                                 or abs(missing-total_components) < 1e-36:
-                aggregate_value = fpconst.NaN
+                aggregate_value = float('NaN')
             else:
                 if (missing/total_components > 1e-36) or\
                   source_has_missing: flag = [missing_flag]
@@ -888,11 +888,11 @@ class Timeseries(dict):
             result[d], missing[d], dummy3 = aggregate_one_step(d, test_run=False, 
                                                        explicit_components=ec)
             d = target_step.next(d)
-        while fpconst.isNaN(result.get(target_start_date, 0)):
+        while math.isnan(result.get(target_start_date, 0)):
             del result[target_start_date]
             del missing[target_start_date]
             target_start_date = target_step.next(target_start_date)
-        while fpconst.isNaN(result.get(target_end_date, 0)):
+        while math.isnan(result.get(target_end_date, 0)):
             del result[target_end_date]
             del missing[target_end_date]
             target_end_date = target_step.previous(target_end_date)

@@ -21,6 +21,7 @@ from pthelma.timeseries import *
 import unittest
 import types
 import sys
+import math
 import textwrap
 from datetime import datetime, timedelta
 from StringIO import StringIO
@@ -363,8 +364,8 @@ class _Test_Timeseries_setitem(unittest.TestCase):
         self.assertEqual(self.ts[self.date], 8.2)
         self.assertEqual(self.ts[self.date].flags, set(['RANGE', 'SPADE']))
     def test3(self):
-        self.ts[self.date] = fpconst.NaN
-        self.assert_(fpconst.isNaN(self.ts[self.date]))
+        self.ts[self.date] = float('NaN')
+        self.assert_(math.isnan(self.ts[self.date]))
 
 class _Test_Timeseries_write_empty(unittest.TestCase):
     def setUp(self):
@@ -381,8 +382,8 @@ class _Test_Timeseries_write_nonempty(unittest.TestCase):
         self.ts["2005-08-23 18:53"] = 93
         self.ts["2005-08-24 19:52"] = 108.7
         self.ts["2005-08-25 23:59"] = (28.3, ['HEARTS', 'SPADES'])
-        self.ts["2005-08-26 00:02"] = fpconst.NaN
-        self.ts["2005-08-27 00:02"] = (fpconst.NaN, ['DIAMONDS'])
+        self.ts["2005-08-26 00:02"] = float('NaN')
+        self.ts["2005-08-27 00:02"] = (float('NaN'), ['DIAMONDS'])
     def test_all(self):
         self.ts.write(self.c)
         self.assertEqual(self.c.getvalue(), textwrap.dedent("""\
@@ -711,7 +712,7 @@ class _Test_Timeseries_item(unittest.TestCase):
         self.assertEqual(isoformat_nosecs(item[0]), '2003-07-18T18:53')
     def test_matches_last(self):
         item = self.ts.item('2009-02-28 17:03', downwards=True)
-        self.assert_(fpconst.isNaN(item[1]))
+        self.assert_(math.isnan(item[1]))
         self.assertEqual(isoformat_nosecs(item[0]), '2005-08-27T00:02')
         self.assertEqual(item[1].flags, set(['DIAMONDS']))
     def test_index_error(self):
@@ -737,16 +738,16 @@ class _Test_Timeseries_min_max_avg_sum(unittest.TestCase):
         self.assertAlmostEqual(value, 230.0)
     def test_min_nan(self):
         value = self.ts.min('2004-08-21 00:00', '2004-08-22 12:00')
-        self.assert_(fpconst.isNaN(value))
+        self.assert_(math.isnan(value))
     def test_max_nan(self):
         value = self.ts.max('2004-08-21 00:00', '2004-08-22 12:00')
-        self.assert_(fpconst.isNaN(value))
+        self.assert_(math.isnan(value))
     def test_average_nan(self):
         value = self.ts.average('2004-08-21 00:00', '2004-08-22 12:00')
-        self.assert_(fpconst.isNaN(value))
+        self.assert_(math.isnan(value))
     def test_sum_nan(self):
         value = self.ts.sum('2004-08-21 00:00', '2004-08-22 12:00')
-        self.assert_(fpconst.isNaN(value))
+        self.assert_(math.isnan(value))
 
 
 class _Test_Timeseries_aggregate(unittest.TestCase):
