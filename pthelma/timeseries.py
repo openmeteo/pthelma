@@ -29,7 +29,7 @@ from ConfigParser import ParsingError
 from codecs import BOM_UTF8
 from os import SEEK_CUR, SEEK_SET
 
-import psycopg2
+psycopg2 = None #Do not import unless needed
 import math 
 
 from ctypes import CDLL, c_int, c_longlong, c_double, c_char, c_char_p, byref, \
@@ -290,8 +290,12 @@ class Timeseries(dict):
     MAX_ALL_BOTTOM=80
     ROWS_IN_TOP_BOTTOM=20
 
+    SQLDRIVER_NONE=0
+    SQLDRIVER_PSYCOPG2=1
+
     def __init__(self, id=0, time_step=None, unit=u'', title=u'', timezone=u'',
-        variable=u'', precision=None, comment=u''):
+        variable=u'', precision=None, comment=u'', driver=SQLDRIVER_PSYCOPG2):
+        self.ts_handle=None
         self.id = id
         if time_step:
             self.time_step = time_step
@@ -303,6 +307,8 @@ class Timeseries(dict):
         self.variable = variable
         self.precision = precision
         self.comment = comment
+        assert(driver in (self.SQLDRIVER_NONE, self.SQLDRIVER_PSYCOPG2))
+        self.driver = driver
         self.ts_handle = c_void_p(dickinson.ts_create())
         if self.ts_handle.value==0:
             raise MemoryError.Create('Could not allocate memory '+
@@ -313,6 +319,8 @@ class Timeseries(dict):
         self.__dickinson = dickinson
 
     def __del__(self):
+        if self.ts_handle is None:
+            return
         if self.ts_handle.value!=0:
             self.__dickinson.ts_free(self.ts_handle)
         self.ts_handle.value=0
@@ -605,6 +613,17 @@ class Timeseries(dict):
             self.read(StringIO(bottom))
         c.close()
 
+    def blob_create(self, s):
+        if self.driver==self.SQLDRIVER_NONE:
+            return ''
+        elif self.driver==self.SQLDRIVER_PSYCOPG2:
+            global psycopg2
+            if psycopg2 is None:
+                import psycopg2
+            return psycopg2.Binary(s)
+        else:
+            assert(False)
+
     def write_to_db(self, db, transaction=None, commit=True):
         if transaction is None: transaction = db
         fp = StringIO()
@@ -620,7 +639,7 @@ class Timeseries(dict):
             fp.truncate(0)
             self.write(fp, start = dates[Timeseries.ROWS_IN_TOP_BOTTOM],
                        end = dates[-(Timeseries.ROWS_IN_TOP_BOTTOM+1)])
-            middle = psycopg2.Binary(zlib.compress(fp.getvalue()))
+            middle = self.blob_create(zlib.compress(fp.getvalue()))
             fp.truncate(0)
             self.write(fp, start = dates[-Timeseries.ROWS_IN_TOP_BOTTOM])
             bottom = fp.getvalue()
