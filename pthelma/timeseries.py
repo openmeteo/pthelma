@@ -498,8 +498,9 @@ class Timeseries(dict):
             except Exception, e:
                 raise ParsingError(('Value should be "minutes, months"'))
         #Ignore the BOM_UTF8 byte mark if present by advancing
+        saved_pos = fp.tell()
         if fp.read(len(BOM_UTF8))!=BOM_UTF8:
-            fp.seek(-len(BOM_UTF8), SEEK_CUR)
+            fp.seek(saved_pos)
         line_number = 1
         try:
 # Changed the behavior when 'version=2' is not present..
