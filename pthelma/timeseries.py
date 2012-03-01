@@ -549,6 +549,7 @@ class Timeseries(dict):
                 line_number += 1
                 (name, value) = self.__read_meta_line(fp)
                 if not name and not value: return line_number
+            return line_number
         except ParsingError, e:
             e.args = e.args + (line_number,)
             raise
