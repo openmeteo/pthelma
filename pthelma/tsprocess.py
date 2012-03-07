@@ -23,13 +23,14 @@ from StringIO import StringIO
 from pthelma.meteocalcs import HeatIndex, SSI, IDM, BarometricFormula
 from pthelma.curves import (CurvePoint, TransientCurveList,
                             TransientCurve,)
+from pthelma.datetimelist import DatetimeList
 import copy
 
 
 def GetTimeseriesCommonPeriod(tslist, start_date=None, end_date=None,
                               interval_exclusive=False, reject_nulls=True):
     assert(len(tslist)>0)
-    common_period = []
+    common_period = DatetimeList()
     for date in tslist[0].iterkeys():
         if start_date and (date<start_date if not interval_exclusive\
                            else date<=start_date):
