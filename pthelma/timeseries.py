@@ -458,6 +458,15 @@ class Timeseries(dict):
         finally:
             dickinson.freemem(text)
 
+    def write_plain_values(self, fp, nullstr=''):
+        i = 0
+        lines = []
+        while i<dickinson.ts_length(self.ts_handle):
+            rec = dickinson.ts_get_item(self.ts_handle, c_int(i))
+            lines.append(nullstr if rec.null else str(rec.value))
+            i+=1
+        fp.write('\r\n'.join(lines))
+
     def delete_from_db(self, db):
         c = db.cursor()
         c.execute("""DELETE FROM ts_records
