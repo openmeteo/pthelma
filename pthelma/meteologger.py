@@ -178,6 +178,19 @@ class Datafile_pc208w(Datafile):
         si = line.split(',')[0].strip()
         return si==self.subset_identifiers
 
+class Datafile_CR1000(Datafile):
+    def extract_date(self, line):
+        try:
+            datestr = line.split(',')[0].strip('"')
+            return datetime_from_iso(datestr[:16])
+        except StandardError:
+            self.raiseerror(line, 'parse error or invalid date')
+    def extract_value_and_flags(self, line, seq):
+        return (line.split(',')[seq+3].strip(), '')
+    def subset_identifiers_match(self, line):
+        si = line.split(',')[2].strip()
+        return si==self.subset_identifiers
+
 class Datafile_lastem(Datafile):
     def extract_date(self, line):
         try:
