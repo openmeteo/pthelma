@@ -21,20 +21,18 @@ GNU General Public License for more details.
 import zlib
 import random
 import re
-import textwrap
 from datetime import datetime, timedelta
 from StringIO import StringIO
 from math import sin, cos, atan2, pi
 from ConfigParser import ParsingError
 from codecs import BOM_UTF8
-from os import SEEK_CUR, SEEK_SET
+from os import SEEK_SET
 
 psycopg2 = None #Do not import unless needed
 import math 
 
 from ctypes import CDLL, c_int, c_longlong, c_double, c_char, c_char_p, byref, \
-                   Structure, c_void_p, pointer, POINTER, create_string_buffer,\
-                   string_at
+                   Structure, c_void_p, POINTER, string_at
 
 class T_REC(Structure):
     _fields_ = [("timestamp", c_longlong),
