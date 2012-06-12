@@ -105,6 +105,15 @@ SUPPORTED FORMATS
 
 The following formats are currently supported: 
 
+CR1000
+   The ``CR1000`` format is comma-delimited lines of which the first
+   field is the date and time in ISO8601 format, the second and third
+   field are ignored (they are a record number and a station id), and
+   the rest of the fields hold time series values. The date can use a
+   space instead of ``T`` as the date/time separator, it can include
+   seconds, which are ignored, and it can optionally be enclosed in
+   double quotation marks.
+
 deltacom
    The ``deltacom`` format is space-delimited lines of which the first
    field is the date and time in ISO8601 format ``YYYY-MM-DDTHH:mm``,
