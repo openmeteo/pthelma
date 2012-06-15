@@ -673,7 +673,7 @@ class Timeseries(dict):
         r = c.fetchone()
         if r:
             bottom_ts.read(StringIO(r[0]))
-            if max(bottom_ts.keys())>=min(self.keys()):
+            if bottom_ts.keys() and max(bottom_ts.keys())>=min(self.keys()):
                 raise ValueError(("Cannot append time series: "
                     +"its first record (%s) has a date earlier than the last "
                     +"record (%s) of the timeseries to append to.")
