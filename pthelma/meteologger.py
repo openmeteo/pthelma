@@ -199,7 +199,10 @@ class Datafile_CR2000(Datafile):
         except StandardError:
             self.raise_error(line, 'parse error or invalid date')
     def extract_value_and_flags(self, line, seq):
-        return (line.split(',')[seq+2].strip(), '')
+        value = line.split(',')[seq+2].strip()
+        if self.nullstr and value==self.nullstr:
+            value = float('NaN')
+        return (value, '')
 
 class Datafile_lastem(Datafile):
     def extract_date(self, line):
