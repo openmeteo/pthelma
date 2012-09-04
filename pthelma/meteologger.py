@@ -204,6 +204,19 @@ class Datafile_CR2000(Datafile):
             value = float('NaN')
         return (value, '')
 
+class Datafile_simple(Datafile):
+    def extract_date(self, line):
+        try:
+            datestr = line.split(',')[0].strip('"')
+            return datetime_from_iso(datestr[:16])
+        except StandardError:
+            self.raise_error(line, 'parse error or invalid date')
+    def extract_value_and_flags(self, line, seq):
+        value = line.split(',')[seq].strip()
+        if self.nullstr and value==self.nullstr:
+            value = float('NaN')
+        return (value, '')
+
 class Datafile_lastem(Datafile):
     def extract_date(self, line):
         try:
