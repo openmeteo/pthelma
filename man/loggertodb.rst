@@ -121,7 +121,9 @@ simple
    If ``date_format`` is not specified, then the date and time are
    considered to be in ISO8601 format, optionally using a a space
    instead of ``T`` as the date/time separator, and ignoring any
-   seconds.
+   seconds. If ``date_format`` is specified, it must include a second
+   specifier if the times contain seconds, but these seconds are
+   actually subsequently ignored.
 
 CR1000
    Date and time in ISO8601, the first two fields after the date are

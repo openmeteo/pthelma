@@ -227,8 +227,9 @@ class Datafile_simple(Datafile):
             if len(datestr)<=10:
                 datestr += ' ' + items[1].strip('"')
                 self.__separate_time = True
-            return datetime.strptime(datestr, self.date_format
-                    ) if self.date_format else datetime_from_iso(datestr[:16])
+            return datetime.strptime(datestr, self.date_format).replace(
+                        second=0) if self.date_format else datetime_from_iso(
+                        datestr[:16])
         except ValueError:
             self.raise_error(line, 'parse error or invalid date')
 
