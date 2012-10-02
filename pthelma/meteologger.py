@@ -26,7 +26,7 @@ class MeteologgerReadError(RuntimeError):
     pass
 
 
-class Datafile:
+class Datafile(object):
 
     def __init__(self, db, datafiledict, logger=None):
         self.db = db
