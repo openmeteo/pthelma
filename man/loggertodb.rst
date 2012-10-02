@@ -106,29 +106,36 @@ SUPPORTED FORMATS
 The following formats are currently supported: 
 
 simple
-   The ``simple`` format is comma-delimited lines of which the first
-   field is the date and time in ISO8601 format, and the rest of the
-   fields hold time series values. The date can use a space instead of
-   ``T`` as the date/time separator, it can include seconds, which are
-   ignored, and it can optionally be enclosed in double quotation
-   marks.
-
-CR2000
-   The ``CR2000`` format is like ``simple``, but the first two fields
-   after the date are ignored (they are a record number and a station
-   id).
+   The ``simple`` format is lines of which the first one or two fields
+   are the date and time and the rest of the fields hold time series
+   values. If the first field (after stripping any double quotation
+   marks) is more than 10 characters in length, it
+   is considered to be a date and time; otherwise it is a date only,
+   and the second field is considered to be the time. The field
+   delimiter is white space, unless the ``delimiter`` parameter is
+   specified. The date and time can optionally be enclosed in double
+   quotation marks. The format of the date and time is specified by
+   the ``date_format`` parameter (enclosing quotation marks are
+   removed before parsing; also if the date and time are different
+   fields, they are joined together with a space before being parsed).
+   If ``date_format`` is not specified, then the date and time are
+   considered to be in ISO8601 format, optionally using a a space
+   instead of ``T`` as the date/time separator, and ignoring any
+   seconds.
 
 CR1000
-   This is similar to ``CR2000``, but uses subset identifiers in the
-   third field. It is not clear whether it is debugged and works
-   properly, neither whether its features are a matter of different
-   data logger model or different data logger configuration.
+   Date and time in ISO8601, the first two fields after the date are
+   ignored (they are a record number and a station id), and uses
+   subset identifiers in the next field. It is not clear whether it is
+   debugged and works properly, neither whether its features are a
+   matter of different data logger model or different data logger
+   configuration.
 
 deltacom
    The ``deltacom`` format is space-delimited lines of which the first
    field is the date and time in ISO8601 format ``YYYY-MM-DDTHH:mm``,
    and the rest of the fields are either dummy or hold time series
-   values.
+   values, optionally followed by one of the four flags #, $, %, or &.
 
 lastem
    The ``lastem`` format is dependent on regional settings, and uses
@@ -143,15 +150,6 @@ pc208w
    order: subset identifier, logger id (ignored), year, day of year,
    time in ``HHmm``, measurements.
 
-zeno
-   The ``zeno`` format is space-delimited items in the following
-   order: date in ``yy/mm/dd`` format, time in ``HH:mm`` format,
-   measurements.
-
-xyz
-   The ``xyz`` format is whitespace-delimited items in the following
-   order: date in ``dd/mm/yyyy`` format, time in ``HH:mm:ss`` format,
-   measurements.
 
 OPERATION DETAILS
 =================

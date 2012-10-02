@@ -21,19 +21,22 @@ from xreverse import xreverse
 from timeseries import Timeseries, datetime_from_iso, isoformat_nosecs
 import math
 
+
 class MeteologgerReadError(RuntimeError):
     pass
 
+
 class Datafile:
+
     def __init__(self, db, datafiledict, logger=None):
         self.db = db
         self.filename = datafiledict['filename']
         self.datafile_fields = [int(x)
                             for x in datafiledict['datafile_fields'].split(',')]
         self.subset_identifiers = datafiledict.get('subset_identifiers', '')
-        self.delimiter = datafiledict.get('delimiter', '')
-        self.decimalseparator = datafiledict.get('decimalseparator', '')
-        self.dateformat = datafiledict.get('dateformat', '')
+        self.delimiter = datafiledict.get('delimiter', None)
+        self.decimal_separator = datafiledict.get('decimal_separator', '')
+        self.date_format = datafiledict.get('date_format', '')
         self.nullstr = datafiledict.get('nullstr', '')
         self.logger = logger
         if not self.logger:
@@ -41,6 +44,7 @@ class Datafile:
             self.logger = logging.getLogger('datafile')
             self.logger.setLevel(logging.WARNING)
             self.logger.addHandler(logging.StreamHandler())
+
     def update_database(self):
         self.logger.info('Processing datafile %s' % (self.filename))
         self.last_timeseries_end_date = None
@@ -57,6 +61,7 @@ class Datafile:
                 self._update_timeseries()
         finally:
             self.fileobject.close()
+
     def _update_timeseries(self):
         c = self.db.cursor()
         try:
@@ -93,6 +98,7 @@ class Datafile:
             self.logger.info('Last appended record:  %s' %
                             (ts.items()[-1][0].isoformat()))
             ts.append_to_db(self.db, commit=False)
+
     def _get_tail(self):
         "Read the part of the datafile after last_timeseries_end_date"
         self.tail = []
@@ -118,28 +124,35 @@ class Datafile:
         except StopIteration:
             pass
         self.tail.reverse()
+
     def subset_identifiers_match(self, line):
         "Returns true if subset identifier of line matches specified"
         return True
+
     def extract_date(self, line):
         raise Exception(
                 "Internal error: datafile.extract_date is an abstract function")
+
     def extract_value_and_flags(self, line, seq):
         raise Exception("Internal error: datafile.extract_value_and_flags " +
                 "is an abstract function")
+
     def raise_error(self, line, msg):
         errmessage = '%s: "%s": %s' % (self.filename, line, msg)
         self.logger.error("Error while parsing, message: %s" % errmessage)
         raise MeteologgerReadError(errmessage)
+
 
 class Datafile_deltacom(Datafile):
     deltacom_flags = { '#': 'LOGOVERRUN',
                        '$': 'LOGNOISY',
                        '%': 'LOGOUTSIDE',
                        '&': 'LOGRANGE' }
+
     def extract_date(self, line):
         try: return datetime_from_iso(line)
         except ValueError: self.raise_error(line, 'parse error or invalid date')
+
     def extract_value_and_flags(self, line, seq):
         flags = ''
         item = line.split()[seq].strip()
@@ -151,7 +164,9 @@ class Datafile_deltacom(Datafile):
                 item = float('NaN')
         return (item, flags)
 
+
 class Datafile_pc208w(Datafile):
+
     def extract_date(self, line):
         try:
             items = line.split(',')
@@ -165,6 +180,7 @@ class Datafile_pc208w(Datafile):
             return datetime(year, 1, 1, hour, minute) + timedelta(yday-1)
         except StandardError:
             self.raise_error(line, 'parse error or invalid date')
+
     def extract_value_and_flags(self, line, seq):
         try:
             item = line.split(',')[seq+4].strip()
@@ -174,56 +190,65 @@ class Datafile_pc208w(Datafile):
             if item==self.nullstr:
                 item = float('NaN')
         return (item, '')
+
     def subset_identifiers_match(self, line):
         si = line.split(',')[0].strip()
         return si==self.subset_identifiers
 
+
 class Datafile_CR1000(Datafile):
+
     def extract_date(self, line):
         try:
             datestr = line.split(',')[0].strip('"')
             return datetime_from_iso(datestr[:16])
         except StandardError:
             self.raise_error(line, 'parse error or invalid date')
+
     def extract_value_and_flags(self, line, seq):
         return (line.split(',')[seq+3].strip(), '')
+
     def subset_identifiers_match(self, line):
         si = line.split(',')[2].strip()
         return si==self.subset_identifiers
 
-class Datafile_CR2000(Datafile):
-    def extract_date(self, line):
-        try:
-            datestr = line.split(',')[0].strip('"')
-            return datetime_from_iso(datestr[:16])
-        except StandardError:
-            self.raise_error(line, 'parse error or invalid date')
-    def extract_value_and_flags(self, line, seq):
-        value = line.split(',')[seq+2].strip()
-        if self.nullstr and value==self.nullstr:
-            value = float('NaN')
-        return (value, '')
 
 class Datafile_simple(Datafile):
+
+    def __init__(self, db, datafiledict, logger=None):
+        super(Datafile_simple, self).__init__(db, datafiledict, logger)
+        self.__separate_time = False
+
     def extract_date(self, line):
         try:
-            datestr = line.split(',')[0].strip('"')
-            return datetime_from_iso(datestr[:16])
-        except StandardError:
+            items = line.split(self.delimiter)
+            datestr = items[0].strip('"')
+            self.__separate_time = False
+            if len(datestr)<=10:
+                datestr += ' ' + items[1].strip('"')
+                self.__separate_time = True
+            return datetime.strptime(datestr, self.date_format
+                    ) if self.date_format else datetime_from_iso(datestr[:16])
+        except ValueError:
             self.raise_error(line, 'parse error or invalid date')
+
     def extract_value_and_flags(self, line, seq):
-        value = line.split(',')[seq].strip()
+        index = seq + (1 if self.__separate_time else 0)
+        value = line.split(self.delimiter)[index].strip()
         if self.nullstr and value==self.nullstr:
             value = float('NaN')
         return (value, '')
 
+
 class Datafile_lastem(Datafile):
+
     def extract_date(self, line):
         try:
             date = line.split(self.delimiter)[3]
-            return datetime(*time.strptime(date, self.date_format)[:6])
+            return datetime.strptime(date, self.date_format)
         except StandardError:
             self.raise_error(line, 'parse error or invalid date')
+
     def extract_value_and_flags(self, line, seq):
         value = line.split(self.delimiter)[seq+3]
         if self.nullstr:
@@ -232,27 +257,8 @@ class Datafile_lastem(Datafile):
         if not math.isnan(value):
             value = value.replace(self.decimal_separator, '.')
         return (value, '')
+
     def subset_identifiers_match(self, line):
         si = [x.strip() for x in line.split(self.delimiter)[0:3]]
         si1 = [x.strip() for x in self.subset_identifiers.split(',')]
         return si==si1
-
-class Datafile_zeno(Datafile):
-    def extract_date(self, line):
-        try:
-            return datetime.strptime(line[:14], '%y/%m/%d %H:%M')
-        except ValueError:
-            self.raise_error(line, 'parse error or invalid date')
-    def extract_value_and_flags(self, line, seq):
-        item = line.split()[seq+1]
-        if self.nullstr:
-            if item==self.nullstr:
-                item = float('NaN')
-        return item
-
-class Datafile_xyz(Datafile_zeno):
-    def extract_date(self, line):
-        try:
-            return datetime.strptime(line[:19], '%d/%m/%Y %H:%M:%S')
-        except ValueError:
-            self.raise_error(line, 'parse error or invalid date')
