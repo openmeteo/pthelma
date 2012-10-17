@@ -110,7 +110,7 @@ def MultiTimeseriesProcessDb(method, timeseries_arg, out_timeseries_id,
         ts = Timeseries(id=timeseries_arg[key])
         if ('append_only' in opts and opts['append_only']) \
                          and opts['start_date'] is not None:
-            ts.read_from_db(db, onlybottom=True)
+            ts.read_from_db(db, bottom_only=True)
             if ts.bounding_dates()[0]>opts['start_date']:
                 ts.read_from_db(db)
         else:
@@ -161,7 +161,7 @@ def InterpolateDbTimeseries(source_id, dest_id, curve_type, curve_data,
         start_date = bounds[1] if bounds else None;
     ts = Timeseries(id=source_id)
     if append_only and start_date is not None:
-        ts.read_from_db(db, onlybottom=True)
+        ts.read_from_db(db, bottom_only=True)
         if ts.bounding_dates()[0]>start_date:
             ts.read_from_db(db)
         while ts.bounding_dates()[0]<=start_date:
