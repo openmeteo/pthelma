@@ -16,11 +16,18 @@ SYNOPSIS
 DESCRIPTION
 ===========
 
-``loggertodb`` reads a plain text data file, connects to the enhydris
-database, determines which records in the file are newer than those
-stored in the database, and stores them in the database. The details
-of its operation are specified in the configuration file specified on
-the command line.
+``loggertodb`` reads a plain text data file, connects to Enhydris,
+determines which records in the file are newer than those stored in
+Enhydris, and appends them. The details of its operation are specified
+in the configuration file specified on the command line.
+
+``loggertodb`` connects to the server and gets the end date for each
+time series specified in the ``datafilefields`` parameter. It then
+picks up a time series id, scans the data file, determines which is
+the first record of that time series not already stored in the
+database, and appends that record and all subsequent records to the
+database. It does this for all time series specified in
+``datafilefields``.
 
 CONFIGURATION FILE
 ==================
@@ -30,7 +37,8 @@ The configuration file has the format of INI files. There is a
 sections, which we will call "file sections", each file section
 referring to one file to be processed; this makes it possible to
 process many files in a single ``loggertodb`` execution using a single
-configuration file and a single database connection.
+configuration file and fewer HTTP requests (one login request, plus
+two requests per time series).
 
 General parameters
 ------------------
@@ -44,20 +52,14 @@ logfile
    The full pathname of a log file. If unspecified, log messages will
    go to the standard error.
 
-host, dbname, user, password
-   The server name, database name, user name and password with which
-   ``loggertodb`` will connect.  The user must have write permissions
-   for all time series specified in the ``datafile_fields`` parameter.
+base_url
+   The base url of the Enhydris installation to connect to, such as
+   ``https://openmeteo.org/``.
 
-all_or_nothing
-   Normally ``loggertodb`` commits the transaction after each file is
-   processed. If ``all_or_nothing`` is set to true, it will process
-   all files in a single transaction.
-
-no_commit
-   If this is specified and is true, then the changes will be rolled
-   back. Use this in combination with ``loglevel=INFO`` for testing
-   and debugging, when you do not want your database to be changed.
+user, password
+   The user name and password with which ``loggertodb`` will connect.
+   The user must have write permissions for all time series specified
+   in the ``datafile_fields`` parameter.
 
 File parameters
 ---------------
@@ -152,18 +154,6 @@ pc208w
    order: subset identifier, logger id (ignored), year, day of year,
    time in ``HHmm``, measurements.
 
-
-OPERATION DETAILS
-=================
-
-``loggertodb`` connects to the server and gets the end date for each
-time series specified in the ``datafilefields`` parameter. It then
-picks up a time series id, scans the data file, determines which is
-the first record of that time series not already stored in the
-database, and appends that record and all subsequent records to the
-database. It does this for all time series specified in
-``datafilefields``.
-
 AUTHOR, COPYRIGHT, HISTORY
 ==========================
 
@@ -172,8 +162,8 @@ anthony@itia.ntua.gr.  It is derived from ``autoupdate``, also written
 by Antonis Christofides, for the old openmeteo.org database.
 ``loggertodb`` is essentially ``autoupdate`` adapted to the hydria
 database for the Odysseus project, and later to the enhydris database.
-This version of ``loggertodb`` has nothing to do with versions prior
-to 1.0.0, which were completely different, in a different programming
+This version of ``loggertodb`` has nothing to do with versions older
+than 2005, which were completely different, in a different programming
 language (Perl rather than Python), and not based on ``autoupdate``.
 
 Copyright (C) 2005-2012 National Technical University of Athens

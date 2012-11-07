@@ -17,19 +17,24 @@ GNU General Public License for more details.
 """
 
 from datetime import datetime, timedelta
+import math
+from urllib import urlencode
+from urllib2 import Request
+from StringIO import StringIO
+
 from xreverse import xreverse
 from timeseries import Timeseries, datetime_from_iso, isoformat_nosecs
-import math
 
 
-class MeteologgerReadError(RuntimeError):
-    pass
-
+class MeteologgerError(StandardError): pass
+class MeteologgerReadError(MeteologgerError): pass
+class MeteologgerServerError(MeteologgerError): pass
 
 class Datafile(object):
 
-    def __init__(self, db, datafiledict, logger=None):
-        self.db = db
+    def __init__(self, base_url, opener, datafiledict, logger=None):
+        self.base_url = base_url
+        self.opener = opener
         self.filename = datafiledict['filename']
         self.datafile_fields = [int(x)
                             for x in datafiledict['datafile_fields'].split(',')]
@@ -62,22 +67,23 @@ class Datafile(object):
         finally:
             self.fileobject.close()
 
-    def _update_timeseries(self):
-        c = self.db.cursor()
-        try:
-            c.execute(
-                "SELECT TO_CHAR(timeseries_end_date(%d), 'YYYY-MM-DD HH24:MI')"
-                % (self.ts))
-            r = c.fetchone()
-        finally:
-            c.close()
-        assert(r != None)
-        self.logger.info('Last date in database: %s' % (str(r[0])))
-        end_date = datetime(1, 1, 1)
-        if r[0]: end_date = datetime_from_iso(r[0])
-        if (not self.last_timeseries_end_date) or \
-                                    end_date!=self.last_timeseries_end_date:
-            self.last_timeseries_end_date = end_date
+    def _get_end_date_in_database(self):
+        """Return end date of self.ts in database, or 1/1/1 if timeseries is
+           empty
+        """
+        t = Timeseries()
+        t.read(self.opener.open('%stimeseries/d/%d/bottom/' %
+                                                (self.base_url, self.ts)))
+        bounding_dates = t.bounding_dates()
+        end_date = bounding_dates[1] if bounding_dates else None
+        self.logger.info('Last date in database: %s' % (str(end_date)))
+        if not end_date: end_date = datetime(1, 1, 1)
+        return end_date
+
+    def _get_records_to_append(self, end_date_in_database):
+        if (not self.last_timeseries_end_date) or (
+                          end_date_in_database!=self.last_timeseries_end_date):
+            self.last_timeseries_end_date = end_date_in_database
             self.logger.info('Reading datafile tail')
             self._get_tail()
             self.logger.info('%d lines in datafile tail' % (len(self.tail)))
@@ -89,16 +95,37 @@ class Datafile(object):
             for line in self.tail:
                 ts[isoformat_nosecs(line['date'])] = \
                     self.extract_value_and_flags(line['line'], self.seq)
-        except ValueError, e:
-            self.raise_error(line, 'parsing error while trying to read values')
-        self.logger.info('Appending %d records' % (len(ts)))
-        if len(ts):
-            self.logger.info('First appended record: %s' %
-                            (ts.items()[0][0].isoformat()))
-            self.logger.info('Last appended record:  %s' %
-                            (ts.items()[-1][0].isoformat()))
-            ts.append_to_db(self.db, commit=False)
+        except ValueError as e:
+            self.raise_error(line,
+                        'parsing error while trying to read values: ' + str(e))
+        return ts
 
+    def _update_timeseries(self):
+        end_date_in_database = self._get_end_date_in_database()
+        ts_to_append = self._get_records_to_append(end_date_in_database)
+        self.logger.info('Appending %d records' % (len(ts_to_append)))
+        if len(ts_to_append):
+            self.logger.info('First appended record: %s' %
+                            (ts_to_append.items()[0][0].isoformat()))
+            self.logger.info('Last appended record:  %s' %
+                            (ts_to_append.items()[-1][0].isoformat()))
+        self._append_records_to_database(ts_to_append)
+
+    def _append_records_to_database(self, ts_to_append):
+        fp = StringIO()
+        ts_to_append.write(fp)
+        timeseries_records = fp.getvalue()
+        fp = self.opener.open(Request(
+                '{0}api/tsdata/{1}/'.format(self.base_url, ts_to_append.id),
+                data=urlencode({ 'timeseries_records': timeseries_records }),
+                headers={ 'Content-type': 'application/x-www-form-urlencoded' }
+                ))
+        response_text = fp.read()
+        if not response_text.isdigit():
+            raise MeteologgerServerError(response_text)
+        self.logger.info(
+                'Successfully appended {0} records'.format(response_text))
+        
     def _get_tail(self):
         "Read the part of the datafile after last_timeseries_end_date"
         self.tail = []
@@ -215,8 +242,9 @@ class Datafile_CR1000(Datafile):
 
 class Datafile_simple(Datafile):
 
-    def __init__(self, db, datafiledict, logger=None):
-        super(Datafile_simple, self).__init__(db, datafiledict, logger)
+    def __init__(self, base_url, opener, datafiledict, logger=None):
+        super(Datafile_simple, self).__init__(base_url, opener, datafiledict,
+                                                                    logger)
         self.__separate_time = False
 
     def extract_date(self, line):
@@ -231,7 +259,7 @@ class Datafile_simple(Datafile):
                         second=0) if self.date_format else datetime_from_iso(
                         datestr[:16])
         except ValueError:
-            self.raise_error(line, 'parse error or invalid date')
+            self.raise_error(line.strip(), 'parse error or invalid date')
 
     def extract_value_and_flags(self, line, seq):
         index = seq + (1 if self.__separate_time else 0)

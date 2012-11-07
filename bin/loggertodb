@@ -20,65 +20,77 @@ import sys
 from datetime import datetime
 from ConfigParser import RawConfigParser
 import logging
-
-import psycopg2
+from urllib2 import build_opener, HTTPCookieProcessor
+import cookielib
 
 from pthelma import meteologger
 
-defaults = (('General', 'loglevel', 'WARNING'),
-            ('General', 'password', 'dummy'),
-            ('General', 'all_or_nothing', 'false'),
-            ('General', 'no_commit', 'false'),
-           )
-if len(sys.argv)!=2:
-    raise RuntimeError, 'usage: %s configfile' % (sys.argv[0])
-config = RawConfigParser()
-config.read((sys.argv[1],))
-for d in defaults:
-    if not config.has_option(d[0], d[1]): config.set(d[0], d[1], d[2])
-logger = logging.getLogger('loggertodb')
-logger.setLevel(logging.__dict__[config.get('General', 'loglevel')])
-if config.has_option('General', 'logfile'):
-   logger.addHandler(logging.FileHandler(config.get('General', 'logfile')))
-else:
-   logger.addHandler(logging.StreamHandler())
-dsn = ' '.join(["%s='%s'" % (x, config.get('General', x))
-                for x in ('host', 'dbname', 'user', 'password')])
+
+def read_configuration(config_file):
+    defaults = (('General', 'loglevel', 'WARNING'),
+               )
+    config = RawConfigParser()
+    config.read((config_file,))
+    for d in defaults:
+        if not config.has_option(d[0], d[1]): config.set(d[0], d[1], d[2])
+    config.base_url = config.get('General', 'base_url')
+    if not config.base_url.endswith('/'):
+        config.base_url += '/'
+    return config
+
+
+def setup_logger(config):
+    logger = logging.getLogger('loggertodb')
+    logger.setLevel(logging.__dict__[config.get('General', 'loglevel')])
+    if config.has_option('General', 'logfile'):
+       logger.addHandler(logging.FileHandler(config.get('General', 'logfile')))
+    else:
+       logger.addHandler(logging.StreamHandler())
+    return logger
+
+
+def login_to_enhydris(config):
+    cookiejar = cookielib.CookieJar()
+    opener = build_opener(HTTPCookieProcessor(cookiejar))
+    opener.open(config.base_url + 'accounts/login/').read()
+    opener.addheaders = [('X-CSRFToken', cookie.value)
+                         for cookie in cookiejar if cookie.name == 'csrftoken']
+    data = 'username={0}&password={1}'.format(config.get('General', 'user'),
+                                             config.get('General', 'password'))
+    opener.open(config.base_url + 'accounts/login/', data)
+    return opener
+
+
+logger = None
+config = None
 try:
-    db = psycopg2.connect(dsn)
-except psycopg2.Error, e:
-    logger.error('Database connection failure. Exception message: %s' % e.__str__())
-    raise
-c = db.cursor()
-logger.info('Starting loggertodb, %s' % (datetime.today().isoformat()))
-try:
+    if len(sys.argv)!=2:
+        raise RuntimeError, 'usage: %s configfile' % (sys.argv[0])
+    config = read_configuration(sys.argv[1])
+    logger = setup_logger(config)
+    logger.info('Starting loggertodb, %s' % (datetime.today().isoformat()))
+    opener = login_to_enhydris(config)
     sections = config.sections()[:]
     sections.remove('General')
-    all_or_nothing = config.getboolean('General', 'all_or_nothing')
-    no_commit = config.getboolean('General', 'no_commit')
     for section in sections:
         datafileclass = eval('meteologger.Datafile_%s' %
                             (config.get(section, 'datafile_format'),))
-        adatafile = datafileclass(db, dict(config.items(section)), logger)
+        adatafile = datafileclass(config.base_url, opener,
+                                        dict(config.items(section)), logger)
         try:
             adatafile.update_database()
-            if not all_or_nothing and not no_commit: db.commit()
-        except meteologger.MeteologgerReadError, e:
-            if all_or_nothing:
-                raise
-            else:
-                sys.stderr.write('Error while parsing data from loggertodb configuration '
-                                 'section: %s with error message: %s\n'%(section, 
-                                   e.__str__()))
-                db.rollback()
-                pass
-    if all_or_nothing and not no_commit: db.commit()
-    if no_commit: db.rollback()
+        except meteologger.MeteologgerError, e:
+            msg = 'Error while processing item {0}: {1}'.format(section, str(e))
+            sys.stderr.write(msg+'\n')
+            logger.error(msg)
 except Exception, e:
-    db.rollback()
-    errmsg = 'Stop condition while trying to read logger data file, or '\
-             'other unhandled exception - Error message: %s' % e.__str__()
-    logger.error(errmsg)
-    raise
+    msg = str(e)
+    sys.stderr.write(msg + '\n')
+    if logger:
+        logger.error(msg)
+    if config and config.get('General', 'loglevel')=='DEBUG':
+        raise
+    sys.exit(1)
 finally:
-   logger.info('Loggertodb finished, %s' % (datetime.today().isoformat()))
+    if logger:
+        logger.info('Loggertodb finished, %s' % (datetime.today().isoformat()))
