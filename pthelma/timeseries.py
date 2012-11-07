@@ -732,7 +732,7 @@ class Timeseries(dict):
                               rec.flags.split())))
             if pos is not None: break
             i+=1
-        return a
+        return a if pos is None else a[0]
 
     def index(self, date, downwards=False):
         timestamp_c = c_longlong(_datetime_to_time_t(date))
