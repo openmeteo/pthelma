@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 """
 loggertodb - insert automatic meteorological station data to the database
 
@@ -52,12 +52,14 @@ def setup_logger(config):
 def login_to_enhydris(config):
     cookiejar = cookielib.CookieJar()
     opener = build_opener(HTTPCookieProcessor(cookiejar))
-    opener.open(config.base_url + 'accounts/login/').read()
+    login_url = config.base_url + 'accounts/login/'
+    opener.open(login_url)
     opener.addheaders = [('X-CSRFToken', cookie.value)
-                         for cookie in cookiejar if cookie.name == 'csrftoken']
+                         for cookie in cookiejar if cookie.name == 'csrftoken'
+                         ] + [('Referer', login_url)]
     data = 'username={0}&password={1}'.format(config.get('General', 'user'),
                                              config.get('General', 'password'))
-    opener.open(config.base_url + 'accounts/login/', data)
+    opener.open(login_url, data)
     return opener
 
 
