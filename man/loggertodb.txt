@@ -1,1 +1,1 @@
-../../doc/reference/pthelma/loggertodb.txt
+../../doc/pthelma/loggertodb.txt
