@@ -22,6 +22,7 @@ from ConfigParser import RawConfigParser
 import logging
 from urllib2 import build_opener, HTTPCookieProcessor
 import cookielib
+import traceback
 
 from pthelma import meteologger
 
@@ -85,6 +86,7 @@ try:
             msg = 'Error while processing item {0}: {1}'.format(section, str(e))
             sys.stderr.write(msg+'\n')
             logger.error(msg)
+            logger.debug(traceback.format_exc())
 except Exception, e:
     msg = str(e)
     sys.stderr.write(msg + '\n')
