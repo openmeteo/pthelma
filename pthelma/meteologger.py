@@ -258,8 +258,9 @@ class Datafile_simple(Datafile):
             return datetime.strptime(datestr, self.date_format).replace(
                         second=0) if self.date_format else datetime_from_iso(
                         datestr[:16])
-        except ValueError:
-            self.raise_error(line.strip(), 'parse error or invalid date')
+        except ValueError as e:
+            self.raise_error(line.strip(), "invalid date '{0}': {1}".format(
+                    datestr, str(e)))
 
     def extract_value_and_flags(self, line, seq):
         index = seq + (1 if self.__separate_time else 0)
