@@ -43,6 +43,7 @@ class Datafile(object):
         self.decimal_separator = datafiledict.get('decimal_separator', '')
         self.date_format = datafiledict.get('date_format', '')
         self.nullstr = datafiledict.get('nullstr', '')
+        self.nfields_to_ignore = int(datafiledict.get('nfields_to_ignore', '0'))
         self.logger = logger
         if not self.logger:
             import logging
@@ -250,10 +251,10 @@ class Datafile_simple(Datafile):
     def extract_date(self, line):
         try:
             items = line.split(self.delimiter)
-            datestr = items[0].strip('"')
+            datestr = items[self.nfields_to_ignore].strip('"')
             self.__separate_time = False
             if len(datestr)<=10:
-                datestr += ' ' + items[1].strip('"')
+                datestr += ' ' + items[self.nfields_to_ignore + 1].strip('"')
                 self.__separate_time = True
             return datetime.strptime(datestr, self.date_format).replace(
                         second=0) if self.date_format else datetime_from_iso(
@@ -263,7 +264,8 @@ class Datafile_simple(Datafile):
                     datestr, str(e)))
 
     def extract_value_and_flags(self, line, seq):
-        index = seq + (1 if self.__separate_time else 0)
+        index = self.nfields_to_ignore + seq + (
+                                            1 if self.__separate_time else 0)
         value = line.split(self.delimiter)[index].strip()
         if self.nullstr and value==self.nullstr:
             value = float('NaN')
