@@ -21,10 +21,11 @@ import os
 import sys
 from cStringIO import StringIO
 import tempfile
+import cookielib
+from urllib2 import build_opener, HTTPCookieProcessor, Request
+import json
 
-import psycopg2
 from pthelma.timeseries import Timeseries
-from pthelma.meteologger import *
 
 timeseries1 = textwrap.dedent("""\
          2009-03-19T20:10,2.413333,
@@ -543,29 +544,18 @@ xyz_data = textwrap.dedent("""\
          20/03/2009	12:40:00	0.000000	4.946667	  7.184211
          """)
 
-class database_test_metaclass(type):
-    warning = textwrap.dedent("""\
-        WARNING: Database tests not run. If you want to run the database
-                 tests, set the PSYCOPG_CONNECTION environment variable
-                 to "host=... dbname=... user=... password=...".
-        """)
-    def __new__(mcs, name, bases, dict):
-        psycopg_string = os.getenv("PSYCOPG_CONNECTION")
-        if not psycopg_string:
-            sys.stderr.write(mcs.warning)
-            return None
-        return type.__new__(mcs, name, bases, dict)
 
 class _Test_logger:
+
     def __init__(self):
         self.timeseries1 = Timeseries(0)
         self.timeseries1.read(StringIO(timeseries1))
         self.timeseries2 = Timeseries(0)
         self.timeseries2.read(StringIO(timeseries2))
+
     def setUp(self):
-        # First 60 nonempty lines of test go to file1
+        # First 60 nonempty lines of test go to self.file1
         (fd, self.file1) = tempfile.mkstemp(text=True)
-        import os
         fp = os.fdopen(fd, 'w')
         i = 0
         for line in StringIO(self.testdata):
@@ -575,32 +565,49 @@ class _Test_logger:
             fp.write(line)
         fp.close()
 
-        # All lines of test go to file2
+        # All lines of test go to self.file2
         (fd, self.file2) = tempfile.mkstemp(text=True)
         fp = os.fdopen(fd, 'w')
         fp.write(self.testdata)
         fp.close
 
-        # DB connect and create two fake timeseries
-        import os, psycopg2
-        self.db = psycopg2.connect(os.getenv("PSYCOPG_CONNECTION"))
-        c = self.db.cursor()
-        c.execute('SET CONSTRAINTS ALL DEFERRED')
-        c.execute('SELECT MAX(id)+1, MAX(id)+2 FROM ts_records')
-        (self.timeseries_id1, self.timeseries_id2) = c.fetchone()
-        c.close()
-        if (self.timeseries_id1, self.timeseries_id2) == (None, None):
-            (self.timeseries_id1, self.timeseries_id2) = (1, 2)
+        # Connect to server
+        self.base_url, self.username, self.password, self.station_id = [
+            os.getenv(x) for x in ("PTHELMA_BASE_URL", "PTHELMA_USERNAME",
+                                   "PTHELMA_PASSWORD", "PTHELMA_STATION_ID")
+        ]
+        cookiejar = cookielib.CookieJar()
+        self.opener = build_opener(HTTPCookieProcessor(cookiejar))
+        self.opener.open(self.base_url + 'accounts/login/').read()
+        self.opener.addheaders = [('X-CSRFToken', cookie.value)
+                                  for cookie in cookiejar
+                                  if cookie.name == 'csrftoken']
+        data = 'username={0}&password={1}'.format(self.username, self.password)
+        self.opener.open(self.base_url + 'accounts/login/', data)
 
-        self.datafile_fields = "0,%d,%d" % (self.timeseries_id1,
-                                                    self.timeseries_id2)
+        # Create two timeseries
+        self.timeseries_id1 = self._create_timeseries()
+        self.timeseries_id2 = self._create_timeseries()
+        self.datafile_fields = "0,{0},{1}".format(self.timeseries_id1,
+                                                  self.timeseries_id2)
         self.ts1 = Timeseries(self.timeseries_id1)
         self.ts2 = Timeseries(self.timeseries_id2)
+
+    def _create_timeseries(self):
+        # Create a timeseries on the server and return its id
+        j = { 'gentity': self.station_id }
+        r = Request(self.base_url + 'api/Timeseries/',data=json.dumps(j),
+                    headers = { 'Content-type': 'application/json' })
+        fp = self.opener.open(r)
+        response_text = fp.read()
+        return int(response_text)
+
     def tearDown(self):
         self.db.rollback()
         self.db.close()
         os.unlink(self.file1)
         os.unlink(self.file2)
+
     def do_test(self):
         logger = None
         df = self.class_being_tested(self.db, { 'filename': self.file1,
@@ -614,8 +621,6 @@ class _Test_logger:
                             self.ts2, self.timeseries1, self.timeseries2)]
         for i in range(0, 60):
             self.assertEqual(items1[i][0], ritems1[i][0])
-            a = items1[i][1]
-            b = ritems1[i][1]
             self.assertAlmostEqual(items1[i][1], ritems1[i][1], 4)
             self.assertEqual(items1[i][1].flags, ritems1[i][1].flags)
             self.assertEqual(items2[i][0], ritems2[i][0])
@@ -638,40 +643,54 @@ class _Test_logger:
             self.assertAlmostEqual(items2[i][1], ritems2[i][1], 4)
             self.assertEqual(items2[i][1].flags, ritems2[i][1].flags)
 
-class _Test_deltacom(_Test_logger, unittest.TestCase):
-    __metaclass__ = database_test_metaclass
+
+class _Test_deltacom(unittest.TestCase, _Test_logger):
+
     def __init__(self, methodName):
+        unittest.TestCase.__init__(self)
         _Test_logger.__init__(self)
         unittest.TestCase.__init__(self, methodName)
         self.testdata = deltacom_data
         self.class_being_tested = Datafile_deltacom
+
     def test_deltacom(self):
         return self.do_test()
 
+
 class _Test_zeno(_Test_logger, unittest.TestCase):
-    __metaclass__ = database_test_metaclass
+
     def __init__(self, methodName):
+        unittest.TestCase.__init__(self)
         _Test_logger.__init__(self)
         unittest.TestCase.__init__(self, methodName)
         self.testdata = zeno_data
         self.class_being_tested = Datafile_zeno
+
     def test_zeno(self):
         return self.do_test()
 
+
 class _Test_xyz(_Test_logger, unittest.TestCase):
-    __metaclass__ = database_test_metaclass
+
     def __init__(self, methodName):
+        unittest.TestCase.__init__(self)
         _Test_logger.__init__(self)
         unittest.TestCase.__init__(self, methodName)
         self.testdata = xyz_data
         self.class_being_tested = Datafile_xyz
+
     def test_xyz(self):
+        raise Exception
         return self.do_test()
 
+
 class _Test_pc208w(unittest.TestCase):
+
     def test_pc208w(self):
         sys.stderr.write('\nWARNING: No test for Deltacom_pc208w has been written yet\n')
 
+
 class _Test_lastem(unittest.TestCase):
+
     def test_lastem(self):
         sys.stderr.write('\nWARNING: No test for Deltacom_lastem has been written yet\n')
