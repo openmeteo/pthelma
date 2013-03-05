@@ -23,6 +23,7 @@ import tempfile
 import cookielib
 from urllib2 import build_opener, HTTPCookieProcessor, Request, HTTPError
 import json
+import sys
 
 from pthelma.timeseries import Timeseries
 from pthelma.meteologger import Datafile_deltacom, Datafile_simple
@@ -557,6 +558,29 @@ class RequestWithMethod(Request):
         return self._method
 
 
+_connection_instructions = """
+Omitting the tests for meteologger; in order to run these tests, you
+must specify the PTHELMA_TEST_METEOLOGGER variable to contain a
+json-formatted string of parameters, like this (but it may be in one
+line):
+
+    { "base_url": "http://localhost:8001/",
+      "username": "admin",
+      "password": "secret",
+      "station_id": 1334,
+      "variable_id": 1,
+      "unit_of_measurement_id": 1,
+      "time_zone_id": 1 }
+
+The first three parameters are for connecting to an appropriate
+database. Don't use a production database for that; although things
+are normally cleaned up (e.g. test timeseries created are deleted), id
+serial numbers will be affected and things might not be cleaned up if
+there is an error.
+
+The rest of the parameters are used when test timeseries are created.
+"""
+
 class _Test_logger(unittest.TestCase):
     class_being_tested = None
     testdata = None
@@ -565,18 +589,22 @@ class _Test_logger(unittest.TestCase):
     ref_ts1.read(StringIO(timeseries1))
     ref_ts2 = Timeseries(0)
     ref_ts2.read(StringIO(timeseries2))
-    __v = json.loads(os.getenv("PTHELMA_TEST_METEOLOGGER"))
-    base_url = __v['base_url']
-    username = __v['username']
-    password = __v['password']
-    station_id = __v['station_id']
-    variable_id = __v['variable_id']
-    unit_of_measurement_id = __v['unit_of_measurement_id']
-    time_zone_id = __v['time_zone_id']
+    base_url = None
+    try:
+        __v = json.loads(os.getenv("PTHELMA_TEST_METEOLOGGER"))
+        base_url = __v['base_url']
+        username = __v['username']
+        password = __v['password']
+        station_id = __v['station_id']
+        variable_id = __v['variable_id']
+        unit_of_measurement_id = __v['unit_of_measurement_id']
+        time_zone_id = __v['time_zone_id']
+    except TypeError:
+        sys.stderr.write(_connection_instructions)
 
     def setUp(self):
 
-        if not self.class_being_tested:
+        if not self.class_being_tested or not self.base_url:
             return
 
         # First 60 nonempty lines of test go to self.file1
@@ -615,7 +643,7 @@ class _Test_logger(unittest.TestCase):
         self.ts2 = Timeseries(self.timeseries_id2)
 
     def tearDown(self):
-        if not self.class_being_tested:
+        if not self.class_being_tested or not self.base_url:
             return
         self._delete_timeseries(self.timeseries_id2)
         self._delete_timeseries(self.timeseries_id1)
@@ -656,7 +684,7 @@ class _Test_logger(unittest.TestCase):
         ts.read(fp)
         
     def runTest(self):
-        if not self.class_being_tested:
+        if not self.class_being_tested or not self.base_url:
             return
         d = { 'filename': self.file1,
               'datafile_fields': self.datafile_fields,
