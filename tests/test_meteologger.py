@@ -337,7 +337,7 @@ deltacom_data = textwrap.dedent("""\
          2009-03-20T12:40 0.000000  4.946667  7.184211
          """)
 
-simple_data = textwrap.dedent("""\
+simple_data1 = textwrap.dedent("""\
          09/03/19 20:10:00 0.000000  2.413333  2.710526
          09/03/19 20:20:00 0.000000  2.320000  2.578947
 
@@ -442,7 +442,7 @@ simple_data = textwrap.dedent("""\
          09/03/20 12:40:00 0.000000  4.946667  7.184211
          """)
 
-xyz_data = textwrap.dedent("""\
+simple_data2 = textwrap.dedent("""\
          19/03/2009	20:10:00	0.000000	2.413333	  2.710526
          19/03/2009	20:20:00	0.000000	2.320000	  2.578947
          19/03/2009	20:30:00	0.000000	2.386667	  2.736842
@@ -729,6 +729,12 @@ class _Test_deltacom(_Test_logger):
 
 
 class _Test_simple1(_Test_logger):
-    testdata = simple_data
+    testdata = simple_data1
     class_being_tested = Datafile_simple
     datafiledict = { 'date_format': '%y/%m/%d %H:%M:%S', }
+
+
+class _Test_simple2(_Test_logger):
+    testdata = simple_data2
+    class_being_tested = Datafile_simple
+    datafiledict = { 'date_format': '%d/%m/%Y %H:%M:%S', }
