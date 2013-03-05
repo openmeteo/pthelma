@@ -18,14 +18,14 @@ GNU General Public License for more details.
 import unittest
 import textwrap
 import os
-import sys
 from cStringIO import StringIO
 import tempfile
 import cookielib
-from urllib2 import build_opener, HTTPCookieProcessor, Request
+from urllib2 import build_opener, HTTPCookieProcessor, Request, HTTPError
 import json
 
 from pthelma.timeseries import Timeseries
+from pthelma.meteologger import Datafile_deltacom, Datafile_simple
 
 timeseries1 = textwrap.dedent("""\
          2009-03-19T20:10,2.413333,
@@ -336,7 +336,7 @@ deltacom_data = textwrap.dedent("""\
          2009-03-20T12:40 0.000000  4.946667  7.184211
          """)
 
-zeno_data = textwrap.dedent("""\
+simple_data = textwrap.dedent("""\
          09/03/19 20:10:00 0.000000  2.413333  2.710526
          09/03/19 20:20:00 0.000000  2.320000  2.578947
 
@@ -545,15 +545,40 @@ xyz_data = textwrap.dedent("""\
          """)
 
 
-class _Test_logger:
+class RequestWithMethod(Request):
+    """
+    See http://benjamin.smedbergs.us/blog/2008-10-21/putting-and-deleteing-in-python-urllib2/
+    """
+    def __init__(self, method, *args, **kwargs):
+        self._method = method
+        Request.__init__(self, *args, **kwargs)
 
-    def __init__(self):
-        self.timeseries1 = Timeseries(0)
-        self.timeseries1.read(StringIO(timeseries1))
-        self.timeseries2 = Timeseries(0)
-        self.timeseries2.read(StringIO(timeseries2))
+    def get_method(self):
+        return self._method
+
+
+class _Test_logger(unittest.TestCase):
+    class_being_tested = None
+    testdata = None
+    datafiledict = {}
+    ref_ts1 = Timeseries(0)
+    ref_ts1.read(StringIO(timeseries1))
+    ref_ts2 = Timeseries(0)
+    ref_ts2.read(StringIO(timeseries2))
+    __v = json.loads(os.getenv("PTHELMA_TEST_METEOLOGGER"))
+    base_url = __v['base_url']
+    username = __v['username']
+    password = __v['password']
+    station_id = __v['station_id']
+    variable_id = __v['variable_id']
+    unit_of_measurement_id = __v['unit_of_measurement_id']
+    time_zone_id = __v['time_zone_id']
 
     def setUp(self):
+
+        if not self.class_being_tested:
+            return
+
         # First 60 nonempty lines of test go to self.file1
         (fd, self.file1) = tempfile.mkstemp(text=True)
         fp = os.fdopen(fd, 'w')
@@ -572,10 +597,6 @@ class _Test_logger:
         fp.close
 
         # Connect to server
-        self.base_url, self.username, self.password, self.station_id = [
-            os.getenv(x) for x in ("PTHELMA_BASE_URL", "PTHELMA_USERNAME",
-                                   "PTHELMA_PASSWORD", "PTHELMA_STATION_ID")
-        ]
         cookiejar = cookielib.CookieJar()
         self.opener = build_opener(HTTPCookieProcessor(cookiejar))
         self.opener.open(self.base_url + 'accounts/login/').read()
@@ -593,32 +614,62 @@ class _Test_logger:
         self.ts1 = Timeseries(self.timeseries_id1)
         self.ts2 = Timeseries(self.timeseries_id2)
 
+    def tearDown(self):
+        if not self.class_being_tested:
+            return
+        self._delete_timeseries(self.timeseries_id2)
+        self._delete_timeseries(self.timeseries_id1)
+
     def _create_timeseries(self):
         # Create a timeseries on the server and return its id
-        j = { 'gentity': self.station_id }
-        r = Request(self.base_url + 'api/Timeseries/',data=json.dumps(j),
+        j = { 'gentity': self.station_id,
+              'variable': self.variable_id,
+              'unit_of_measurement': self.unit_of_measurement_id,
+              'time_zone': self.time_zone_id,
+            }
+        r = Request(self.base_url + 'api/Timeseries/', data=json.dumps(j),
                     headers = { 'Content-type': 'application/json' })
         fp = self.opener.open(r)
         response_text = fp.read()
-        return int(response_text)
+        return json.loads(response_text)['id']
 
-    def tearDown(self):
-        self.db.rollback()
-        self.db.close()
-        os.unlink(self.file1)
-        os.unlink(self.file2)
+    def _delete_timeseries(self, ts_id):
+        url = self.base_url + 'api/Timeseries/{0}/'.format(ts_id)
+        r = RequestWithMethod('DELETE', url)
+        try:
+            self.opener.open(r)
+            # According to the theory at
+            # http://stackoverflow.com/questions/7032890/ and elsewhere,
+            # we shouldn't reach this point; in practice, however, I see
+            # that a 204 response results in coming here, not in raising an
+            # exception (and with no way to check the status code). I assume
+            # that if we come here everything was OK.
+        except HTTPError as e:
+            # But just to be sure, also assume that a 204 response might
+            # lead us here as well.
+            if e.code != 204:
+                raise
 
-    def do_test(self):
-        logger = None
-        df = self.class_being_tested(self.db, { 'filename': self.file1,
-            'datafile_fields': self.datafile_fields }, logger=logger)
+    def _read_timeseries(self, ts):
+        r = Request(self.base_url + 'api/tsdata/{0}/'.format(ts.id))
+        fp = self.opener.open(r)
+        ts.read(fp)
+        
+    def runTest(self):
+        if not self.class_being_tested:
+            return
+        d = { 'filename': self.file1,
+              'datafile_fields': self.datafile_fields,
+            }
+        d.update(self.datafiledict)
+        df = self.class_being_tested(self.base_url, self.opener, d)
         df.update_database()
-        self.ts1.read_from_db(self.db)
-        self.ts2.read_from_db(self.db)
+        self._read_timeseries(self.ts1)
+        self._read_timeseries(self.ts2)
         self.assertEqual(len(self.ts1), 60)
         self.assertEqual(len(self.ts2), 60)
         (items1, items2, ritems1, ritems2) = [ x.items() for x in (self.ts1,
-                            self.ts2, self.timeseries1, self.timeseries2)]
+                                        self.ts2, self.ref_ts1, self.ref_ts2)]
         for i in range(0, 60):
             self.assertEqual(items1[i][0], ritems1[i][0])
             self.assertAlmostEqual(items1[i][1], ritems1[i][1], 4)
@@ -626,15 +677,15 @@ class _Test_logger:
             self.assertEqual(items2[i][0], ritems2[i][0])
             self.assertAlmostEqual(items2[i][1], ritems2[i][1], 4)
             self.assertEqual(items2[i][1].flags, ritems2[i][1].flags)
-        df = self.class_being_tested(self.db, { 'filename': self.file2,
-            'datafile_fields': self.datafile_fields }, logger=logger)
+        d['filename'] = self.file2
+        df = self.class_being_tested(self.base_url, self.opener, d)
         df.update_database()
-        self.ts1.read_from_db(self.db)
-        self.ts2.read_from_db(self.db)
+        self._read_timeseries(self.ts1)
+        self._read_timeseries(self.ts2)
         self.assertEqual(len(self.ts1), 100)
         self.assertEqual(len(self.ts2), 100)
         (items1, items2, ritems1, ritems2) = [ x.items() for x in (self.ts1,
-                            self.ts2, self.timeseries1, self.timeseries2)]
+                                       self.ts2, self.ref_ts1, self.ref_ts2)]
         for i in range(0, 100):
             self.assertEqual(items1[i][0], ritems1[i][0])
             self.assertAlmostEqual(items1[i][1], ritems1[i][1], 4)
@@ -644,53 +695,12 @@ class _Test_logger:
             self.assertEqual(items2[i][1].flags, ritems2[i][1].flags)
 
 
-class _Test_deltacom(unittest.TestCase, _Test_logger):
-
-    def __init__(self, methodName):
-        unittest.TestCase.__init__(self)
-        _Test_logger.__init__(self)
-        unittest.TestCase.__init__(self, methodName)
-        self.testdata = deltacom_data
-        self.class_being_tested = Datafile_deltacom
-
-    def test_deltacom(self):
-        return self.do_test()
+class _Test_deltacom(_Test_logger):
+    testdata = deltacom_data
+    class_being_tested = Datafile_deltacom
 
 
-class _Test_zeno(_Test_logger, unittest.TestCase):
-
-    def __init__(self, methodName):
-        unittest.TestCase.__init__(self)
-        _Test_logger.__init__(self)
-        unittest.TestCase.__init__(self, methodName)
-        self.testdata = zeno_data
-        self.class_being_tested = Datafile_zeno
-
-    def test_zeno(self):
-        return self.do_test()
-
-
-class _Test_xyz(_Test_logger, unittest.TestCase):
-
-    def __init__(self, methodName):
-        unittest.TestCase.__init__(self)
-        _Test_logger.__init__(self)
-        unittest.TestCase.__init__(self, methodName)
-        self.testdata = xyz_data
-        self.class_being_tested = Datafile_xyz
-
-    def test_xyz(self):
-        raise Exception
-        return self.do_test()
-
-
-class _Test_pc208w(unittest.TestCase):
-
-    def test_pc208w(self):
-        sys.stderr.write('\nWARNING: No test for Deltacom_pc208w has been written yet\n')
-
-
-class _Test_lastem(unittest.TestCase):
-
-    def test_lastem(self):
-        sys.stderr.write('\nWARNING: No test for Deltacom_lastem has been written yet\n')
+class _Test_simple1(_Test_logger):
+    testdata = simple_data
+    class_being_tested = Datafile_simple
+    datafiledict = { 'date_format': '%y/%m/%d %H:%M:%S', }
