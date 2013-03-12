@@ -131,26 +131,25 @@ class Datafile(object):
         "Read the part of the datafile after last_timeseries_end_date"
         self.tail = []
         xr = xreverse(self.fileobject, 2048)
-        try:
-            prev_date = ''
-            while True:
+        prev_date = ''
+        while True:
+            try:
                 line = xr.next()
-                self.logger.debug(line)
-                if not line.strip(): continue # skip empty lines
-                if not self.subset_identifiers_match(line): continue
-                date = self.extract_date(line).replace(second=0)
-                if date == prev_date:
-                    self.logger.warning(
-                       'WARNING: Omitting line with repeated date %s'
-                       % (date))
-                    continue
-                prev_date = date
-                self.logger.debug('Date: %s' % (date.isoformat()))
-                if date <= self.last_timeseries_end_date:
-                    break;
-                self.tail.append({ 'date': date, 'line': line })
-        except StopIteration:
-            pass
+            except StopIteration:
+                break
+            self.logger.debug(line)
+            if not line.strip(): continue # skip empty lines
+            if not self.subset_identifiers_match(line): continue
+            date = self.extract_date(line).replace(second=0)
+            if date == prev_date:
+                w = 'WARNING: Omitting line with repeated date ' + date
+                self.logger.warning(w)
+                continue
+            prev_date = date
+            self.logger.debug('Date: %s' % (date.isoformat()))
+            if date <= self.last_timeseries_end_date:
+                break;
+            self.tail.append({ 'date': date, 'line': line })
         self.tail.reverse()
 
     def subset_identifiers_match(self, line):
