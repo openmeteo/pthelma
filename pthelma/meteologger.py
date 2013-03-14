@@ -32,7 +32,7 @@ class MeteologgerServerError(MeteologgerError): pass
 class DSTSpecificationParseError(MeteologgerError): pass
 
 
-def __parse_dst_spec(dst_spec):
+def _parse_dst_spec(dst_spec):
     """
     Parse a dst specification and return it as a dictionary.  The returned
     dictionary contains items "time", "month", and either "dow",  and "nth",
@@ -80,8 +80,8 @@ class Datafile(object):
         self.date_format = datafiledict.get('date_format', '')
         self.nullstr = datafiledict.get('nullstr', '')
         self.nfields_to_ignore = int(datafiledict.get('nfields_to_ignore', '0'))
-        self.dst_starts = __parse_dst_spec(datafiledict.get('dst_starts', ''))
-        self.dst_ends = __parse_dst_spec(datafiledict.get('dst_ends', ''))
+        self.dst_starts = _parse_dst_spec(datafiledict.get('dst_starts', ''))
+        self.dst_ends = _parse_dst_spec(datafiledict.get('dst_ends', ''))
         self.logger = logger
         if not self.logger:
             import logging
