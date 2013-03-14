@@ -27,14 +27,14 @@ from datetime import time, datetime
 
 from pthelma.timeseries import Timeseries
 from pthelma.meteologger import Datafile, Datafile_deltacom, Datafile_simple, \
-                                _parse_dst_spec, DSTSpecificationParseError, \
+                                _parse_dst_spec, ConfigurationError, \
                                 _decode_dst_dict
 
 
 def get_data(filename):
     current_directory = os.path.dirname(os.path.abspath(__file__))
     full_pathname = os.path.join(current_directory, 'data', filename)
-    return open(full_pathname).read()
+    return open(full_pathname)
 
 
 class RequestWithMethod(Request):
@@ -255,8 +255,8 @@ class _Test_dst(unittest.TestCase):
         self.assertEqual(_parse_dst_spec('03-22 03:00'),
                     { 'month': 3, 'dom': 22, 'time': time(3, 0) })
         self.assertEqual(_parse_dst_spec(''), {})
-        self.assertRaises(DSTSpecificationParseError, _parse_dst_spec, 'a')
-        self.assertRaises(DSTSpecificationParseError, _parse_dst_spec, 
+        self.assertRaises(ConfigurationError, _parse_dst_spec, 'a')
+        self.assertRaises(ConfigurationError, _parse_dst_spec, 
                           'fifth Saturday July 03:00')
 
     def test_decode_dst_dict(self):
@@ -312,6 +312,7 @@ class _Test_dst(unittest.TestCase):
         datafile = Datafile('http://irrelevant', None, 
                             { 'dst_starts': 'last Sunday April 03:00',
                               'dst_ends':   'last Sunday November 03:00',
+                              'utcoffset':  '0',
                               'filename':   'irrelevant',
                               'datafile_fields': '0',
                             })
@@ -325,6 +326,7 @@ class _Test_dst(unittest.TestCase):
         datafile = Datafile('http://irrelevant', None, 
                             { 'dst_starts': 'last Sunday February 03:00',
                               'dst_ends':   'last Sunday September 03:00',
+                              'utcoffset':  '0',
                               'filename':   'irrelevant',
                               'datafile_fields': '0',
                             })
@@ -338,6 +340,7 @@ class _Test_dst(unittest.TestCase):
         datafile = Datafile('http://irrelevant', None, 
                             { 'dst_starts': 'last Sunday September 03:00',
                               'dst_ends':   'last Sunday February 03:00',
+                              'utcoffset':  '0',
                               'filename':   'irrelevant',
                               'datafile_fields': '0',
                             })
