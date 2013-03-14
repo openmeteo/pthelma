@@ -16,7 +16,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 """
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 import math
 from urllib import urlencode
 from urllib2 import Request
@@ -29,6 +29,42 @@ from timeseries import Timeseries, datetime_from_iso, isoformat_nosecs
 class MeteologgerError(StandardError): pass
 class MeteologgerReadError(MeteologgerError): pass
 class MeteologgerServerError(MeteologgerError): pass
+class DSTSpecificationParseError(MeteologgerError): pass
+
+
+def __parse_dst_spec(dst_spec):
+    """
+    Parse a dst specification and return it as a dictionary.  The returned
+    dictionary contains items "time", "month", and either "dow",  and "nth",
+    or "dom".  "month" is an integer 1 to 12.  "dow" can be 1 to 7 for
+    Monday to Sunday; "nth" can be 1 to 4 for first to fourth, or -1 for
+    last; "dom" is the day of month.  "time" is a datetime.time object.
+    """
+    nth_values = { "first": 1, "second": 2, "third": 3, "fourth": 4,
+                   "last": -1 }
+    month_values = { "january": 1, "february": 2, "march": 3, "april": 4,
+                     "may": 5, "june": 6, "july": 7, "august": 8,
+                     "september": 9, "october": 10, "november": 11,
+                     "december": 12 }
+    dow_values = { "monday": 1, "tuesday": 2, "wednesday": 3, "thursday": 4,
+                   "friday": 5, "saturday": 6, "sunday": 7 }
+    result = { }
+    items = dst_spec.split()
+    try:
+        hour, minute = [int(x) for x in items[-1].split(':')]
+        result["time"] = time(hour, minute)
+        if len(items) == 2:
+            month, dom = [int(x) for x in items[0].split('-')]
+            result["month"] = month
+            result["dom"] = dom
+        elif len(items) == 4:
+            result["nth"] = nth_values[items[0].lower()]
+            result["month"] = month_values[items[1].lower()]
+            result["dow"] = dow_values[items[2].lower()]
+        return result
+    except (ValueError, IndexError, KeyError):
+        raise DSTSpecificationParseError("Cannot parse " + dst_spec)
+
 
 class Datafile(object):
 
@@ -44,6 +80,8 @@ class Datafile(object):
         self.date_format = datafiledict.get('date_format', '')
         self.nullstr = datafiledict.get('nullstr', '')
         self.nfields_to_ignore = int(datafiledict.get('nfields_to_ignore', '0'))
+        self.dst_starts = __parse_dst_spec(datafiledict.get('dst_starts', ''))
+        self.dst_ends = __parse_dst_spec(datafiledict.get('dst_ends', ''))
         self.logger = logger
         if not self.logger:
             import logging
@@ -141,6 +179,7 @@ class Datafile(object):
             if not line.strip(): continue # skip empty lines
             if not self.subset_identifiers_match(line): continue
             date = self.extract_date(line).replace(second=0)
+            date = self._fix_dst(date)
             if date == prev_date:
                 w = 'WARNING: Omitting line with repeated date ' + date
                 self.logger.warning(w)
@@ -151,6 +190,28 @@ class Datafile(object):
                 break;
             self.tail.append({ 'date': date, 'line': line })
         self.tail.reverse()
+
+    def _fix_dst(self, date):
+        """Remove any DST from a date.
+           Determine if a date contains DST. If it does, remove the
+           extra hour. Returns the fixed date."""
+        if not self.dst_starts:
+            return date
+        nearest_dst_switch, to_dst = self._nearest_dst_switch(date)
+
+    def _nearest_dst_switch(self, date):
+        """
+        Determine the dst switching date closest to specified date.
+        Returns a tuple, the first item of which is the dst switch
+        date and time (without DST), and the second item is True if
+        this is a switch to dst and False if it is a switch from DST.
+        For example, if dst_start is "last Sunday March 03:00", and
+        the specified date is 2013-05-23, this method will return
+        (2013-03-31 03:00, True).  Note that it doesn't try to be too
+        accurate; if the given date falls an equal number of months
+        between switches, it might return either switch.
+        """
+        pass
 
     def subset_identifiers_match(self, line):
         "Returns true if subset identifier of line matches specified"
