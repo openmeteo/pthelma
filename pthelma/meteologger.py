@@ -16,7 +16,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 """
 
-from datetime import date, time, datetime, timedelta
+from datetime import date, time, datetime, timedelta, tzinfo
 import math
 from urllib import urlencode
 from urllib2 import Request
@@ -26,10 +26,10 @@ from xreverse import xreverse
 from timeseries import Timeseries, datetime_from_iso, isoformat_nosecs
 
 
-class MeteologgerError(StandardError): pass
+class MeteologgerError(Exception): pass
 class MeteologgerReadError(MeteologgerError): pass
 class MeteologgerServerError(MeteologgerError): pass
-class DSTSpecificationParseError(MeteologgerError): pass
+class ConfigurationError(MeteologgerError): pass
 
 
 def _parse_dst_spec(dst_spec):
@@ -66,7 +66,8 @@ def _parse_dst_spec(dst_spec):
             result["month"] = month_values[items[2].lower()]
         return result
     except (ValueError, IndexError, KeyError):
-        raise DSTSpecificationParseError('Cannot parse "{0}"'.format(dst_spec))
+        message = 'Cannot parse DST specification"{0}"'.format(dst_spec)
+        raise ConfigurationError(message)
 
 
 def _next_month(month, year):
@@ -114,6 +115,19 @@ def _diff_months(month1, month2):
     return result
 
 
+class _SimpleTzinfo(tzinfo):
+    """
+    A tzinfo subclass whose utcoffset is given when it is instantiated.
+    """
+
+    def __init__(self, offset):
+        self.offset = offset
+        super(_SimpleTzinfo, self).__init__()
+
+    def utcoffset(self, dt):
+        return self.offset
+
+
 class Datafile(object):
 
     def __init__(self, base_url, opener, datafiledict, logger=None):
@@ -130,12 +144,23 @@ class Datafile(object):
         self.nfields_to_ignore = int(datafiledict.get('nfields_to_ignore', '0'))
         self.dst_starts = _parse_dst_spec(datafiledict.get('dst_starts', ''))
         self.dst_ends = _parse_dst_spec(datafiledict.get('dst_ends', ''))
+        self.utcoffset = datafiledict.get('utcoffset', '')
         self.logger = logger
         if not self.logger:
             import logging
             self.logger = logging.getLogger('datafile')
             self.logger.setLevel(logging.WARNING)
             self.logger.addHandler(logging.StreamHandler())
+        if (not self.dst_starts and (self.dst_ends or self.utcoffset)) or (
+                self.dst_starts and not (self.dst_ends and self.utcoffset)):
+            message = "Either you must specify dst_starts, dst_ends, and " \
+                      "utcoffset, or none of them"
+            raise ConfigurationError(message)
+        if self.utcoffset:
+            try:
+                self.tzinfo = _SimpleTzinfo(int(self.utcoffset))
+            except ValueError as e:
+                raise ConfigurationError(str(e))
 
     def update_database(self):
         self.logger.info('Processing datafile %s' % (self.filename))
@@ -239,15 +264,35 @@ class Datafile(object):
             self.tail.append({ 'date': date, 'line': line })
         self.tail.reverse()
 
-    def _fix_dst(self, date):
+    def _fix_dst(self, adatetime):
         """Remove any DST from a date.
            Determine if a date contains DST. If it does, remove the
            extra hour. Returns the fixed date."""
         if not self.dst_starts:
-            return date
+            return adatetime
         nearest_dst_switch, to_dst = self._nearest_dst_switch(date)
+        diff = adatetime - nearest_dst_switch
+        one_hour = timedelta(hours=1)
+        if to_dst:
+            # adatetime is near a switch to dst - no big deal; just remove
+            # one hour if past the switch
+            if diff > 0:
+                return adatetime - one_hour
+            return adatetime
+        if diff < 0:
+            # adatetime is before a switch from dst; remove one hour
+            return adatetime - one_hour
+        if diff > one_hour:
+            # adatetime is long after a switch from dst; it's fine
+            return adatetime
+        # If we reached this point, it means adatetime is in the ambiguous
+        # hour. We assume adatetime is winter time unless the switch
+        # has not occured yet.
+        if datetime.now(self.tzinfo) < nearest_dst_switch:
+            return adatetime - one_hour
+        return adatetime
 
-    def _nearest_dst_switch(self, date):
+    def _nearest_dst_switch(self, adate):
         """
         Determine the dst switching date closest to specified date.
         Returns a tuple, the first item of which is the dst switch date and
@@ -259,12 +304,12 @@ class Datafile(object):
         equal number of months between switches, it might return either
         switch.
         """
-        diff_months_start = _diff_months(date.month, self.dst_starts['month']) 
-        diff_months_end =   _diff_months(date.month, self.dst_ends['month'])
+        diff_months_start = _diff_months(adate.month, self.dst_starts['month']) 
+        diff_months_end =   _diff_months(adate.month, self.dst_ends['month'])
         result2 = diff_months_start <= diff_months_end
         dst_dict = self.dst_starts if result2 else self.dst_ends
-        diff = date.month - dst_dict["month"]
-        year = date.year
+        diff = adate.month - dst_dict["month"]
+        year = adate.year
         if diff > 6:
             year += 1
         elif diff < -6:
