@@ -38,7 +38,8 @@ def _parse_dst_spec(dst_spec):
     dictionary contains items "time", "month", and either "dow",  and "nth",
     or "dom".  "month" is an integer 1 to 12.  "dow" can be 1 to 7 for
     Monday to Sunday; "nth" can be 1 to 4 for first to fourth, or -1 for
-    last; "dom" is the day of month.  "time" is a datetime.time object.
+    last; "dom" is the day of month.  "time" is a datetime.time object. If
+    dst_spec is empty, returns empty dictionary.
     """
     nth_values = { "first": 1, "second": 2, "third": 3, "fourth": 4,
                    "last": -1 }
@@ -48,7 +49,9 @@ def _parse_dst_spec(dst_spec):
                      "december": 12 }
     dow_values = { "monday": 1, "tuesday": 2, "wednesday": 3, "thursday": 4,
                    "friday": 5, "saturday": 6, "sunday": 7 }
-    result = { }
+    result = {}
+    if not dst_spec:
+        return result
     items = dst_spec.split()
     try:
         hour, minute = [int(x) for x in items[-1].split(':')]
@@ -59,11 +62,11 @@ def _parse_dst_spec(dst_spec):
             result["dom"] = dom
         elif len(items) == 4:
             result["nth"] = nth_values[items[0].lower()]
-            result["month"] = month_values[items[1].lower()]
-            result["dow"] = dow_values[items[2].lower()]
+            result["dow"] = dow_values[items[1].lower()]
+            result["month"] = month_values[items[2].lower()]
         return result
     except (ValueError, IndexError, KeyError):
-        raise DSTSpecificationParseError("Cannot parse " + dst_spec)
+        raise DSTSpecificationParseError('Cannot parse "{0}"'.format(dst_spec))
 
 
 class Datafile(object):

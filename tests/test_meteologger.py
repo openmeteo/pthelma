@@ -24,9 +24,11 @@ import cookielib
 from urllib2 import build_opener, HTTPCookieProcessor, Request, HTTPError
 import json
 import sys
+from datetime import time
 
 from pthelma.timeseries import Timeseries
-from pthelma.meteologger import Datafile_deltacom, Datafile_simple
+from pthelma.meteologger import Datafile_deltacom, Datafile_simple, \
+                                _parse_dst_spec, DSTSpecificationParseError
 
 timeseries1 = textwrap.dedent("""\
          2009-03-19T20:10,2.413333,
@@ -848,3 +850,24 @@ class _Test_simple3(_Test_logger):
     datafiledict = { 'date_format': '%d/%m/%Y %H:%M',
                      'nfields_to_ignore': 1,
                      'delimiter': ',' }
+
+
+class _Test_parse_dst_spec(unittest.TestCase):
+
+    def runTest(self):
+        self.assertEqual(_parse_dst_spec('first Monday January 03:00'), 
+                    { 'nth': 1, 'dow': 1, 'month': 1, 'time': time(3, 0) })
+        self.assertEqual(_parse_dst_spec('second Tuesday February 03:00'), 
+                    { 'nth': 2, 'dow': 2, 'month': 2, 'time': time(3, 0) })
+        self.assertEqual(_parse_dst_spec('third Thursday May 03:00'), 
+                    { 'nth': 3, 'dow': 4, 'month': 5, 'time': time(3, 0) })
+        self.assertEqual(_parse_dst_spec('fourth Friday June 03:00'), 
+                    { 'nth': 4, 'dow': 5, 'month': 6, 'time': time(3, 0) })
+        self.assertEqual(_parse_dst_spec('last Saturday July 03:00'), 
+                    { 'nth': -1, 'dow': 6, 'month': 7, 'time': time(3, 0) })
+        self.assertEqual(_parse_dst_spec('03-22 03:00'),
+                    { 'month': 3, 'dom': 22, 'time': time(3, 0) })
+        self.assertEqual(_parse_dst_spec(''), {})
+        self.assertRaises(DSTSpecificationParseError, _parse_dst_spec, 'a')
+        self.assertRaises(DSTSpecificationParseError, _parse_dst_spec, 
+                          'fifth Saturday July 03:00')
