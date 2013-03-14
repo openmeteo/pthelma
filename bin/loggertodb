@@ -87,7 +87,7 @@ try:
             sys.stderr.write(msg+'\n')
             logger.error(msg)
             logger.debug(traceback.format_exc())
-except Exception, e:
+except Exception as e:
     msg = str(e)
     sys.stderr.write(msg + '\n')
     if logger:
