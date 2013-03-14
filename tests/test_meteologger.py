@@ -24,11 +24,12 @@ import cookielib
 from urllib2 import build_opener, HTTPCookieProcessor, Request, HTTPError
 import json
 import sys
-from datetime import time
+from datetime import time, datetime
 
 from pthelma.timeseries import Timeseries
 from pthelma.meteologger import Datafile_deltacom, Datafile_simple, \
-                                _parse_dst_spec, DSTSpecificationParseError
+                                _parse_dst_spec, DSTSpecificationParseError, \
+                                _decode_dst_dict
 
 timeseries1 = textwrap.dedent("""\
          2009-03-19T20:10,2.413333,
@@ -852,9 +853,9 @@ class _Test_simple3(_Test_logger):
                      'delimiter': ',' }
 
 
-class _Test_parse_dst_spec(unittest.TestCase):
+class _Test_dst(unittest.TestCase):
 
-    def runTest(self):
+    def test_parse_dst_spec(self):
         self.assertEqual(_parse_dst_spec('first Monday January 03:00'), 
                     { 'nth': 1, 'dow': 1, 'month': 1, 'time': time(3, 0) })
         self.assertEqual(_parse_dst_spec('second Tuesday February 03:00'), 
@@ -871,3 +872,52 @@ class _Test_parse_dst_spec(unittest.TestCase):
         self.assertRaises(DSTSpecificationParseError, _parse_dst_spec, 'a')
         self.assertRaises(DSTSpecificationParseError, _parse_dst_spec, 
                           'fifth Saturday July 03:00')
+
+    def test_decode_dst_dict(self):
+        dct = _parse_dst_spec('first Monday April 03:00')
+        dec = _decode_dst_dict(dct, 2013)
+        self.assertEqual(dec, datetime(2013, 4, 1, 3, 0))
+
+        dct = _parse_dst_spec('first Sunday April 03:00')
+        dec = _decode_dst_dict(dct, 2013)
+        self.assertEqual(dec, datetime(2013, 4, 7, 3, 0))
+
+        dct = _parse_dst_spec('second Monday April 03:00')
+        dec = _decode_dst_dict(dct, 2013)
+        self.assertEqual(dec, datetime(2013, 4, 8, 3, 0))
+
+        dct = _parse_dst_spec('second Sunday April 03:00')
+        dec = _decode_dst_dict(dct, 2013)
+        self.assertEqual(dec, datetime(2013, 4, 14, 3, 0))
+
+        dct = _parse_dst_spec('second Tuesday February 03:00')
+        dec = _decode_dst_dict(dct, 2013)
+        self.assertEqual(dec, datetime(2013, 2, 12, 3, 0))
+
+        dct = _parse_dst_spec('third Thursday May 03:00')
+        dec = _decode_dst_dict(dct, 2013)
+        self.assertEqual(dec, datetime(2013, 5, 16, 3, 0))
+
+        dct = _parse_dst_spec('fourth Friday June 03:00')
+        dec = _decode_dst_dict(dct, 2013)
+        self.assertEqual(dec, datetime(2013, 6, 28, 3, 0))
+
+        dct = _parse_dst_spec('last Saturday July 03:00')
+        dec = _decode_dst_dict(dct, 2013)
+        self.assertEqual(dec, datetime(2013, 7, 27, 3, 0))
+
+        dct = _parse_dst_spec('last Sunday March 03:00')
+        dec = _decode_dst_dict(dct, 2013)
+        self.assertEqual(dec, datetime(2013, 3, 31, 3, 0))
+
+        dct = _parse_dst_spec('last Monday March 03:00')
+        dec = _decode_dst_dict(dct, 2013)
+        self.assertEqual(dec, datetime(2013, 3, 25, 3, 0))
+
+        dct = _parse_dst_spec('last Monday December 03:00')
+        dec = _decode_dst_dict(dct, 2012)
+        self.assertEqual(dec, datetime(2012, 12, 31, 3, 0))
+
+        dct = _parse_dst_spec('last Sunday December 03:00')
+        dec = _decode_dst_dict(dct, 2012)
+        self.assertEqual(dec, datetime(2012, 12, 30, 3, 0))

@@ -16,7 +16,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 """
 
-from datetime import datetime, timedelta, time
+from datetime import date, time, datetime, timedelta
 import math
 from urllib import urlencode
 from urllib2 import Request
@@ -67,6 +67,51 @@ def _parse_dst_spec(dst_spec):
         return result
     except (ValueError, IndexError, KeyError):
         raise DSTSpecificationParseError('Cannot parse "{0}"'.format(dst_spec))
+
+
+def _next_month(month, year):
+    month += 1
+    if month > 12:
+        month = 1
+        year += 1
+    return month, year
+
+
+def _diff_dow(dow1, dow2):
+    """
+    How many days we need to add to week day dow2 to reach dow1.
+    For example, if dow2 is Monday and dow1 is Sunday, the result is 6.
+    Monday is 1, Sunday is 7.
+    """
+    result = dow1 - dow2
+    if result < 0:
+        result = 7 + result
+    return result
+
+
+def _decode_dst_dict(dst_dict, year):
+    """
+    Return the datetime that corresponds to dst_dict for the specified year.
+    dst_dict is the dictionary returned by _parse_dst_spec.
+    """
+    month = dst_dict["month"]
+    if 'dom' in dst_dict:
+        d = date(year, month, dst_dict["dom"])
+    elif dst_dict['nth'] > 0:
+        d = date(year, month, 1 + 7 * (dst_dict['nth'] - 1))
+        d = d + timedelta(days=_diff_dow(dst_dict['dow'], d.isoweekday()))
+    else:
+        month, year = _next_month(month, year)
+        d = date(year, month, 1) - timedelta(days=1)
+        d = d - timedelta(days=_diff_dow(d.isoweekday(), dst_dict['dow']))
+    return datetime.combine(d, dst_dict["time"])
+
+
+def _diff_months(month1, month2):
+    result = abs(month2 - month1)
+    if result > 6:
+        result = 12 - result
+    return result
 
 
 class Datafile(object):
@@ -205,16 +250,19 @@ class Datafile(object):
     def _nearest_dst_switch(self, date):
         """
         Determine the dst switching date closest to specified date.
-        Returns a tuple, the first item of which is the dst switch
-        date and time (without DST), and the second item is True if
-        this is a switch to dst and False if it is a switch from DST.
-        For example, if dst_start is "last Sunday March 03:00", and
-        the specified date is 2013-05-23, this method will return
-        (2013-03-31 03:00, True).  Note that it doesn't try to be too
-        accurate; if the given date falls an equal number of months
-        between switches, it might return either switch.
+        Returns a tuple, the first item of which is the dst switch date and
+        time (without DST), and the second item is True if this is a switch
+        to dst and False if it is a switch from DST.  For example, if
+        dst_start is "last Sunday March 03:00", and the specified date is
+        2013-05-23, this method will return (2013-03-31 03:00, True).  Note
+        that it doesn't try to be too accurate; if the given date falls an
+        equal number of months between switches, it might return either
+        switch.
         """
-        pass
+        result2 = _diff_months(date.month, self.dst_starts['month']) <= \
+                  _diff_months(date.month, self.dst_ends['month'])
+        dst_dict = self.dst_starts if result2 else self.dst_ends
+        result1 = date.year
 
     def subset_identifiers_match(self, line):
         "Returns true if subset identifier of line matches specified"
