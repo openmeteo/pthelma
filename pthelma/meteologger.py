@@ -26,10 +26,20 @@ from xreverse import xreverse
 from timeseries import Timeseries, datetime_from_iso, isoformat_nosecs
 
 
-class MeteologgerError(Exception): pass
-class MeteologgerReadError(MeteologgerError): pass
-class MeteologgerServerError(MeteologgerError): pass
-class ConfigurationError(MeteologgerError): pass
+class MeteologgerError(Exception):
+    pass
+
+
+class MeteologgerReadError(MeteologgerError):
+    pass
+
+
+class MeteologgerServerError(MeteologgerError):
+    pass
+
+
+class ConfigurationError(MeteologgerError):
+    pass
 
 
 def _parse_dst_spec(dst_spec):
@@ -41,14 +51,14 @@ def _parse_dst_spec(dst_spec):
     last; "dom" is the day of month.  "time" is a datetime.time object. If
     dst_spec is empty, returns empty dictionary.
     """
-    nth_values = { "first": 1, "second": 2, "third": 3, "fourth": 4,
-                   "last": -1 }
-    month_values = { "january": 1, "february": 2, "march": 3, "april": 4,
-                     "may": 5, "june": 6, "july": 7, "august": 8,
-                     "september": 9, "october": 10, "november": 11,
-                     "december": 12 }
-    dow_values = { "monday": 1, "tuesday": 2, "wednesday": 3, "thursday": 4,
-                   "friday": 5, "saturday": 6, "sunday": 7 }
+    nth_values = {"first": 1, "second": 2, "third": 3, "fourth": 4,
+                  "last": -1}
+    month_values = {"january": 1, "february": 2, "march": 3, "april": 4,
+                    "may": 5, "june": 6, "july": 7, "august": 8,
+                    "september": 9, "october": 10, "november": 11,
+                    "december": 12}
+    dow_values = {"monday": 1, "tuesday": 2, "wednesday": 3, "thursday": 4,
+                  "friday": 5, "saturday": 6, "sunday": 7}
     result = {}
     if not dst_spec:
         return result
@@ -134,14 +144,15 @@ class Datafile(object):
         self.base_url = base_url
         self.opener = opener
         self.filename = datafiledict['filename']
-        self.datafile_fields = [int(x)
-                            for x in datafiledict['datafile_fields'].split(',')]
+        self.datafile_fields = [int(x) for x in datafiledict['datafile_fields']
+                                .split(',')]
         self.subset_identifiers = datafiledict.get('subset_identifiers', '')
         self.delimiter = datafiledict.get('delimiter', None)
         self.decimal_separator = datafiledict.get('decimal_separator', '')
         self.date_format = datafiledict.get('date_format', '')
         self.nullstr = datafiledict.get('nullstr', '')
-        self.nfields_to_ignore = int(datafiledict.get('nfields_to_ignore', '0'))
+        self.nfields_to_ignore = int(datafiledict.get('nfields_to_ignore',
+                                     '0'))
         self.dst_starts = _parse_dst_spec(datafiledict.get('dst_starts', ''))
         self.dst_ends = _parse_dst_spec(datafiledict.get('dst_ends', ''))
         self.utcoffset = datafiledict.get('utcoffset', '')
@@ -167,14 +178,14 @@ class Datafile(object):
         self.last_timeseries_end_date = None
         self.fileobject = open(self.filename, 'rb')
         try:
-            self.seq = 0 # sequence number of timeseries
+            self.seq = 0  # sequence number of timeseries
             for self.ts in self.datafile_fields:
                 self.seq = self.seq+1
-                if self.ts==0:
+                if self.ts == 0:
                     self.logger.info('Omitting position %d' % (self.seq))
                     continue
                 self.logger.info('Processing timeseries %d at position %d'
-                    % (self.ts, self.seq))
+                                 % (self.ts, self.seq))
                 self._update_timeseries()
         finally:
             self.fileobject.close()
@@ -185,31 +196,33 @@ class Datafile(object):
         """
         t = Timeseries()
         t.read(self.opener.open('%stimeseries/d/%d/bottom/' %
-                                                (self.base_url, self.ts)))
+                                (self.base_url, self.ts)))
         bounding_dates = t.bounding_dates()
         end_date = bounding_dates[1] if bounding_dates else None
         self.logger.info('Last date in database: %s' % (str(end_date)))
-        if not end_date: end_date = datetime(1, 1, 1)
+        if not end_date:
+            end_date = datetime(1, 1, 1)
         return end_date
 
     def _get_records_to_append(self, end_date_in_database):
         if (not self.last_timeseries_end_date) or (
-                          end_date_in_database!=self.last_timeseries_end_date):
+                end_date_in_database != self.last_timeseries_end_date):
             self.last_timeseries_end_date = end_date_in_database
             self.logger.info('Reading datafile tail')
             self._get_tail()
             self.logger.info('%d lines in datafile tail' % (len(self.tail)))
-            if len(self.tail)>0:
+            if len(self.tail) > 0:
                 self.logger.info('First date in datafile tail: %s' %
-                (self.tail[0]['date'].isoformat(),))
+                                 (self.tail[0]['date'].isoformat(),))
         ts = Timeseries(self.ts)
         try:
             for line in self.tail:
                 ts[isoformat_nosecs(line['date'])] = \
                     self.extract_value_and_flags(line['line'], self.seq)
         except ValueError as e:
-            self.raise_error(line,
-                        'parsing error while trying to read values: ' + str(e))
+            message = 'parsing error while trying to read values: ' + str(e)
+            self.raise_error(line, message)
+
         return ts
 
     def _update_timeseries(self):
@@ -228,16 +241,15 @@ class Datafile(object):
         ts_to_append.write(fp)
         timeseries_records = fp.getvalue()
         fp = self.opener.open(Request(
-                '{0}api/tsdata/{1}/'.format(self.base_url, ts_to_append.id),
-                data=urlencode({ 'timeseries_records': timeseries_records }),
-                headers={ 'Content-type': 'application/x-www-form-urlencoded' }
-                ))
+            '{0}api/tsdata/{1}/'.format(self.base_url, ts_to_append.id),
+            data=urlencode({'timeseries_records': timeseries_records}),
+            headers={'Content-type': 'application/x-www-form-urlencoded'}))
         response_text = fp.read()
         if not response_text.isdigit():
             raise MeteologgerServerError(response_text)
         self.logger.info(
-                'Successfully appended {0} records'.format(response_text))
-        
+            'Successfully appended {0} records'.format(response_text))
+
     def _get_tail(self):
         "Read the part of the datafile after last_timeseries_end_date"
         self.tail = []
@@ -249,8 +261,10 @@ class Datafile(object):
             except StopIteration:
                 break
             self.logger.debug(line)
-            if not line.strip(): continue # skip empty lines
-            if not self.subset_identifiers_match(line): continue
+            if not line.strip():
+                continue  # skip empty lines
+            if not self.subset_identifiers_match(line):
+                continue
             date = self.extract_date(line).replace(second=0)
             date = self._fix_dst(date)
             if date == prev_date:
@@ -260,8 +274,8 @@ class Datafile(object):
             prev_date = date
             self.logger.debug('Date: %s' % (date.isoformat()))
             if date <= self.last_timeseries_end_date:
-                break;
-            self.tail.append({ 'date': date, 'line': line })
+                break
+            self.tail.append({'date': date, 'line': line})
         self.tail.reverse()
 
     def _fix_dst(self, adatetime):
@@ -304,8 +318,8 @@ class Datafile(object):
         equal number of months between switches, it might return either
         switch.
         """
-        diff_months_start = _diff_months(adate.month, self.dst_starts['month']) 
-        diff_months_end =   _diff_months(adate.month, self.dst_ends['month'])
+        diff_months_start = _diff_months(adate.month, self.dst_starts['month'])
+        diff_months_end = _diff_months(adate.month, self.dst_ends['month'])
         result2 = diff_months_start <= diff_months_end
         dst_dict = self.dst_starts if result2 else self.dst_ends
         diff = adate.month - dst_dict["month"]
@@ -323,11 +337,11 @@ class Datafile(object):
 
     def extract_date(self, line):
         raise Exception(
-                "Internal error: datafile.extract_date is an abstract function")
+            "Internal error: datafile.extract_date is an abstract function")
 
     def extract_value_and_flags(self, line, seq):
-        raise Exception("Internal error: datafile.extract_value_and_flags " +
-                "is an abstract function")
+        raise Exception("Internal error: datafile.extract_value_and_flags "
+                        "is an abstract function")
 
     def raise_error(self, line, msg):
         errmessage = '%s: "%s": %s' % (self.filename, line, msg)
@@ -336,14 +350,16 @@ class Datafile(object):
 
 
 class Datafile_deltacom(Datafile):
-    deltacom_flags = { '#': 'LOGOVERRUN',
-                       '$': 'LOGNOISY',
-                       '%': 'LOGOUTSIDE',
-                       '&': 'LOGRANGE' }
+    deltacom_flags = {'#': 'LOGOVERRUN',
+                      '$': 'LOGNOISY',
+                      '%': 'LOGOUTSIDE',
+                      '&': 'LOGRANGE'}
 
     def extract_date(self, line):
-        try: return datetime_from_iso(line)
-        except ValueError: self.raise_error(line, 'parse error or invalid date')
+        try:
+            return datetime_from_iso(line)
+        except ValueError:
+            self.raise_error(line, 'parse error or invalid date')
 
     def extract_value_and_flags(self, line, seq):
         flags = ''
@@ -352,7 +368,7 @@ class Datafile_deltacom(Datafile):
             flags = self.deltacom_flags[item[-1]]
             item = item[:-1]
         if self.nullstr:
-            if item==self.nullstr:
+            if item == self.nullstr:
                 item = float('NaN')
         return (item, flags)
 
@@ -365,8 +381,8 @@ class Datafile_pc208w(Datafile):
             year = int(items[2])
             yday = int(items[3])
             hour = int(items[4])/100
-            minute = int(items[4])%100
-            if hour==24:
+            minute = int(items[4]) % 100
+            if hour == 24:
                 hour = 0
                 yday = yday+1
             return datetime(year, 1, 1, hour, minute) + timedelta(yday-1)
@@ -379,13 +395,13 @@ class Datafile_pc208w(Datafile):
         except IndexError:
             raise ValueError()
         if self.nullstr:
-            if item==self.nullstr:
+            if item == self.nullstr:
                 item = float('NaN')
         return (item, '')
 
     def subset_identifiers_match(self, line):
         si = line.split(',')[0].strip()
-        return si==self.subset_identifiers
+        return si == self.subset_identifiers
 
 
 class Datafile_CR1000(Datafile):
@@ -402,14 +418,14 @@ class Datafile_CR1000(Datafile):
 
     def subset_identifiers_match(self, line):
         si = line.split(',')[2].strip()
-        return si==self.subset_identifiers
+        return si == self.subset_identifiers
 
 
 class Datafile_simple(Datafile):
 
     def __init__(self, base_url, opener, datafiledict, logger=None):
         super(Datafile_simple, self).__init__(base_url, opener, datafiledict,
-                                                                    logger)
+                                              logger)
         self.__separate_time = False
 
     def extract_date(self, line):
@@ -417,21 +433,24 @@ class Datafile_simple(Datafile):
             items = line.split(self.delimiter)
             datestr = items[self.nfields_to_ignore].strip('"')
             self.__separate_time = False
-            if len(datestr)<=10:
+            if len(datestr) <= 10:
                 datestr += ' ' + items[self.nfields_to_ignore + 1].strip('"')
                 self.__separate_time = True
-            return datetime.strptime(datestr, self.date_format).replace(
-                        second=0) if self.date_format else datetime_from_iso(
-                        datestr[:16])
+            if self.date_format:
+                result = datetime.strptime(datestr, self.date_format).replace(
+                    second=0)
+            else:
+                result = datetime_from_iso(datestr[:16])
+            return result
         except ValueError as e:
             self.raise_error(line.strip(), "invalid date '{0}': {1}".format(
-                    datestr, str(e)))
+                datestr, str(e)))
 
     def extract_value_and_flags(self, line, seq):
         index = self.nfields_to_ignore + seq + (
-                                            1 if self.__separate_time else 0)
+            1 if self.__separate_time else 0)
         value = line.split(self.delimiter)[index].strip()
-        if self.nullstr and value==self.nullstr:
+        if self.nullstr and value == self.nullstr:
             value = float('NaN')
         return (value, '')
 
@@ -448,7 +467,7 @@ class Datafile_lastem(Datafile):
     def extract_value_and_flags(self, line, seq):
         value = line.split(self.delimiter)[seq+3]
         if self.nullstr:
-            if value==self.nullstr:
+            if value == self.nullstr:
                 value = float('NaN')
         if not math.isnan(value):
             value = value.replace(self.decimal_separator, '.')
@@ -457,4 +476,4 @@ class Datafile_lastem(Datafile):
     def subset_identifiers_match(self, line):
         si = [x.strip() for x in line.split(self.delimiter)[0:3]]
         si1 = [x.strip() for x in self.subset_identifiers.split(',')]
-        return si==si1
+        return si == si1
