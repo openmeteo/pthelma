@@ -259,10 +259,18 @@ class Datafile(object):
         equal number of months between switches, it might return either
         switch.
         """
-        result2 = _diff_months(date.month, self.dst_starts['month']) <= \
-                  _diff_months(date.month, self.dst_ends['month'])
+        diff_months_start = _diff_months(date.month, self.dst_starts['month']) 
+        diff_months_end =   _diff_months(date.month, self.dst_ends['month'])
+        result2 = diff_months_start <= diff_months_end
         dst_dict = self.dst_starts if result2 else self.dst_ends
-        result1 = date.year
+        diff = date.month - dst_dict["month"]
+        year = date.year
+        if diff > 6:
+            year += 1
+        elif diff < -6:
+            year -= 1
+        result1 = _decode_dst_dict(dst_dict, year)
+        return result1, result2
 
     def subset_identifiers_match(self, line):
         "Returns true if subset identifier of line matches specified"

@@ -27,7 +27,7 @@ import sys
 from datetime import time, datetime
 
 from pthelma.timeseries import Timeseries
-from pthelma.meteologger import Datafile_deltacom, Datafile_simple, \
+from pthelma.meteologger import Datafile, Datafile_deltacom, Datafile_simple, \
                                 _parse_dst_spec, DSTSpecificationParseError, \
                                 _decode_dst_dict
 
@@ -921,3 +921,43 @@ class _Test_dst(unittest.TestCase):
         dct = _parse_dst_spec('last Sunday December 03:00')
         dec = _decode_dst_dict(dct, 2012)
         self.assertEqual(dec, datetime(2012, 12, 30, 3, 0))
+
+    def test_nearest_dst_switch(self):
+        datafile = Datafile('http://irrelevant', None, 
+                            { 'dst_starts': 'last Sunday April 03:00',
+                              'dst_ends':   'last Sunday November 03:00',
+                              'filename':   'irrelevant',
+                              'datafile_fields': '0',
+                            })
+        d, to_dst = datafile._nearest_dst_switch(datetime(2013, 1, 1))
+        self.assertEqual(d, datetime(2012, 11, 25, 3, 0))
+        self.assertFalse(to_dst)
+        d, to_dst = datafile._nearest_dst_switch(datetime(2013, 3, 1))
+        self.assertEqual(d, datetime(2013, 4, 28, 3, 0))
+        self.assertTrue(to_dst)
+
+        datafile = Datafile('http://irrelevant', None, 
+                            { 'dst_starts': 'last Sunday February 03:00',
+                              'dst_ends':   'last Sunday September 03:00',
+                              'filename':   'irrelevant',
+                              'datafile_fields': '0',
+                            })
+        d, to_dst = datafile._nearest_dst_switch(datetime(2013, 1, 1))
+        self.assertEqual(d, datetime(2013, 2, 24, 3, 0))
+        self.assertTrue(to_dst)
+        d, to_dst = datafile._nearest_dst_switch(datetime(2012, 12, 1))
+        self.assertEqual(d, datetime(2013, 2, 24, 3, 0))
+        self.assertTrue(to_dst)
+
+        datafile = Datafile('http://irrelevant', None, 
+                            { 'dst_starts': 'last Sunday September 03:00',
+                              'dst_ends':   'last Sunday February 03:00',
+                              'filename':   'irrelevant',
+                              'datafile_fields': '0',
+                            })
+        d, to_dst = datafile._nearest_dst_switch(datetime(2012, 11, 1))
+        self.assertEqual(d, datetime(2012, 9, 30, 3, 0))
+        self.assertTrue(to_dst)
+        d, to_dst = datafile._nearest_dst_switch(datetime(2012, 12, 1))
+        self.assertEqual(d, datetime(2013, 2, 24, 3, 0))
+        self.assertFalse(to_dst)
