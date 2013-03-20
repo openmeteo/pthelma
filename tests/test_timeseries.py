@@ -583,23 +583,28 @@ class _Test_Timeseries_write_to_db(unittest.TestCase):
             2005-08-27 00:02,,DIAMONDS\r
             """))
     def test_top_middle_bottom(self):
-        ts = Timeseries(0)
-        ts.read(StringIO(big_test_timeseries))
-        ts.write_to_db(self.db, commit=False)
-        c = self.db.cursor()
-        c.execute("""SELECT top, middle, bottom FROM ts_records
-                     WHERE id=%d""" % (ts.id))
-        (db_top, db_middle, db_bottom) = c.fetchone()
-        c.close()
-        actual_top = extract_lines(big_test_timeseries, None, 
-                                   Timeseries.ROWS_IN_TOP_BOTTOM)
-        actual_bottom = extract_lines(big_test_timeseries, 
-                                      -Timeseries.ROWS_IN_TOP_BOTTOM, None)
-        actual_middle = extract_lines(big_test_timeseries,
-            Timeseries.ROWS_IN_TOP_BOTTOM, -Timeseries.ROWS_IN_TOP_BOTTOM)
-        self.assertEqual(db_top, actual_top)
-        self.assertEqual(zlib.decompress(str(db_middle)), actual_middle)
-        self.assertEqual(db_bottom, actual_bottom)
+        saved_max_all_bottom = Timeseries.MAX_BOTTOM
+        Timeseries.MAX_ALL_BOTTOM = 20
+        try:
+            ts = Timeseries(0)
+            ts.read(StringIO(big_test_timeseries))
+            ts.write_to_db(self.db, commit=False)
+            c = self.db.cursor()
+            c.execute("""SELECT top, middle, bottom FROM ts_records
+                         WHERE id=%d""" % (ts.id))
+            (db_top, db_middle, db_bottom) = c.fetchone()
+            c.close()
+            actual_top = extract_lines(big_test_timeseries, None, 
+                                       Timeseries.ROWS_IN_TOP_BOTTOM)
+            actual_bottom = extract_lines(big_test_timeseries, 
+                                          -Timeseries.ROWS_IN_TOP_BOTTOM, None)
+            actual_middle = extract_lines(big_test_timeseries,
+                Timeseries.ROWS_IN_TOP_BOTTOM, -Timeseries.ROWS_IN_TOP_BOTTOM)
+            self.assertEqual(db_top, actual_top)
+            self.assertEqual(zlib.decompress(str(db_middle)), actual_middle)
+            self.assertEqual(db_bottom, actual_bottom)
+        finally:
+            Timeseries.MAX_ALL_BOTTOM = saved_max_all_bottom
 
 class _Test_Timeseries_read_from_db(unittest.TestCase):
     __metaclass__ = database_test_metaclass
