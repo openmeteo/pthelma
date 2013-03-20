@@ -16,7 +16,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 """
 
-from datetime import date, time, datetime, timedelta, tzinfo
+from datetime import date, time, datetime, timedelta
 import math
 from urllib import urlencode
 from urllib2 import Request
@@ -48,8 +48,8 @@ def _parse_dst_spec(dst_spec):
     dictionary contains items "time", "month", and either "dow",  and "nth",
     or "dom".  "month" is an integer 1 to 12.  "dow" can be 1 to 7 for
     Monday to Sunday; "nth" can be 1 to 4 for first to fourth, or -1 for
-    last; "dom" is the day of month.  "time" is a datetime.time object. If
-    dst_spec is empty, returns empty dictionary.
+    last; "dom" is the day of month.  "time" is a datetime.time object.
+    If dst_spec is empty, returns empty dictionary.
     """
     nth_values = {"first": 1, "second": 2, "third": 3, "fourth": 4,
                   "last": -1}
@@ -125,19 +125,6 @@ def _diff_months(month1, month2):
     return result
 
 
-class _SimpleTzinfo(tzinfo):
-    """
-    A tzinfo subclass whose utcoffset is given when it is instantiated.
-    """
-
-    def __init__(self, offset):
-        self.offset = offset
-        super(_SimpleTzinfo, self).__init__()
-
-    def utcoffset(self, dt):
-        return self.offset
-
-
 class Datafile(object):
 
     def __init__(self, base_url, opener, datafiledict, logger=None):
@@ -167,11 +154,6 @@ class Datafile(object):
             message = "Either you must specify dst_starts, dst_ends, and " \
                       "utcoffset, or none of them"
             raise ConfigurationError(message)
-        if self.utcoffset:
-            try:
-                self.tzinfo = _SimpleTzinfo(int(self.utcoffset))
-            except ValueError as e:
-                raise ConfigurationError(str(e))
 
     def update_database(self):
         self.logger.info('Processing datafile %s' % (self.filename))
@@ -284,25 +266,25 @@ class Datafile(object):
            extra hour. Returns the fixed date."""
         if not self.dst_starts:
             return adatetime
-        nearest_dst_switch, to_dst = self._nearest_dst_switch(date)
-        diff = adatetime - nearest_dst_switch
+        nearest_dst_switch, to_dst = self._nearest_dst_switch(adatetime)
         one_hour = timedelta(hours=1)
         if to_dst:
             # adatetime is near a switch to dst - no big deal; just remove
             # one hour if past the switch
-            if diff > 0:
+            if adatetime > nearest_dst_switch:
                 return adatetime - one_hour
             return adatetime
-        if diff < 0:
+        if adatetime < nearest_dst_switch:
             # adatetime is before a switch from dst; remove one hour
             return adatetime - one_hour
-        if diff > one_hour:
+        if adatetime > nearest_dst_switch + one_hour:
             # adatetime is long after a switch from dst; it's fine
             return adatetime
         # If we reached this point, it means adatetime is in the ambiguous
         # hour. We assume adatetime is winter time unless the switch
         # has not occured yet.
-        if datetime.now(self.tzinfo) < nearest_dst_switch:
+        if datetime.utcnow() + timedelta(minutes=self.utcoffset) \
+                < nearest_dst_switch:
             return adatetime - one_hour
         return adatetime
 

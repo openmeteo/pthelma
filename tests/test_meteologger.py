@@ -17,7 +17,6 @@ GNU General Public License for more details.
 
 import unittest
 import os
-from cStringIO import StringIO
 import tempfile
 import cookielib
 from urllib2 import build_opener, HTTPCookieProcessor, Request, HTTPError
@@ -31,10 +30,10 @@ from pthelma.meteologger import Datafile, Datafile_deltacom, Datafile_simple, \
                                 _decode_dst_dict
 
 
-def get_data(filename):
+def full_testdata_filename(filename):
     current_directory = os.path.dirname(os.path.abspath(__file__))
     full_pathname = os.path.join(current_directory, 'data', filename)
-    return open(full_pathname)
+    return full_pathname
 
 
 class RequestWithMethod(Request):
@@ -48,6 +47,54 @@ class RequestWithMethod(Request):
     def get_method(self):
         return self._method
 
+
+def connect_to_server(base_url, username, password):
+    cookiejar = cookielib.CookieJar()
+    opener = build_opener(HTTPCookieProcessor(cookiejar))
+    opener.open(base_url + 'accounts/login/').read()
+    opener.addheaders = [('X-CSRFToken', cookie.value)
+                         for cookie in cookiejar if cookie.name == 'csrftoken']
+    data = 'username={0}&password={1}'.format(username, password)
+    opener.open(base_url + 'accounts/login/', data)
+    return opener
+
+
+def create_timeseries(opener, adict):
+    # Create a timeseries on the server and return its id
+    j = { 'gentity': adict['station_id'],
+          'variable': adict['variable_id'],
+          'unit_of_measurement': adict['unit_of_measurement_id'],
+          'time_zone': adict['time_zone_id'],
+        }
+    r = Request(adict['base_url'] + 'api/Timeseries/', data=json.dumps(j),
+                headers = { 'Content-type': 'application/json' })
+    fp = opener.open(r)
+    response_text = fp.read()
+    return json.loads(response_text)['id']
+
+
+def delete_timeseries(opener, base_url, ts_id):
+    url = base_url + 'api/Timeseries/{0}/'.format(ts_id)
+    r = RequestWithMethod('DELETE', url)
+    try:
+        opener.open(r)
+        # According to the theory at
+        # http://stackoverflow.com/questions/7032890/ and elsewhere,
+        # we shouldn't reach this point; in practice, however, I see
+        # that a 204 response results in coming here, not in raising an
+        # exception (and with no way to check the status code). I assume
+        # that if we come here everything was OK.
+    except HTTPError as e:
+        # But just to be sure, also assume that a 204 response might
+        # lead us here as well.
+        if e.code != 204:
+            raise
+
+def read_timeseries(opener, base_url, ts):
+    r = Request(base_url + 'api/tsdata/{0}/'.format(ts.id))
+    fp = opener.open(r)
+    ts.read(fp)
+        
 
 _connection_instructions = """
 Omitting the tests for meteologger; in order to run these tests, you
@@ -72,29 +119,31 @@ there is an error.
 The rest of the parameters are used when test timeseries are created.
 """
 
-class _Test_logger(unittest.TestCase):
-    class_being_tested = None
-    testdata = None
-    datafiledict = {}
-    ref_ts1 = Timeseries(0)
-    ref_ts1.read(get_data('timeseries1.txt'))
-    ref_ts2 = Timeseries(0)
-    ref_ts2.read(get_data('timeseries2.txt'))
-    base_url = None
+def get_server_from_env(adict):
     try:
-        __v = json.loads(os.getenv("PTHELMA_TEST_METEOLOGGER"))
-        base_url = __v['base_url']
-        username = __v['username']
-        password = __v['password']
-        station_id = __v['station_id']
-        variable_id = __v['variable_id']
-        unit_of_measurement_id = __v['unit_of_measurement_id']
-        time_zone_id = __v['time_zone_id']
+        v = json.loads(os.getenv("PTHELMA_TEST_METEOLOGGER"))
+        for item in 'base_url username password station_id variable_id ' \
+                    'unit_of_measurement_id time_zone_id'.split():
+            adict[item] = v[item]
     except TypeError:
         sys.stderr.write(_connection_instructions)
 
-    def setUp(self):
 
+class _Test_logger(unittest.TestCase):
+    class_being_tested = None
+    datafilename = ''
+    datafiledict = {}
+    ref_ts1 = Timeseries(0)
+    ref_ts1.read(open(full_testdata_filename('timeseries1.txt')))
+    ref_ts2 = Timeseries(0)
+    ref_ts2.read(open(full_testdata_filename('timeseries2.txt')))
+
+    def __init__(self, *args, **kwargs):
+        self.base_url = None
+        get_server_from_env(self.__dict__)
+        return super(_Test_logger, self).__init__(*args, **kwargs)
+
+    def setUp(self):
         if not self.class_being_tested or not self.base_url:
             return
 
@@ -102,32 +151,20 @@ class _Test_logger(unittest.TestCase):
         (fd, self.file1) = tempfile.mkstemp(text=True)
         fp = os.fdopen(fd, 'w')
         i = 0
-        for line in StringIO(self.testdata):
+        for line in open(full_testdata_filename(self.datafilename)):
             if i>=60: break
             if not line.strip(): continue
             i += 1
             fp.write(line)
         fp.close()
 
-        # All lines of test go to self.file2
-        (fd, self.file2) = tempfile.mkstemp(text=True)
-        fp = os.fdopen(fd, 'w')
-        fp.write(self.testdata)
-        fp.close
-
         # Connect to server
-        cookiejar = cookielib.CookieJar()
-        self.opener = build_opener(HTTPCookieProcessor(cookiejar))
-        self.opener.open(self.base_url + 'accounts/login/').read()
-        self.opener.addheaders = [('X-CSRFToken', cookie.value)
-                                  for cookie in cookiejar
-                                  if cookie.name == 'csrftoken']
-        data = 'username={0}&password={1}'.format(self.username, self.password)
-        self.opener.open(self.base_url + 'accounts/login/', data)
+        self.opener = connect_to_server(self.base_url, self.username,
+                                        self.password)
 
         # Create two timeseries
-        self.timeseries_id1 = self._create_timeseries()
-        self.timeseries_id2 = self._create_timeseries()
+        self.timeseries_id1 = create_timeseries(self.opener, self.__dict__)
+        self.timeseries_id2 = create_timeseries(self.opener, self.__dict__)
         self.datafile_fields = "0,{0},{1}".format(self.timeseries_id1,
                                                   self.timeseries_id2)
         self.ts1 = Timeseries(self.timeseries_id1)
@@ -136,44 +173,9 @@ class _Test_logger(unittest.TestCase):
     def tearDown(self):
         if not self.class_being_tested or not self.base_url:
             return
-        self._delete_timeseries(self.timeseries_id2)
-        self._delete_timeseries(self.timeseries_id1)
+        delete_timeseries(self.opener, self.base_url, self.timeseries_id2)
+        delete_timeseries(self.opener, self.base_url, self.timeseries_id1)
 
-    def _create_timeseries(self):
-        # Create a timeseries on the server and return its id
-        j = { 'gentity': self.station_id,
-              'variable': self.variable_id,
-              'unit_of_measurement': self.unit_of_measurement_id,
-              'time_zone': self.time_zone_id,
-            }
-        r = Request(self.base_url + 'api/Timeseries/', data=json.dumps(j),
-                    headers = { 'Content-type': 'application/json' })
-        fp = self.opener.open(r)
-        response_text = fp.read()
-        return json.loads(response_text)['id']
-
-    def _delete_timeseries(self, ts_id):
-        url = self.base_url + 'api/Timeseries/{0}/'.format(ts_id)
-        r = RequestWithMethod('DELETE', url)
-        try:
-            self.opener.open(r)
-            # According to the theory at
-            # http://stackoverflow.com/questions/7032890/ and elsewhere,
-            # we shouldn't reach this point; in practice, however, I see
-            # that a 204 response results in coming here, not in raising an
-            # exception (and with no way to check the status code). I assume
-            # that if we come here everything was OK.
-        except HTTPError as e:
-            # But just to be sure, also assume that a 204 response might
-            # lead us here as well.
-            if e.code != 204:
-                raise
-
-    def _read_timeseries(self, ts):
-        r = Request(self.base_url + 'api/tsdata/{0}/'.format(ts.id))
-        fp = self.opener.open(r)
-        ts.read(fp)
-        
     def runTest(self):
         if not self.class_being_tested or not self.base_url:
             return
@@ -183,8 +185,8 @@ class _Test_logger(unittest.TestCase):
         d.update(self.datafiledict)
         df = self.class_being_tested(self.base_url, self.opener, d)
         df.update_database()
-        self._read_timeseries(self.ts1)
-        self._read_timeseries(self.ts2)
+        read_timeseries(self.opener, self.base_url, self.ts1)
+        read_timeseries(self.opener, self.base_url, self.ts2)
         self.assertEqual(len(self.ts1), 60)
         self.assertEqual(len(self.ts2), 60)
         (items1, items2, ritems1, ritems2) = [ x.items() for x in (self.ts1,
@@ -196,11 +198,11 @@ class _Test_logger(unittest.TestCase):
             self.assertEqual(items2[i][0], ritems2[i][0])
             self.assertAlmostEqual(items2[i][1], ritems2[i][1], 4)
             self.assertEqual(items2[i][1].flags, ritems2[i][1].flags)
-        d['filename'] = self.file2
+        d['filename'] = full_testdata_filename(self.datafilename)
         df = self.class_being_tested(self.base_url, self.opener, d)
         df.update_database()
-        self._read_timeseries(self.ts1)
-        self._read_timeseries(self.ts2)
+        read_timeseries(self.opener, self.base_url, self.ts1)
+        read_timeseries(self.opener, self.base_url, self.ts2)
         self.assertEqual(len(self.ts1), 100)
         self.assertEqual(len(self.ts2), 100)
         (items1, items2, ritems1, ritems2) = [ x.items() for x in (self.ts1,
@@ -214,46 +216,46 @@ class _Test_logger(unittest.TestCase):
             self.assertEqual(items2[i][1].flags, ritems2[i][1].flags)
 
 
-class _Test_deltacom(_Test_logger):
-    testdata = get_data('deltacom_data.txt')
+class TestDeltacom(_Test_logger):
+    datafilename = 'deltacom_data.txt'
     class_being_tested = Datafile_deltacom
 
 
-class _Test_simple1(_Test_logger):
-    testdata = get_data('simple_data1.txt')
+class TestSimple1(_Test_logger):
+    datafilename = 'simple_data1.txt'
     class_being_tested = Datafile_simple
     datafiledict = { 'date_format': '%y/%m/%d %H:%M:%S', }
 
 
-class _Test_simple2(_Test_logger):
-    testdata = get_data('simple_data2.txt')
+class TestSimple2(_Test_logger):
+    datafilename = 'simple_data2.txt'
     class_being_tested = Datafile_simple
     datafiledict = { 'date_format': '%d/%m/%Y %H:%M:%S', }
 
 
-class _Test_simple3(_Test_logger):
-    testdata = get_data('simple_data3.txt')
+class TestSimple3(_Test_logger):
+    datafilename = 'simple_data3.txt'
     class_being_tested = Datafile_simple
     datafiledict = { 'date_format': '%d/%m/%Y %H:%M',
                      'nfields_to_ignore': 1,
                      'delimiter': ',' }
 
 
-class _Test_dst(unittest.TestCase):
+class TestDstUtils(unittest.TestCase):
 
     def test_parse_dst_spec(self):
-        self.assertEqual(_parse_dst_spec('first Monday January 03:00'), 
-                    { 'nth': 1, 'dow': 1, 'month': 1, 'time': time(3, 0) })
-        self.assertEqual(_parse_dst_spec('second Tuesday February 03:00'), 
-                    { 'nth': 2, 'dow': 2, 'month': 2, 'time': time(3, 0) })
+        self.assertEqual(_parse_dst_spec('first Monday January 03:00'),
+            { 'nth': 1, 'dow': 1, 'month': 1, 'time': time(3, 0) })
+        self.assertEqual(_parse_dst_spec('second Tuesday February 03:00'),
+            { 'nth': 2, 'dow': 2, 'month': 2, 'time': time(3, 0) })
         self.assertEqual(_parse_dst_spec('third Thursday May 03:00'), 
-                    { 'nth': 3, 'dow': 4, 'month': 5, 'time': time(3, 0) })
+            { 'nth': 3, 'dow': 4, 'month': 5, 'time': time(3, 0) })
         self.assertEqual(_parse_dst_spec('fourth Friday June 03:00'), 
-                    { 'nth': 4, 'dow': 5, 'month': 6, 'time': time(3, 0) })
+            { 'nth': 4, 'dow': 5, 'month': 6, 'time': time(3, 0) })
         self.assertEqual(_parse_dst_spec('last Saturday July 03:00'), 
-                    { 'nth': -1, 'dow': 6, 'month': 7, 'time': time(3, 0) })
+            { 'nth': -1, 'dow': 6, 'month': 7, 'time': time(3, 0) })
         self.assertEqual(_parse_dst_spec('03-22 03:00'),
-                    { 'month': 3, 'dom': 22, 'time': time(3, 0) })
+            { 'month': 3, 'dom': 22, 'time': time(3, 0) })
         self.assertEqual(_parse_dst_spec(''), {})
         self.assertRaises(ConfigurationError, _parse_dst_spec, 'a')
         self.assertRaises(ConfigurationError, _parse_dst_spec, 
@@ -350,3 +352,59 @@ class _Test_dst(unittest.TestCase):
         d, to_dst = datafile._nearest_dst_switch(datetime(2012, 12, 1))
         self.assertEqual(d, datetime(2013, 2, 24, 3, 0))
         self.assertFalse(to_dst)
+
+
+class TestDst(unittest.TestCase):
+    datafiledict = { 'date_format': '%Y-%m-%dT%H:%M',
+                     'dst_starts': 'last Sunday March 03:00',
+                     'dst_ends': 'last Sunday October 03:00',
+                     'utcoffset': 120,
+                   }
+
+    def __init__(self, *args, **kwargs):
+        self.base_url = None
+        get_server_from_env(self.__dict__)
+        return super(TestDst, self).__init__(*args, **kwargs)
+
+    def setUp(self):
+        self.ref_ts = Timeseries(0)
+        if not self.base_url:
+            return
+        self.opener = connect_to_server(self.base_url, self.username,
+                                        self.password)
+        self.timeseries_id = create_timeseries(self.opener, self.__dict__)
+        self.ts = Timeseries(self.timeseries_id)
+
+    def tearDown(self):
+        if not self.base_url:
+            return
+        delete_timeseries(self.opener, self.base_url, self.timeseries_id)
+
+    def run_test(self):
+        if not self.base_url:
+            return
+        d = { 'filename': full_testdata_filename(self.filename),
+              'datafile_fields': str(self.timeseries_id),
+            }
+        d.update(self.datafiledict)
+        df = Datafile_simple(self.base_url, self.opener, d)
+        df.update_database()
+        read_timeseries(self.opener, self.base_url, self.ts)
+        self.assertEqual(len(self.ts), len(self.ref_ts))
+        (items, ritems) = [x.items() for x in (self.ts, self.ref_ts)]
+        for item, ritem in zip(items, ritems):
+            self.assertEqual(item[0], ritem[0])
+            self.assertAlmostEqual(item[1], ritem[1], 4)
+            self.assertEqual(item[1].flags, ritem[1].flags)
+
+    def test_to_dst(self):
+        self.filename = 'data_at_change_to_dst.txt'
+        self.ref_ts.read(open(full_testdata_filename(
+            'timeseries_at_change_to_dst.txt')))
+        self.run_test()
+
+    def test_from_dst(self):
+        self.filename = 'data_at_change_from_dst.txt'
+        self.ref_ts.read(open(full_testdata_filename(
+            'timeseries_at_change_from_dst.txt')))
+        self.run_test()
