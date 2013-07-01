@@ -250,7 +250,7 @@ class Datafile(object):
             date = self.extract_date(line).replace(second=0)
             date = self._fix_dst(date)
             if date == prev_date:
-                w = 'WARNING: Omitting line with repeated date ' + date
+                w = 'WARNING: Omitting line with repeated date ' + str(date)
                 self.logger.warning(w)
                 continue
             prev_date = date
