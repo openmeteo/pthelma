@@ -162,7 +162,7 @@ class Datafile(object):
         try:
             self.seq = 0  # sequence number of timeseries
             for self.ts in self.datafile_fields:
-                self.seq = self.seq+1
+                self.seq = self.seq + 1
                 if self.ts == 0:
                     self.logger.info('Omitting position %d' % (self.seq))
                     continue
@@ -362,18 +362,18 @@ class Datafile_pc208w(Datafile):
             items = line.split(',')
             year = int(items[2])
             yday = int(items[3])
-            hour = int(items[4])/100
+            hour = int(items[4]) / 100
             minute = int(items[4]) % 100
             if hour == 24:
                 hour = 0
-                yday = yday+1
-            return datetime(year, 1, 1, hour, minute) + timedelta(yday-1)
+                yday = yday + 1
+            return datetime(year, 1, 1, hour, minute) + timedelta(yday - 1)
         except StandardError:
             self.raise_error(line, 'parse error or invalid date')
 
     def extract_value_and_flags(self, line, seq):
         try:
-            item = line.split(',')[seq+4].strip()
+            item = line.split(',')[seq + 4].strip()
         except IndexError:
             raise ValueError()
         if self.nullstr:
@@ -396,7 +396,7 @@ class Datafile_CR1000(Datafile):
             self.raise_error(line, 'parse error or invalid date')
 
     def extract_value_and_flags(self, line, seq):
-        return (line.split(',')[seq+3].strip(), '')
+        return (line.split(',')[seq + 3].strip(), '')
 
     def subset_identifiers_match(self, line):
         si = line.split(',')[2].strip()
@@ -447,7 +447,7 @@ class Datafile_lastem(Datafile):
             self.raise_error(line, 'parse error or invalid date')
 
     def extract_value_and_flags(self, line, seq):
-        value = line.split(self.delimiter)[seq+3]
+        value = line.split(self.delimiter)[seq + 3]
         if self.nullstr:
             if value == self.nullstr:
                 value = float('NaN')
