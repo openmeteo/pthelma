@@ -2,3 +2,4 @@
 build/
 dist/
 pthelma.egg-info/
+man/loggertodb.1

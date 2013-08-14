@@ -1,5 +1,5 @@
 all:
-	rst2man loggertodb.txt loggertodb.1
+	rst2man loggertodb.rst loggertodb.1
 
 install:
 	mkdir -p /usr/local/share/man/man1/
