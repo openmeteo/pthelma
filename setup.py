@@ -51,7 +51,7 @@ except VersionError as e:
 
 setup(
     name="pthelma",
-    version="dev",
+    version="0.2.0",
     license="GPL3",
     description="Hydro/meteorological-related library, including timeseries",
     author="Antonis Christofides",
