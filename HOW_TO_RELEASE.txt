@@ -1,0 +1,62 @@
+The pthelma version has the form
+
+    major.minor.micro
+
+
+Here's how to release a new minor version X.Y.0:
+
+    1. Create a branch:
+
+          git branch X.Y
+
+    2. In setup.py, in the call to "setup()", change the value of
+       version so that it has the value "X.Y.0" (should be "dev"
+       before you change it).
+
+    3. Commit the change.
+
+    4. Create a tag:
+
+          git tag X.Y.0
+
+    5. Push the new branch:
+
+          git push origin X.Y
+
+    6. Create a new version in github.
+
+    7. Upload to pypi:
+    
+          ./setup.py upload
+
+
+
+Here's how to release a new micro X.Y.Z version:
+
+    1. Switch to the X.Y branch:
+
+          git checkout X.Y
+
+    2. Make the required bug fixes and commit them.
+
+    3. In setup.py, in the call to "setup()", change the value of
+       version so that it has the value "X.Y.Z" (should be "X.Y.Q"
+       where Q=Z-1).
+
+    4. Commit the change.
+
+    5. Create a tag:
+    
+          git tag X.Y.Z
+
+    6. Push:
+
+          git push X.Y.Z
+
+    7. Create a new version in github.
+
+    8. Upload to pypi:
+    
+          ./setup.py upload
+
+    9. Also apply the bug fixes to the master branch.
