@@ -1,1 +1,3 @@
+v0.2.1, 2013-08-19 -- Improvements in installation procedure.
+
 v0.1.0, 2013-08-14 -- Initial release.
