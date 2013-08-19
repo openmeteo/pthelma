@@ -31,7 +31,7 @@ Here's how to release a new minor version X.Y.0:
 
     8. Upload to pypi:
     
-          ./setup.py upload
+          ./setup.py sdist upload
 
 
 
@@ -65,6 +65,6 @@ Here's how to release a new micro X.Y.Z version:
 
     8. Upload to pypi:
     
-          ./setup.py upload
+          ./setup.py sdist upload
 
     9. Also apply the bug fixes to the master branch.
