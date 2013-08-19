@@ -13,19 +13,23 @@ Here's how to release a new minor version X.Y.0:
        version so that it has the value "X.Y.0" (should be "dev"
        before you change it).
 
-    3. Commit the change.
+    3. Update CHANGES.txt.
 
-    4. Create a tag:
+    4. Commit:
+
+          git commit -a -m "Version X.Y.0"
+
+    5. Create a tag:
 
           git tag X.Y.0
 
-    5. Push the new branch:
+    6. Push the new branch:
 
           git push origin X.Y
 
-    6. Create a new version in github.
+    7. Create a new version in github.
 
-    7. Upload to pypi:
+    8. Upload to pypi:
     
           ./setup.py upload
 
@@ -43,17 +47,21 @@ Here's how to release a new micro X.Y.Z version:
        version so that it has the value "X.Y.Z" (should be "X.Y.Q"
        where Q=Z-1).
 
-    4. Commit the change.
+    4. Update CHANGES.txt.
 
-    5. Create a tag:
+    5. Commit:
+    
+          git commit -a -m "Version X.Y.Z"
+
+    6. Create a tag:
     
           git tag X.Y.Z
 
-    6. Push:
+    7. Push:
 
-          git push X.Y.Z
+          git push
 
-    7. Create a new version in github.
+    8. Create a new version in github.
 
     8. Upload to pypi:
     
