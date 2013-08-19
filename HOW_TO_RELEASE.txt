@@ -7,7 +7,7 @@ Here's how to release a new minor version X.Y.0:
 
     1. Create a branch:
 
-          git branch X.Y
+          git checkout -b X.Y
 
     2. In setup.py, in the call to "setup()", change the value of
        version so that it has the value "X.Y.0" (should be "dev"
