@@ -169,9 +169,7 @@ sorted. There is no need to call timeseries.keys().sort().
 *ts_core* library is required, for installation see the bundled
 text in the ts_core directory in the repository.
 
-.. class:: Timeseries([id=0, time_step=None, unit='', title='', timezone='',
-                variable='', precision=None, comment='',
-                driver=Timeseries.SQLDRIVER_PSYCOPG2])
+.. class:: Timeseries([id=0, time_step=None, unit='', title='', timezone='', variable='', precision=None, comment='', driver=Timeseries.SQLDRIVER_PSYCOPG2])
 
    Create a new :class:`Timeseries` object. The arguments set initial
    values for the attributes described below.
@@ -254,14 +252,14 @@ text in the ts_core directory in the repository.
       in lines being terminated with CR-CR-LF. If *fp* is a file, it
       should have been opened in binary mode.
 
-  .. method:: Timeseries.write_plain_values(fp, [nullstr=''])
+   .. method:: Timeseries.write_plain_values(fp, [nullstr=''])
 
-     Write plain values to a filelike object *fp*, in a csv like
-     format but without the c of csv. Each line of the text file
-     contains one value only representing the actual value of the nth
-     step of the time series. No timestamp or flags are specified.
-     Null values are represented with the *nullstr* sequence; default
-     is an empty string causing empty lines for null value records.
+      Write plain values to a filelike object *fp*, in a csv like
+      format but without the c of csv. Each line of the text file
+      contains one value only representing the actual value of the nth
+      step of the time series. No timestamp or flags are specified.
+      Null values are represented with the *nullstr* sequence; default
+      is an empty string causing empty lines for null value records.
 
    .. method:: Timeseries.read_file(fp)
 
@@ -287,7 +285,7 @@ text in the ts_core directory in the repository.
       :data:`django.db.connection` object. If *bottom_only* is set to
       True, only the bottom part is returned.
 
-   .. method:: Timeseries.blob_create(s):
+   .. method:: Timeseries.blob_create(s)
 
       This method is for internal use by Timeseries.write_to_db
       method. Creates a BLOB instance (such as bytea in PostgreSQL)
@@ -321,7 +319,7 @@ text in the ts_core directory in the repository.
       .. _Performing raw SQL queries: http://docs.djangoproject.com/en/dev/topics/db/sql/
 
    .. method:: Timeseries.append_to_db(db[, transaction=None, commit=True])
-      
+     
       Append the contained records to the time series stored in the
       database. The arguments are the same as those for
       :meth:`write_to_db`. All the records must have a timestamp later
@@ -355,9 +353,9 @@ text in the ts_core directory in the repository.
 
       Return the index in :meth:`~Timeseries.items()` that has the
       specified date, or, if no such item exists, and
-      :samp:`*downwards*=False`, return the index of the item
+      :samp:`{downwards}=False`, return the index of the item
       immediately after *date*; if an item with *date* does not exist,
-      and :samp:`*downwards*=True`, return the index of the item
+      and :samp:`{downwards}=True`, return the index of the item
       immediately before *date*.
 
    .. method:: Timeseries.item(date[, downwards=False])

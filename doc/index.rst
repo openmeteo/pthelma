@@ -11,6 +11,7 @@ Pthelma
    meteocalcs
    cplot
    curves
+   copyright
 
 Indices and tables
 ==================
