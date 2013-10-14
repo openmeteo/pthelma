@@ -136,9 +136,9 @@ simple
    is considered to be the time; in this case the two fields are
    joined with a space to form the date/time string.  The field
    delimiter is white space, unless the ``delimiter`` parameter is
-   specified. The date and/or time can optionally be enclosed in
-   double quotation marks. The format of the date and time is
-   specified by the ``date_format`` parameter (enclosing quotation
+   specified. The date and/or time and the values can optionally be
+   enclosed in double quotation marks. The format of the date and time
+   is specified by the ``date_format`` parameter (enclosing quotation
    marks are removed before parsing; also if the date and time are
    different fields, they are joined together with a space before
    being parsed).  If ``date_format`` is not specified, then the date

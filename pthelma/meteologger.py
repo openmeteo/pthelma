@@ -431,7 +431,7 @@ class Datafile_simple(Datafile):
     def extract_value_and_flags(self, line, seq):
         index = self.nfields_to_ignore + seq + (
             1 if self.__separate_time else 0)
-        value = line.split(self.delimiter)[index].strip()
+        value = line.split(self.delimiter)[index].strip().strip('"').strip()
         if self.nullstr and value == self.nullstr:
             value = float('NaN')
         return (value, '')
