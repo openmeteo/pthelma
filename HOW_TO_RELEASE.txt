@@ -5,15 +5,17 @@ The pthelma version has the form
 
 Here's how to release a new minor version X.Y.0:
 
-    1. Create a branch:
+    1. Update CHANGES.txt; changes showing on top as "dev" should now
+       show as X.Y.0, with the current date. If no changes show, find
+       them from the VCS and add them. Commit.
+
+    2. Create a branch:
 
           git checkout -b X.Y
 
-    2. In setup.py, in the call to "setup()", change the value of
+    3. In setup.py, in the call to "setup()", change the value of
        version so that it has the value "X.Y.0" (should be "dev"
        before you change it).
-
-    3. Update CHANGES.txt.
 
     4. Commit:
 
