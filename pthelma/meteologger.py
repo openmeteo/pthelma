@@ -182,21 +182,19 @@ class Datafile(object):
             except StopIteration:
                 break
             self.logger.debug(line)
-            if not line.strip():
-                continue  # skip empty lines
-            if not self.subset_identifiers_match(line):
-                continue
-            date = self.extract_date(line).replace(second=0)
-            date = self._fix_dst(date)
-            if date == prev_date:
-                w = 'WARNING: Omitting line with repeated date ' + str(date)
-                self.logger.warning(w)
-                continue
-            prev_date = date
-            self.logger.debug('Date: %s' % (date.isoformat()))
-            if date <= self.last_timeseries_end_date:
-                break
-            self.tail.append({'date': date, 'line': line})
+            if line.strip() and self.subset_identifiers_match(line):
+                date = self.extract_date(line).replace(second=0)
+                date = self._fix_dst(date)
+                if date == prev_date:
+                    w = 'WARNING: Omitting line with repeated date ' + str(
+                        date)
+                    self.logger.warning(w)
+                    continue
+                prev_date = date
+                self.logger.debug('Date: %s' % (date.isoformat()))
+                if date <= self.last_timeseries_end_date:
+                    break
+                self.tail.append({'date': date, 'line': line})
         self.tail.reverse()
 
     def _fix_dst(self, adatetime):
