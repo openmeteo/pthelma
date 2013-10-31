@@ -1,6 +1,8 @@
 dev                -- Improve DST handling; use pytz
 
-v0.2.0, 2013-10-14 -- Strip double quotes in loggertodb's simple data
+v0.3.0, 2013-10-14 -- Strip double quotes in loggertodb's simple data
                       file format.
+
+v0.2.1, 2013-08-19 -- Improvements in installation procedure.
 
 v0.1.0, 2013-08-14 -- Initial release.
