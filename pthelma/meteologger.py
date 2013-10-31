@@ -203,8 +203,11 @@ class Datafile(object):
         """Remove any DST from a date.
            Determine if a date contains DST. If it does, remove the
            extra hour. Returns the fixed date."""
-        is_dst = bool(datetime.now(self.timezone).dst())
-        return adatetime - self.timezone.dst(adatetime, is_dst=is_dst)
+        result = adatetime
+        if self.timezone.zone != 'UTC':
+            is_dst = bool(datetime.now(self.timezone).dst())
+            result -= self.timezone.dst(adatetime, is_dst=is_dst)
+        return result
 
     def subset_identifiers_match(self, line):
         "Returns true if subset identifier of line matches specified"
