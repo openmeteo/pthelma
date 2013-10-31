@@ -1,3 +1,5 @@
+dev                -- Improve DST handling; use pytz
+
 v0.2.0, 2013-10-14 -- Strip double quotes in loggertodb's simple data
                       file format.
 

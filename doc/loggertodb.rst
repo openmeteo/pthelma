@@ -217,12 +217,11 @@ A time series is composed of records with timestamps. If we don't know
 exactly what these timestamps mean, the whole time series is
 meaningless. So, assuming you are in Germany, do you know exactly what
 2012-10-28 02:30 means? No, you don't, because it might mean two
-different things. It could mean 2012-10-28 02:30 CEST (00:30 UTC), or
-2012-10-28 02:30 CET (01:30 UTC). (In fact, if you use a Davis station
-and have set it to switch time zone, and an incredible storm occurs
-around 2012-10-28 02:30 CEST, then the data about this storm will be
-deleted when the logger switches time zone; the new data will
-overwrite one hour from the previous data.  Insane but true.)
+different things. It could mean 02:30 CEST (00:30 UTC) or
+02:30 CET (01:30 UTC). (In fact, several makes of loggers
+discard one of the two ambiguous hours during the switch from DST,
+meaning that if an incredible storm occurs at that time, you will lose
+it. Insane but true.)
 
 In order to avoid insanity, Enhydris has a simple rule: all time
 stamps of any given time series must be in the same offset from UTC.
@@ -234,43 +233,30 @@ Enhydris.
 
 If you are unfortunate enough to have loggers that switch to DST, and
 are unable to change their configuration, ``loggertodb`` can attempt to
-convert it for you. The ``dst_starts`` and ``dst_ends`` parameters
-specify when your time series changes to DST and back; they are either
-in the form "MM-DD HH:mm", such as "03-22 02:00", meaning "22 March,
-at 02:00" (useful only in Iran), or in a case insensitive string such
-as "last Sunday March 02:00"; i.e. in the form "nth dow month HH:mm",
-where nth can be first, second, third, fourth, or last, dow can be
-Monday to Sunday, and month can be January to December. In both
-``dst_starts`` and ``dst_ends``, the time is non-dst time.
+convert it for you. The ``timezone`` parameter should be set to a
+string like "Europe/Athens"::
+
+   timezone = Europe/Athens
+
+(The list of accepted time zones is that of the `Olson database`_; you may
+find `Wikipedia's copy`_ handy.)
+
+.. _olson database: http://www.iana.org/time-zones
+.. _wikipedia's copy: http://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 
 Currently ``loggertodb`` performs a very limited kind of correction;
-it assumes that the time change occurs exactly when specified, not a
-few hours earlier or later. For the switch towards DST, things are
-simple. For the switch from DST to winter time, things are more
-complicated, because there's an hour that appears twice;
+it assumes that the time change occurs exactly when it is supposed to
+occur, not a few hours earlier or later. For the switch towards DST,
+things are simple. For the switch from DST to winter time, things are
+more complicated, because there's an hour that appears twice;
 ``loggertodb`` assumes that any records in the ambiguous hour refer to
 after the switch, unless according to the computer's clock the switch
-hasn't occurred yet. In order for it to know that, it must know the
-time zone of the file; the parameter ``utcoffset`` specifies the
-offset of the winter time from UTC, in minutes; for example, for CET
-it's 60; for PST it's -480.
+hasn't occurred yet.
 
-Either you must set all of ``dst_starts``, ``dst_ends``, and
-``utcoffset``, or none of them. If you don't set them, it means you
-are sane.
-
-.. admonition:: What if the date of the change changes?
-
-   ``loggertodb`` currently does not support a configuration that
-   would say something like "last Sunday of April until 2005, last
-   Sunday of March until 2013, no DST since". You may think you don't
-   need it since you can be changing the configuration each time your
-   government changes the DST switch date; however, you will often
-   want to just delete the time series from the database and re-insert
-   them with ``loggertodb`` from the beginning of time, and in this
-   case it won't work. But you can fund me so that I develop this kind
-   of functionality.
-
+The ``timezone`` parameter is used only in order to know when the DST
+switches occur. The timestamp, after removing any DST, are entered as
+is. The time zone database field isn't checked for consistency,
+neither is any other conversion made.
 
 AUTHOR, COPYRIGHT, HISTORY
 ==========================

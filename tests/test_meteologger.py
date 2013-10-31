@@ -15,19 +15,16 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 """
 
-import unittest
+from unittest import TestCase, skipUnless
 import os
 import tempfile
 import cookielib
 from urllib2 import build_opener, HTTPCookieProcessor, Request, HTTPError
 import json
 import sys
-from datetime import time, datetime
 
 from pthelma.timeseries import Timeseries
-from pthelma.meteologger import Datafile, Datafile_deltacom, Datafile_simple, \
-                                _parse_dst_spec, ConfigurationError, \
-                                _decode_dst_dict
+from pthelma.meteologger import Datafile_deltacom, Datafile_simple
 
 
 def full_testdata_filename(filename):
@@ -38,7 +35,7 @@ def full_testdata_filename(filename):
 
 class RequestWithMethod(Request):
     """
-    See http://benjamin.smedbergs.us/blog/2008-10-21/putting-and-deleteing-in-python-urllib2/
+    See http://benjamin.smedbergs.us/blog/2008-10-21/putting-and-deleteing
     """
     def __init__(self, method, *args, **kwargs):
         self._method = method
@@ -61,13 +58,12 @@ def connect_to_server(base_url, username, password):
 
 def create_timeseries(opener, adict):
     # Create a timeseries on the server and return its id
-    j = { 'gentity': adict['station_id'],
-          'variable': adict['variable_id'],
-          'unit_of_measurement': adict['unit_of_measurement_id'],
-          'time_zone': adict['time_zone_id'],
-        }
+    j = {'gentity': adict['station_id'],
+         'variable': adict['variable_id'],
+         'unit_of_measurement': adict['unit_of_measurement_id'],
+         'time_zone': adict['time_zone_id'], }
     r = Request(adict['base_url'] + 'api/Timeseries/', data=json.dumps(j),
-                headers = { 'Content-type': 'application/json' })
+                headers={'Content-type': 'application/json'})
     fp = opener.open(r)
     response_text = fp.read()
     return json.loads(response_text)['id']
@@ -90,11 +86,12 @@ def delete_timeseries(opener, base_url, ts_id):
         if e.code != 204:
             raise
 
+
 def read_timeseries(opener, base_url, ts):
     r = Request(base_url + 'api/tsdata/{0}/'.format(ts.id))
     fp = opener.open(r)
     ts.read(fp)
-        
+
 
 _connection_instructions = """
 Omitting the tests for meteologger; in order to run these tests, you
@@ -119,17 +116,19 @@ there is an error.
 The rest of the parameters are used when test timeseries are created.
 """
 
+
 def get_server_from_env(adict):
-    try:
-        v = json.loads(os.getenv("PTHELMA_TEST_METEOLOGGER"))
+    conn = os.getenv("PTHELMA_TEST_METEOLOGGER")
+    if conn:
+        v = json.loads(conn)
         for item in 'base_url username password station_id variable_id ' \
                     'unit_of_measurement_id time_zone_id'.split():
             adict[item] = v[item]
-    except TypeError:
+    else:
         sys.stderr.write(_connection_instructions)
 
 
-class _Test_logger(unittest.TestCase):
+class _Test_logger(TestCase):
     class_being_tested = None
     datafilename = ''
     datafiledict = {}
@@ -152,8 +151,10 @@ class _Test_logger(unittest.TestCase):
         fp = os.fdopen(fd, 'w')
         i = 0
         for line in open(full_testdata_filename(self.datafilename)):
-            if i>=60: break
-            if not line.strip(): continue
+            if i >= 60:
+                break
+            if not line.strip():
+                continue
             i += 1
             fp.write(line)
         fp.close()
@@ -179,9 +180,8 @@ class _Test_logger(unittest.TestCase):
     def runTest(self):
         if not self.class_being_tested or not self.base_url:
             return
-        d = { 'filename': self.file1,
-              'datafile_fields': self.datafile_fields,
-            }
+        d = {'filename': self.file1,
+             'datafile_fields': self.datafile_fields}
         d.update(self.datafiledict)
         df = self.class_being_tested(self.base_url, self.opener, d)
         df.update_database()
@@ -189,8 +189,9 @@ class _Test_logger(unittest.TestCase):
         read_timeseries(self.opener, self.base_url, self.ts2)
         self.assertEqual(len(self.ts1), 60)
         self.assertEqual(len(self.ts2), 60)
-        (items1, items2, ritems1, ritems2) = [ x.items() for x in (self.ts1,
-                                        self.ts2, self.ref_ts1, self.ref_ts2)]
+        (items1, items2, ritems1, ritems2) = [
+            x.items() for x in (self.ts1, self.ts2,
+                                self.ref_ts1, self.ref_ts2)]
         for i in range(0, 60):
             self.assertEqual(items1[i][0], ritems1[i][0])
             self.assertAlmostEqual(items1[i][1], ritems1[i][1], 4)
@@ -205,8 +206,9 @@ class _Test_logger(unittest.TestCase):
         read_timeseries(self.opener, self.base_url, self.ts2)
         self.assertEqual(len(self.ts1), 100)
         self.assertEqual(len(self.ts2), 100)
-        (items1, items2, ritems1, ritems2) = [ x.items() for x in (self.ts1,
-                                       self.ts2, self.ref_ts1, self.ref_ts2)]
+        (items1, items2, ritems1, ritems2) = [
+            x.items() for x in (self.ts1, self.ts2,
+                                self.ref_ts1, self.ref_ts2)]
         for i in range(0, 100):
             self.assertEqual(items1[i][0], ritems1[i][0])
             self.assertAlmostEqual(items1[i][1], ritems1[i][1], 4)
@@ -224,142 +226,26 @@ class TestDeltacom(_Test_logger):
 class TestSimple1(_Test_logger):
     datafilename = 'simple_data1.txt'
     class_being_tested = Datafile_simple
-    datafiledict = { 'date_format': '%y/%m/%d %H:%M:%S', }
+    datafiledict = {'date_format': '%y/%m/%d %H:%M:%S'}
 
 
 class TestSimple2(_Test_logger):
     datafilename = 'simple_data2.txt'
     class_being_tested = Datafile_simple
-    datafiledict = { 'date_format': '%d/%m/%Y %H:%M:%S', }
+    datafiledict = {'date_format': '%d/%m/%Y %H:%M:%S'}
 
 
 class TestSimple3(_Test_logger):
     datafilename = 'simple_data3.txt'
     class_being_tested = Datafile_simple
-    datafiledict = { 'date_format': '%d/%m/%Y %H:%M',
-                     'nfields_to_ignore': 1,
-                     'delimiter': ',' }
+    datafiledict = {'date_format': '%d/%m/%Y %H:%M',
+                    'nfields_to_ignore': 1,
+                    'delimiter': ','}
 
 
-class TestDstUtils(unittest.TestCase):
-
-    def test_parse_dst_spec(self):
-        self.assertEqual(_parse_dst_spec('first Monday January 03:00'),
-            { 'nth': 1, 'dow': 1, 'month': 1, 'time': time(3, 0) })
-        self.assertEqual(_parse_dst_spec('second Tuesday February 03:00'),
-            { 'nth': 2, 'dow': 2, 'month': 2, 'time': time(3, 0) })
-        self.assertEqual(_parse_dst_spec('third Thursday May 03:00'), 
-            { 'nth': 3, 'dow': 4, 'month': 5, 'time': time(3, 0) })
-        self.assertEqual(_parse_dst_spec('fourth Friday June 03:00'), 
-            { 'nth': 4, 'dow': 5, 'month': 6, 'time': time(3, 0) })
-        self.assertEqual(_parse_dst_spec('last Saturday July 03:00'), 
-            { 'nth': -1, 'dow': 6, 'month': 7, 'time': time(3, 0) })
-        self.assertEqual(_parse_dst_spec('03-22 03:00'),
-            { 'month': 3, 'dom': 22, 'time': time(3, 0) })
-        self.assertEqual(_parse_dst_spec(''), {})
-        self.assertRaises(ConfigurationError, _parse_dst_spec, 'a')
-        self.assertRaises(ConfigurationError, _parse_dst_spec, 
-                          'fifth Saturday July 03:00')
-
-    def test_decode_dst_dict(self):
-        dct = _parse_dst_spec('first Monday April 03:00')
-        dec = _decode_dst_dict(dct, 2013)
-        self.assertEqual(dec, datetime(2013, 4, 1, 3, 0))
-
-        dct = _parse_dst_spec('first Sunday April 03:00')
-        dec = _decode_dst_dict(dct, 2013)
-        self.assertEqual(dec, datetime(2013, 4, 7, 3, 0))
-
-        dct = _parse_dst_spec('second Monday April 03:00')
-        dec = _decode_dst_dict(dct, 2013)
-        self.assertEqual(dec, datetime(2013, 4, 8, 3, 0))
-
-        dct = _parse_dst_spec('second Sunday April 03:00')
-        dec = _decode_dst_dict(dct, 2013)
-        self.assertEqual(dec, datetime(2013, 4, 14, 3, 0))
-
-        dct = _parse_dst_spec('second Tuesday February 03:00')
-        dec = _decode_dst_dict(dct, 2013)
-        self.assertEqual(dec, datetime(2013, 2, 12, 3, 0))
-
-        dct = _parse_dst_spec('third Thursday May 03:00')
-        dec = _decode_dst_dict(dct, 2013)
-        self.assertEqual(dec, datetime(2013, 5, 16, 3, 0))
-
-        dct = _parse_dst_spec('fourth Friday June 03:00')
-        dec = _decode_dst_dict(dct, 2013)
-        self.assertEqual(dec, datetime(2013, 6, 28, 3, 0))
-
-        dct = _parse_dst_spec('last Saturday July 03:00')
-        dec = _decode_dst_dict(dct, 2013)
-        self.assertEqual(dec, datetime(2013, 7, 27, 3, 0))
-
-        dct = _parse_dst_spec('last Sunday March 03:00')
-        dec = _decode_dst_dict(dct, 2013)
-        self.assertEqual(dec, datetime(2013, 3, 31, 3, 0))
-
-        dct = _parse_dst_spec('last Monday March 03:00')
-        dec = _decode_dst_dict(dct, 2013)
-        self.assertEqual(dec, datetime(2013, 3, 25, 3, 0))
-
-        dct = _parse_dst_spec('last Monday December 03:00')
-        dec = _decode_dst_dict(dct, 2012)
-        self.assertEqual(dec, datetime(2012, 12, 31, 3, 0))
-
-        dct = _parse_dst_spec('last Sunday December 03:00')
-        dec = _decode_dst_dict(dct, 2012)
-        self.assertEqual(dec, datetime(2012, 12, 30, 3, 0))
-
-    def test_nearest_dst_switch(self):
-        datafile = Datafile('http://irrelevant', None, 
-                            { 'dst_starts': 'last Sunday April 03:00',
-                              'dst_ends':   'last Sunday November 03:00',
-                              'utcoffset':  '0',
-                              'filename':   'irrelevant',
-                              'datafile_fields': '0',
-                            })
-        d, to_dst = datafile._nearest_dst_switch(datetime(2013, 1, 1))
-        self.assertEqual(d, datetime(2012, 11, 25, 3, 0))
-        self.assertFalse(to_dst)
-        d, to_dst = datafile._nearest_dst_switch(datetime(2013, 3, 1))
-        self.assertEqual(d, datetime(2013, 4, 28, 3, 0))
-        self.assertTrue(to_dst)
-
-        datafile = Datafile('http://irrelevant', None, 
-                            { 'dst_starts': 'last Sunday February 03:00',
-                              'dst_ends':   'last Sunday September 03:00',
-                              'utcoffset':  '0',
-                              'filename':   'irrelevant',
-                              'datafile_fields': '0',
-                            })
-        d, to_dst = datafile._nearest_dst_switch(datetime(2013, 1, 1))
-        self.assertEqual(d, datetime(2013, 2, 24, 3, 0))
-        self.assertTrue(to_dst)
-        d, to_dst = datafile._nearest_dst_switch(datetime(2012, 12, 1))
-        self.assertEqual(d, datetime(2013, 2, 24, 3, 0))
-        self.assertTrue(to_dst)
-
-        datafile = Datafile('http://irrelevant', None, 
-                            { 'dst_starts': 'last Sunday September 03:00',
-                              'dst_ends':   'last Sunday February 03:00',
-                              'utcoffset':  '0',
-                              'filename':   'irrelevant',
-                              'datafile_fields': '0',
-                            })
-        d, to_dst = datafile._nearest_dst_switch(datetime(2012, 11, 1))
-        self.assertEqual(d, datetime(2012, 9, 30, 3, 0))
-        self.assertTrue(to_dst)
-        d, to_dst = datafile._nearest_dst_switch(datetime(2012, 12, 1))
-        self.assertEqual(d, datetime(2013, 2, 24, 3, 0))
-        self.assertFalse(to_dst)
-
-
-class TestDst(unittest.TestCase):
-    datafiledict = { 'date_format': '%Y-%m-%dT%H:%M',
-                     'dst_starts': 'last Sunday March 03:00',
-                     'dst_ends': 'last Sunday October 03:00',
-                     'utcoffset': 120,
-                   }
+class TestDst(TestCase):
+    datafiledict = {'date_format': '%Y-%m-%dT%H:%M',
+                    'timezone': 'Europe/Athens'}
 
     def __init__(self, *args, **kwargs):
         self.base_url = None
@@ -383,9 +269,8 @@ class TestDst(unittest.TestCase):
     def run_test(self):
         if not self.base_url:
             return
-        d = { 'filename': full_testdata_filename(self.filename),
-              'datafile_fields': str(self.timeseries_id),
-            }
+        d = {'filename': full_testdata_filename(self.filename),
+             'datafile_fields': str(self.timeseries_id)}
         d.update(self.datafiledict)
         df = Datafile_simple(self.base_url, self.opener, d)
         df.update_database()
@@ -397,12 +282,14 @@ class TestDst(unittest.TestCase):
             self.assertAlmostEqual(item[1], ritem[1], 4)
             self.assertEqual(item[1].flags, ritem[1].flags)
 
+    @skipUnless(os.getenv('PTHELMA_TEST_METEOLOGGER'), "see above")
     def test_to_dst(self):
         self.filename = 'data_at_change_to_dst.txt'
         self.ref_ts.read(open(full_testdata_filename(
             'timeseries_at_change_to_dst.txt')))
         self.run_test()
 
+    @skipUnless(os.getenv('PTHELMA_TEST_METEOLOGGER'), "see above")
     def test_from_dst(self):
         self.filename = 'data_at_change_from_dst.txt'
         self.ref_ts.read(open(full_testdata_filename(

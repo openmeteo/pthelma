@@ -58,5 +58,8 @@ setup(
     author_email="anthony@itia.ntua.gr",
     packages=find_packages(),
     scripts=['bin/loggertodb'],
-    test_suite="tests"
+    test_suite="tests",
+    install_requires=[
+        "pytz",
+    ]
 )
