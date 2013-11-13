@@ -53,6 +53,8 @@ def connect_to_server(base_url, username, password):
                          for cookie in cookiejar if cookie.name == 'csrftoken']
     data = 'username={0}&password={1}'.format(username, password)
     opener.open(base_url + 'accounts/login/', data)
+    opener.addheaders = [('X-CSRFToken', cookie.value)
+                         for cookie in cookiejar if cookie.name == 'csrftoken']
     return opener
 
 
