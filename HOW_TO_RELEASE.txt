@@ -25,11 +25,12 @@ Here's how to release a new minor version X.Y.0:
 
           git tag X.Y.0
 
-    6. Push the new branch:
+    6. Push the new branch and the new tag:
 
           git push origin X.Y
+          git push origin X.Y.0
 
-    7. Create a new version in github.
+    7. Create a new release in github.
 
     8. Upload to pypi:
     
@@ -59,14 +60,15 @@ Here's how to release a new micro X.Y.Z version:
     
           git tag X.Y.Z
 
-    7. Push:
+    7. Push changes and tag:
 
           git push
+          git push origin X.Y.Z
 
-    8. Create a new version in github.
+    8. Create a new release in github.
 
-    8. Upload to pypi:
+    9. Upload to pypi:
     
           ./setup.py sdist upload
 
-    9. Also apply the bug fixes to the master branch.
+   10. Also apply the bug fixes to the master branch.
