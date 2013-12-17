@@ -180,6 +180,12 @@ pc208w
    order: subset identifier, logger id (ignored), year, day of year,
    time in ``HHmm``, measurements.
 
+wdat5
+   The ``wdat5`` format is a binary format used by Davis Weatherlink;
+   the files have a ``wlk`` extension.  When using it, set
+   ``filename`` to the directory name where your ``wlk`` files are
+   stored (one file per month).
+
 DAYLIGHT SAVING TIME
 ====================
 

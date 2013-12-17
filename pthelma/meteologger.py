@@ -17,7 +17,10 @@ GNU General Public License for more details.
 """
 
 from datetime import datetime, timedelta
+from glob import glob
 import math
+import os
+import struct
 from urllib import urlencode
 from urllib2 import Request
 from StringIO import StringIO
@@ -353,3 +356,127 @@ class Datafile_lastem(Datafile):
         si = [x.strip() for x in line.split(self.delimiter)[0:3]]
         si1 = [x.strip() for x in self.subset_identifiers.split(',')]
         return si == si1
+
+
+class Datafile_wdat5(Datafile):
+    wdat_record_format = [
+        '<b dataType',
+        '<b archiveInterval',
+        '<b iconFlags',
+        '<b moreFlags',
+        '<h packedTime',
+        '<h outsideTemp',
+        '<h hiOutsideTemp',
+        '<h lowOutsideTemp',
+        '<h insideTemp',
+        '<h barometer',
+        '<h outsideHum',
+        '<h insideHum',
+        '<H rain',
+        '<h hiRainRate',
+        '<h windSpeed',
+        '<h hiWindSpeed',
+        '<b windDirection',
+        '<b hiWindDirection',
+        '<h numWindSamples',
+        '<h solarRad',
+        '<h hisolarRad',
+        '<b UV',
+        '<b hiUV',
+        '<b leafTemp1', '<b leafTemp2',
+        '<b leafTemp3', '<b leafTemp4',
+        '<h extraRad',
+        '<h newSensors1', '<h newSensors2', '<h newSensors3',
+        '<h newSensors4', '<h newSensors5', '<h newSensors6',
+        '<b forecast',
+        '<b ET',
+        '<b soilTemp1', '<b soilTemp2', '<b soilTemp3',
+        '<b soilTemp4', '<b soilTemp5', '<b soilTemp6',
+        '<b soilMoisture1', '<b soilMoisture2', '<b soilMoisture3',
+        '<b soilMoisture4', '<b soilMoisture5', '<b soilMoisture6',
+        '<b leafWetness1', '<b leafWetness2',
+        '<b leafWetness3', '<b leafWetness4',
+        '<b extraTemp1', '<b extraTemp2', '<b extraTemp3',
+        '<b extraTemp4', '<b extraTemp5', '<b extraTemp6',
+        '<b extraTemp7',
+        '<b extraHum1', '<b extraHum2', '<b extraHum3',
+        '<b extraHum4', '<b extraHum5', '<b extraHum6',
+        '<b extraHum7',
+    ]
+
+    def update_database(self):
+        self.logger.info('Processing data directory %s' % (self.filename))
+        self.last_timeseries_end_date = None
+        self.seq = 0  # sequence number of timeseries
+        for self.ts in self.datafile_fields:
+            self.seq = self.seq + 1
+            if self.ts == 0:
+                self.logger.info('Omitting position %d' % (self.seq))
+                continue
+            self.logger.info('Processing timeseries %d at position %d'
+                             % (self.ts, self.seq))
+            self._update_timeseries()
+
+    def _get_tail(self):
+        "Read the part of the data after last_timeseries_end_date"
+        self.tail = []
+        date = self.last_timeseries_end_date
+        first_file = os.path.join(self.filename,
+                                  '{0.year}-{0.month:02}.wlk'.format(date))
+        data_files = [x for x in glob(os.path.join(self.filename), '*.wlk')
+                      if x >= first_file]
+        data_files.sort()
+        for current_file in data_files:
+            self.tail.extend(self._get_tail_part(date, current_file))
+
+    def _get_tail_part(self, last_date, filename):
+        """
+        Read a single wdat5 file.
+
+        Reads the single wdat5 file "filename" for records with
+        date>last_date, and returns a list of records in space-delimited
+        format; iso datetime first, values after.
+        """
+        year, month = [int(x) for x
+                       in os.path.split(filename)[1].split('.')[0].split('-')]
+        result = []
+        with open(filename, 'rb') as f:
+            header = f.read(212)
+            if header[:7] != 'WDAT5.':
+                raise MeteologgerReadError('File {0} does not appear to be '
+                                           'a WDAT 5.x file'.format(filename))
+            for day in range(1, 31):
+                day_index = header[20 + (day * 6):20 + (day * 6) + 6]
+                records_in_day = struct.unpack('<h', day_index[:2])
+                start_pos = struct.unpack('<l', day_index[2:])
+                for r in range(records_in_day):
+                    f.fseek(212 + ((start_pos + r) * 88))
+                    record = f.read(88)
+                    if ord(record[0]) != 1:
+                        continue
+                    record_contents = self._read_wdat_record(record)
+                    date = datetime(year=year, month=month, day=day) + \
+                        timedelta(minutes=record_contents['packedTime'])
+                    if date <= last_date:
+                        continue
+                    result.append(self._convert_wdat_record(date,
+                                                            record_contents))
+        return result
+
+    def _read_wdat_record(self, record):
+        result = {}
+        offset = 0
+        for item in self.wdat_record_format:
+            fmt, name = item.split()
+            result[name] = struct.unpack_from(fmt, record, offset)
+            offset += struct.calcsize(fmt)
+        return result
+
+    def _convert_wdat_record(self, date, record):
+        pass
+
+    def extract_date(self, line):
+        pass
+
+    def extract_value_and_flags(self, line, seq):
+        pass
