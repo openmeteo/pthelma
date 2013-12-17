@@ -20,7 +20,8 @@ try:
     dickinson = CDLL('dickinson.dll'
                      if platform.system() == 'Windows'
                      else 'libdickinson.so')
-    dickinson_version = c_char_p.in_dll(dickinson, 'dickinson_version').value
+    dickinson_version = c_char_p.in_dll(dickinson, 'dickinson_version'
+                                        ).value.decode('ascii')
     if dickinson_version != 'dev' and parse_version(dickinson_version) \
             < parse_version(REQUIRED_DICKINSON_VERSION):
         raise VersionError('Too old version of dickinson: {0}'.format(
