@@ -16,6 +16,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 """
 
+from copy import copy
 from datetime import datetime, timedelta
 from glob import glob
 import math
@@ -404,6 +405,22 @@ class Datafile_wdat5(Datafile):
         '<b extraHum7',
     ]
 
+    def __init__(self, base_url, opener, datafiledict, logger=None):
+        super(Datafile_wdat5, self).__init__(base_url, opener, datafiledict,
+                                             logger)
+        unit_parameters = {
+            'temperature_unit': ('C', 'F'),
+            'rain_unit': ('mm', 'inch'),
+            'wind_speed_unit': ('m/s', 'mph'),
+            'pressure_unit': ('hPa', 'inch Hg')
+            'matric_potential_unit': ('centibar', 'cm')
+        }
+        for p in unit_parameters:
+            self.__dict__[p] = datafiledict.get(p, unit_parameters[p][0])
+            if self.__dict__[p] not in unit_parameters[p]:
+                raise ConfigurationError("{0} must be one of {1}".format(
+                    p, ', '.join(unit_parameters[p])))
+
     def update_database(self):
         self.logger.info('Processing data directory %s' % (self.filename))
         self.last_timeseries_end_date = None
@@ -454,16 +471,17 @@ class Datafile_wdat5(Datafile):
                     record = f.read(88)
                     if ord(record[0]) != 1:
                         continue
-                    record_contents = self._read_wdat_record(record)
+                    decoded_record = self._decode_wdat_record(record)
                     date = datetime(year=year, month=month, day=day) + \
-                        timedelta(minutes=record_contents['packedTime'])
+                        timedelta(minutes=decoded_record['packedTime'])
                     if date <= last_date:
                         continue
                     result.append(self._convert_wdat_record(date,
-                                                            record_contents))
+                                                            decoded_record))
         return result
 
-    def _read_wdat_record(self, record):
+    def _decode_wdat_record(self, record):
+        "Decode bytes into a dictionary"
         result = {}
         offset = 0
         for item in self.wdat_record_format:
@@ -472,11 +490,88 @@ class Datafile_wdat5(Datafile):
             offset += struct.calcsize(fmt)
         return result
 
-    def _convert_wdat_record(self, date, record):
-        pass
+    def _convert_wdat_record(self, date, decoded_record):
+        "Return a space-delimited string based on the decoded record"
+        r = copy(decoded_record)
 
-    def extract_date(self, line):
-        pass
+        # Temperature
+        for x in ['outsideTemp', 'hiOutsideTemp', 'lowOutsideTemp',
+                  'insideTemp']:
+            r[x] = (r[x] / 10.0 if self.temperature_unit == 'F' else
+                    ((r[x] / 10.0) - 32) * 5 / 9.0)
 
-    def extract_value_and_flags(self, line, seq):
-        pass
+        # Pressure
+        r['barometer'] = (r['barometer'] / 1000.0
+                          if self.pressure_unit == 'inch Hg'
+                          else r['barometer'] / 1000.0 * 25.4 * 1.33322387415)
+
+        # Humidity
+        for x in ['outsideHum', 'insideHum']:
+            r[x] = r[x] / 10.0
+
+        # Rain
+        rain_collector_type = r['rain'] & 0xF000
+        rain_clicks = r['rain'] & 0x0FFF
+        depth_per_click = {
+            0x0000: 0.1 * 25.4,
+            0x1000: 0.01 * 25.4,
+            0x2000: 0.3,
+            0x3000: 1.0,
+            0x6000: 0.1,
+        }[rain_collector_type]
+        depth = depth_per_click * rain_clicks
+        r['rain'] = depth / 25.4 if self.rain_unit == 'inch' else depth
+        rate = r['hiRainRate'] * depth_per_click
+        r['hiRainRate'] = rate / 25.4 if self.rain_unit == 'inch' else rate
+
+        # Wind speed
+        r['hiWindSpeed'] = (r['hiWindSpeed'] if self.wind_speed_unit == 'mph'
+                            else r['hiWindSpeed'] * 1609.344 / 3600)
+
+        # Wind direction
+        for x in ['windDirection', 'hiWindDirection']:
+            r[x] = r[x] / 16.0 * 360
+
+        # UV index
+        r['UV'] = r['UV'] / 10.0
+        r['hiUV'] = r['hiUV'] / 10.0
+
+        # Evapotranspiration
+        r['ET'] = (r['ET'] / 1000.0 if self.rain_unit == 'inch'
+                   else r['ET'] / 1000.0 * 25.4)
+
+        # Matric potential
+        r['soilMoisture'] = (r['soilMoisture']
+                             if self.matric_potential_unit == 'centibar'
+                             else r['soilMoisture'] / 9.80638)
+
+        # extraTemp etc.
+        for x in ['extraTemp1', 'extraTemp2', 'extraTemp3', 'extraTemp4',
+                  'extraTemp5', 'extraTemp6', 'extraTemp7', 'soilTemp1',
+                  'soilTemp2', 'soilTemp3', 'soilTemp4', 'soilTemp5',
+                  'soilTemp6', 'leafTemp1', 'leafTemp2', 'leafTemp3',
+                  'leafTemp4']:
+            r[x] = (r[x] - 90 if self.temperature_unit == 'F' else
+                    ((r[x] - 90) - 32) * 5 / 9.0)
+
+        result = "{date} {r.outsideTemp} {r.hiOutsideTemp} " \
+                 "{r.lowOutsideTemp} {r.insideTemp} {r.barometer} " \
+                 "{r.outsideHum} {r.insideHum} {r.rain} {r.hiRainRate} " \
+                 "{r.hiWindSpeed} {r.windDirection} {r.hiWindDirection} " \
+                 "{r.numWindSamples} {r.solarRad} {r.hiSolarRad} {r.UV} " \
+                 "{r.hiUV} " \
+                 "{r.leafTemp1} {r.leafTemp2} {r.leafTemp3} {r.leafTemp4} " \
+                 "{r.extraRad} {r.forecast} {r.ET} " \
+                 "{r.soilTemp1} {r.soilTemp2} {r.soilTemp3} " \
+                 "{r.soilTemp4} {r.soilTemp5} {r.soilTemp6} " \
+                 "{r.soilMoisture1} {r.soilMoisture2} {r.soilMoisture3} " \
+                 "{r.soilMoisture4} {r.soilMoisture5} {r.soilMoisture6} " \
+                 "{r.leafWetness1} {r.leafWetness2} " \
+                 "{r.leafWetness3} {r.leafWetness4} " \
+                 "{r.extraTemp1} {r.extraTemp2} {r.extraTemp3} " \
+                 "{r.extraTemp4} {r.extraTemp5} {r.extraTemp6} " \
+                 "{r.extraTemp7} " \
+                 "{r.extraHum1} {r.extraHum2} {r.extraHum3} " \
+                 "{r.extraHum4} {r.extraHum5} {r.extraHum6} " \
+                 "{r.extraHum7} ".format(date=date, r=r)
+        return result

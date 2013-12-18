@@ -109,8 +109,14 @@ delimiter, decimal_separator, date_format
    
    .. _strftime(3): http://docs.python.org/lib/module-time.html
 
-dst_starts, dst_ends, utcoffset
+timezone
    See `DAYLIGHT SAVING TIME`_.
+
+temperature_unit, rain_unit, wind_speed_unit, pressure_unit, matric_potential_unit
+   In the wdat5 format, you can select some of the units; C or F for
+   temperature, mm or inch for rain and evapotranspiration, m/s or mph
+   for wind speed, hPa or inch Hg for pressure, centibar or cm (of water) for
+   matric potential. The defaults are C, mm, m/s, hPa, centibar.
 
 SUPPORTED FORMATS
 =================
