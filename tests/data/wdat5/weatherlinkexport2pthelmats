@@ -1,0 +1,67 @@
+#!/usr/bin/env python
+"""
+Convert a weatherlink export file to pthelma timeseries format.
+
+weatherlinkexport2pthelmats export_file
+
+This program reads the export file and outputs one file for each
+variable present in the weatherlink export file. The names of the
+output files are taken from the headings. The date should be in
+YYYY-MM-DD and the time in 24-hour clock format, where midnight is
+00:00.
+
+The purpose of this program is to prepare data for unit testing
+purposes.
+"""
+
+import sys
+
+
+class WeatherLinkExportFile(object):
+
+    def __init__(self, filename):
+        self.filename = filename
+
+    def __enter__(self):
+        self.fp = open(self.filename)
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.fp.close()
+
+    def read_headings(self):
+        self.fp.seek(0)
+        line1 = self.fp.readline()
+        line2 = self.fp.readline()
+        headings1 = [x.strip().replace(' ', '-')
+                     for x in line1.split('\t')[2:]]
+        headings2 = [x.strip().replace(' ', '-')
+                     for x in line2.split('\t')[2:]]
+        self.filenames = ['{0}-{1}'.format(h1, h2).replace('.', '')
+                          .strip('-').lower() + '.txt'
+                          for h1, h2 in zip(headings1, headings2)]
+
+    def create_output_files(self):
+        fps = [open(filename, 'w') for filename in self.filenames]
+        self.fp.seek(0)
+        for i, line in enumerate(self.fp):
+
+            # Skip first two lines
+            if i < 2:
+                continue
+
+            items = line.strip().split('\t')
+            date = items.pop(0)
+            time = items.pop(0)
+            for item, fp in zip(items, fps):
+                fp.write('{0}T{1},{2},\n'.format(date, time, item))
+        [fp.close() for fp in fps]
+
+    def process(self):
+        self.read_headings()
+        self.create_output_files()
+
+
+export_file = sys.argv[1]
+with WeatherLinkExportFile(export_file) as w:
+    w.process()
