@@ -412,8 +412,8 @@ class Datafile_wdat5(Datafile):
             'temperature_unit': ('C', 'F'),
             'rain_unit': ('mm', 'inch'),
             'wind_speed_unit': ('m/s', 'mph'),
-            'pressure_unit': ('hPa', 'inch Hg')
-            'matric_potential_unit': ('centibar', 'cm')
+            'pressure_unit': ('hPa', 'inch Hg'),
+            'matric_potential_unit': ('centibar', 'cm'),
         }
         for p in unit_parameters:
             self.__dict__[p] = datafiledict.get(p, unit_parameters[p][0])
