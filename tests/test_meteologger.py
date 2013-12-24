@@ -2,7 +2,8 @@
 """
 Tests for meteologger.
 
-Copyright (C) 2009 National Technical University of Athens
+Copyright (C) 2009-2013 National Technical University of Athens
+Copyright (C) 2013 TEI of Epirus
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -13,14 +14,32 @@ This program is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
+
+In order to run the meteologger tests, you must specify the
+PTHELMA_TEST_METEOLOGGER variable to contain a json-formatted string of
+parameters, like this:
+
+    { "base_url": "http://localhost:8001/",
+    "username": "admin",
+    "password": "secret",
+    "station_id": 1334,
+    "variable_id": 1,
+    "unit_of_measurement_id": 1,
+    "time_zone_id": 1 }
+
+The first three parameters are for connecting to an appropriate
+database. Don't use a production database for that; although things
+are normally cleaned up (e.g. test timeseries created are deleted), id
+serial numbers will be affected and things might not be cleaned up if
+there is an error.
+
+The rest of the parameters are used when test timeseries are created.
 """
 
 import cookielib
 import json
 import os
-import sys
 import tempfile
-import textwrap
 from unittest import TestCase, skipUnless
 from urllib2 import build_opener, HTTPCookieProcessor, Request, HTTPError
 
@@ -96,41 +115,16 @@ def read_timeseries(opener, base_url, ts):
     ts.read(fp)
 
 
-_connection_instructions = textwrap.dedent("""\
-    Omitting the tests for meteologger; in order to run these tests, you
-    must specify the PTHELMA_TEST_METEOLOGGER variable to contain a
-    json-formatted string of parameters, like this (but it may be in one
-    line):
-
-        { "base_url": "http://localhost:8001/",
-        "username": "admin",
-        "password": "secret",
-        "station_id": 1334,
-        "variable_id": 1,
-        "unit_of_measurement_id": 1,
-        "time_zone_id": 1 }
-
-    The first three parameters are for connecting to an appropriate
-    database. Don't use a production database for that; although things
-    are normally cleaned up (e.g. test timeseries created are deleted), id
-    serial numbers will be affected and things might not be cleaned up if
-    there is an error.
-
-    The rest of the parameters are used when test timeseries are created.
-    """)
-
-
 def get_server_from_env(adict):
     conn = os.getenv("PTHELMA_TEST_METEOLOGGER")
-    if conn:
-        v = json.loads(conn)
-        for item in 'base_url username password station_id variable_id ' \
-                    'unit_of_measurement_id time_zone_id'.split():
-            adict[item] = v[item]
-    else:
-        sys.stderr.write(_connection_instructions)
+    v = json.loads(conn)
+    for item in 'base_url username password station_id variable_id ' \
+                'unit_of_measurement_id time_zone_id'.split():
+        adict[item] = v[item]
 
 
+@skipUnless(os.getenv('PTHELMA_TEST_METEOLOGGER'),
+            "set PTHELMA_TEST_METEOLOGGER")
 class _Test_logger(TestCase):
     class_being_tested = None
     datafilename = ''
@@ -140,12 +134,9 @@ class _Test_logger(TestCase):
     ref_ts2 = Timeseries(0)
     ref_ts2.read(open(full_testdata_filename('timeseries2.txt')))
 
-    def __init__(self, *args, **kwargs):
-        self.base_url = None
-        get_server_from_env(self.__dict__)
-        return super(_Test_logger, self).__init__(*args, **kwargs)
-
     def setUp(self):
+        get_server_from_env(self.__dict__)
+
         if not self.class_being_tested or not self.base_url:
             return
 
@@ -246,16 +237,14 @@ class TestSimple3(_Test_logger):
                     'delimiter': ','}
 
 
+@skipUnless(os.getenv('PTHELMA_TEST_METEOLOGGER'),
+            "set PTHELMA_TEST_METEOLOGGER")
 class TestDst(TestCase):
     datafiledict = {'date_format': '%Y-%m-%dT%H:%M',
                     'timezone': 'Europe/Athens'}
 
-    def __init__(self, *args, **kwargs):
-        self.base_url = None
-        get_server_from_env(self.__dict__)
-        return super(TestDst, self).__init__(*args, **kwargs)
-
     def setUp(self):
+        get_server_from_env(self.__dict__)
         self.ref_ts = Timeseries(0)
         if not self.base_url:
             return
