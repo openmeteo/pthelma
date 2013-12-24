@@ -276,16 +276,10 @@ class _Tsvalue(float):
 
 
 def strip_trailing_zeros(s):
-    last_nonzero = -1
-    for i in range(len(s) - 1, -1, -1):
-        c = s[i]
-        if c == '.':
-            if last_nonzero == -1:
-                return s[:i]
-            else:
-                return s[:last_nonzero + 1]
-        if c != '0' and last_nonzero == -1:
-            last_nonzero = i
+    if s.rfind('.') > 0:
+        s = s.rstrip('0')
+    if s[-1] == '.':
+        s = s[:-1]
     return s
 
 
