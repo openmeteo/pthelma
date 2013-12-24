@@ -381,7 +381,7 @@ class Datafile_wdat5(Datafile):
         '<b hiWindDirection',
         '<h numWindSamples',
         '<h solarRad',
-        '<h hisolarRad',
+        '<h hiSolarRad',
         '<b UV',
         '<b hiUV',
         '<b leafTemp1', '<b leafTemp2',

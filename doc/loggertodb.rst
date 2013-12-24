@@ -192,6 +192,28 @@ wdat5
    ``filename`` to the directory name where your ``wlk`` files are
    stored (one file per month).
 
+   There are 61 ``datafile_fields``, in this order: outsideTemp,
+   hiOutsideTemp, lowOutsideTemp, insideTemp, barometer, outsideHum,
+   insideHum, rain, hiRainRate, windSpeed, hiWindSpeed, windDirection,
+   hiWindDirection, numWindSamples, solarRad, hiSolarRad, UV, hiUV,
+   leafTemp1, leafTemp2, leafTemp3, leafTemp4, extraRad, newSensors1,
+   newSensors2, newSensors3, newSensors4, newSensors5, newSensors6,
+   forecast, ET, soilTemp1, soilTemp2, soilTemp3, soilTemp4,
+   soilTemp5, soilTemp6, soilMoisture1, soilMoisture2, soilMoisture3,
+   soilMoisture4, soilMoisture5, soilMoisture6, leafWetness1,
+   leafWetness2, leafWetness3, leafWetness4, extraTemp1, extraTemp2,
+   extraTemp3, extraTemp4, extraTemp5, extraTemp6, extraTemp7,
+   extraHum1, extraHum2, extraHum3, extraHum4, extraHum5, extraHum6,
+   extraHum7.
+
+   Many of these fields may be reserved by Davis for future use or
+   they may not be used in the particular installation; for the ones
+   not being used, 0 must be specified in ``datafile_fields`` for that
+   position. It is also recommended to ignore (by specifying a zero
+   also) the calculated values such as ET (evapotranspiration). More
+   information about the meaning of the parameters can be found in the
+   Davis manuals and in the WeatherLink README file.
+
 DAYLIGHT SAVING TIME
 ====================
 
