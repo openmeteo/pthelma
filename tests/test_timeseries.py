@@ -3,6 +3,10 @@
 """
 Tests for timeseries class.
 
+NOTE: If you want to run the database tests, set the PSYCOPG_CONNECTION
+      environment variable to "host=... dbname=... user=... password=...".
+
+
 Copyright (C) 2005-2009 National Technical University of Athens
 Copyright (C) 2005 Antonios Christofides
 
@@ -24,7 +28,7 @@ import psycopg2
 from StringIO import StringIO
 import sys
 import textwrap
-from unittest import TestCase
+from unittest import TestCase, skipUnless
 import zlib
 
 from pthelma.timeseries import TimeStep, strip_trailing_zeros, \
@@ -637,23 +641,8 @@ class _Test_Timeseries_read(TestCase):
                           StringIO('abcd,,'))
 
 
-class database_test_metaclass(type):
-    warning = textwrap.dedent("""\
-        WARNING: Database tests not run. If you want to run the database
-                 tests, set the PSYCOPG_CONNECTION environment variable
-                 to "host=... dbname=... user=... password=...".
-        """)
-
-    def __new__(mcs, name, bases, dict):
-        psycopg_string = os.getenv("PSYCOPG_CONNECTION")
-        if not psycopg_string:
-            sys.stderr.write(mcs.warning)
-            return None
-        return type.__new__(mcs, name, bases, dict)
-
-
+@skipUnless(os.getenv("PSYCOPG_CONNECTION"), "set PSYCOPG_CONNECTION")
 class _Test_Timeseries_write_to_db(TestCase):
-    __metaclass__ = database_test_metaclass
 
     def setUp(self):
         self.db = psycopg2.connect(os.getenv("PSYCOPG_CONNECTION"))
@@ -718,10 +707,10 @@ class _Test_Timeseries_write_to_db(TestCase):
             Timeseries.MAX_ALL_BOTTOM = saved_max_all_bottom
 
 
+@skipUnless(os.getenv("PSYCOPG_CONNECTION"), "set PSYCOPG_CONNECTION")
 class _Test_Timeseries_read_from_db(TestCase):
     # This test trusts Timeseries.write_to_db, so it must be independently
     # tested
-    __metaclass__ = database_test_metaclass
 
     def setUp(self):
         self.db = psycopg2.connect(os.getenv("PSYCOPG_CONNECTION"))
@@ -777,11 +766,11 @@ class _Test_Timeseries_append(TestCase):
         self.assertRaises(Exception, Timeseries.append, ts1, ts3)
 
 
+@skipUnless(os.getenv("PSYCOPG_CONNECTION"), "set PSYCOPG_CONNECTION")
 class _Test_Timeseries_append_to_db(TestCase):
-    __metaclass__ = database_test_metaclass
-
     # This trusts everything else, so no other test should trust append and
     # append_to_db.
+
     def setUp(self):
         self.db = psycopg2.connect(os.getenv("PSYCOPG_CONNECTION"))
         c = self.db.cursor()
