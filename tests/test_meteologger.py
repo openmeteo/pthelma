@@ -43,7 +43,8 @@ import tempfile
 from unittest import TestCase, skipUnless
 from urllib2 import build_opener, HTTPCookieProcessor, Request, HTTPError
 
-from pthelma.meteologger import Datafile_deltacom, Datafile_simple
+from pthelma.meteologger import Datafile_deltacom, Datafile_simple, \
+    Datafile_wdat5
 from pthelma.timeseries import Timeseries
 
 
@@ -287,3 +288,127 @@ class TestDst(TestCase):
         self.ref_ts.read(open(full_testdata_filename(
             'timeseries_at_change_from_dst.txt')))
         self.run_test()
+
+
+@skipUnless(os.getenv('PTHELMA_TEST_METEOLOGGER'),
+            "set PTHELMA_TEST_METEOLOGGER")
+class TestWdat5(TestCase):
+    # The dicts below hold the parameter name as it is in the WeatherLink
+    # README file, and the corresponding heading in the WeatherLink export file
+    # (lowercase, after changing spaces to hyphens and removing dots), empty
+    # string for those that aren't going to be tested.
+    parameters = [
+        {'name': 'outsideTemp', 'expname': 'temp-out'},
+        {'name': 'hiOutsideTemp', 'expname': 'hi-temp'},
+        {'name': 'lowOutsideTemp', 'expname': 'low-temp'},
+        {'name': 'insideTemp', 'expname': 'in-temp'},
+        {'name': 'barometer', 'expname': 'bar'},
+        {'name': 'outsideHum', 'expname': 'out-hum'},
+        {'name': 'insideHum', 'expname': 'in-hum'},
+        {'name': 'rain', 'expname': 'rain'},
+        {'name': 'hiRainRate', 'expname': 'rain-rate'},
+        {'name': 'windSpeed', 'expname': 'wind-speed'},
+        {'name': 'hiWindSpeed', 'expname': 'hi-speed'},
+        {'name': 'windDirection', 'expname': 'wind-dir'},
+        {'name': 'hiWindDirection', 'expname': 'hi-dir'},
+        {'name': 'numWindSamples', 'expname': 'wind-samp'},
+        {'name': 'solarRad', 'expname': 'solar-rad'},
+        {'name': 'hiSolarRad', 'expname': 'hi-solar-rad'},
+        {'name': 'UV', 'expname': 'uv-dose'},
+        {'name': 'hiUV', 'expname': 'hi-uv'},
+        {'name': 'leafTemp1', 'expname': ''},
+        {'name': 'leafTemp2', 'expname': ''},
+        {'name': 'leafTemp3', 'expname': ''},
+        {'name': 'leafTemp4', 'expname': ''},
+        {'name': 'extraRad', 'expname': ''},
+        {'name': 'newSensors1', 'expname': ''},
+        {'name': 'newSensors2', 'expname': ''},
+        {'name': 'newSensors3', 'expname': ''},
+        {'name': 'newSensors4', 'expname': ''},
+        {'name': 'newSensors5', 'expname': ''},
+        {'name': 'newSensors6', 'expname': ''},
+        {'name': 'forecast', 'expname': ''},
+        {'name': 'ET', 'expname': 'et'},
+        {'name': 'soilTemp1', 'expname': ''},
+        {'name': 'soilTemp2', 'expname': ''},
+        {'name': 'soilTemp3', 'expname': ''},
+        {'name': 'soilTemp4', 'expname': ''},
+        {'name': 'soilTemp5', 'expname': ''},
+        {'name': 'soilTemp6', 'expname': ''},
+        {'name': 'soilMoisture1', 'expname': ''},
+        {'name': 'soilMoisture2', 'expname': ''},
+        {'name': 'soilMoisture3', 'expname': ''},
+        {'name': 'soilMoisture4', 'expname': ''},
+        {'name': 'soilMoisture5', 'expname': ''},
+        {'name': 'soilMoisture6', 'expname': ''},
+        {'name': 'leafWetness1', 'expname': ''},
+        {'name': 'leafWetness2', 'expname': ''},
+        {'name': 'leafWetness3', 'expname': ''},
+        {'name': 'leafWetness4', 'expname': ''},
+        {'name': 'extraTemp1', 'expname': ''},
+        {'name': 'extraTemp2', 'expname': ''},
+        {'name': 'extraTemp3', 'expname': ''},
+        {'name': 'extraTemp4', 'expname': ''},
+        {'name': 'extraTemp5', 'expname': ''},
+        {'name': 'extraTemp6', 'expname': ''},
+        {'name': 'extraTemp7', 'expname': ''},
+        {'name': 'extraHum1', 'expname': ''},
+        {'name': 'extraHum2', 'expname': ''},
+        {'name': 'extraHum3', 'expname': ''},
+        {'name': 'extraHum4', 'expname': ''},
+        {'name': 'extraHum5', 'expname': ''},
+        {'name': 'extraHum6', 'expname': ''},
+        {'name': 'extraHum7', 'expname': ''},
+    ]
+
+    def setUp(self):
+        get_server_from_env(self.__dict__)
+
+        # Connect to server
+        self.opener = connect_to_server(self.base_url, self.username,
+                                        self.password)
+
+        # Create as many timeseries as there are not-to-ignore parameters
+        for parm in self.parameters:
+            parm['ts_id'] = create_timeseries(self.opener, self.__dict__
+                                              ) if parm['expname'] else 0
+
+        self.datafile_fields = ','.join([str(parm['ts_id'])
+                                         for parm in self.parameters])
+
+    def tearDown(self):
+        for parm in self.parameters:
+            if parm['ts_id']:
+                delete_timeseries(self.opener, self.base_url, parm['ts_id'])
+
+    def runTest(self):
+        d = {'filename': full_testdata_filename('wdat5'),
+             'datafile_fields': self.datafile_fields}
+        df = Datafile_wdat5(self.base_url, self.opener, d)
+        df.update_database()
+        self.check(d['filename'])
+        d['filename'] = full_testdata_filename('wdat5a')
+        df = Datafile_wdat5(self.base_url, self.opener, d)
+        df.update_database()
+        self.check(d['filename'])
+
+    def check(self, datadir):
+        for parm in self.parameters:
+            if not parm['ts_id']:
+                continue
+            actual_ts = Timeseries(parm['ts_id'])
+            read_timeseries(self.opener, self.base_url, actual_ts)
+            reference_ts = Timeseries()
+            with open(os.path.join(
+                    datadir, 'generated', parm['expname'] + '.txt')) as f:
+                reference_ts.read(f)
+            self.assertTimeseriesEqual(actual_ts, reference_ts)
+
+    def assertTimeseriesEqual(self, ts1, ts2):
+        self.assertEqual(len(ts1), len(ts2))
+        items1 = ts1.items()
+        items2 = ts2.items()
+        for item1, item2 in zip(items1, items2):
+            self.assertEqual(item1[0], item2[0])
+            self.assertAlmostEqual(item1[1], item2[1], 4)
+            self.assertEqual(item1[1].flags, item2[1].flags)

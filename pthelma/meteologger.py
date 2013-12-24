@@ -440,7 +440,7 @@ class Datafile_wdat5(Datafile):
         date = self.last_timeseries_end_date
         first_file = os.path.join(self.filename,
                                   '{0.year}-{0.month:02}.wlk'.format(date))
-        data_files = [x for x in glob(os.path.join(self.filename), '*.wlk')
+        data_files = [x for x in glob(os.path.join(self.filename, '*.wlk'))
                       if x >= first_file]
         data_files.sort()
         for current_file in data_files:
@@ -459,15 +459,15 @@ class Datafile_wdat5(Datafile):
         result = []
         with open(filename, 'rb') as f:
             header = f.read(212)
-            if header[:7] != 'WDAT5.':
+            if header[:6] != 'WDAT5.':
                 raise MeteologgerReadError('File {0} does not appear to be '
                                            'a WDAT 5.x file'.format(filename))
             for day in range(1, 31):
                 day_index = header[20 + (day * 6):20 + (day * 6) + 6]
-                records_in_day = struct.unpack('<h', day_index[:2])
-                start_pos = struct.unpack('<l', day_index[2:])
+                records_in_day = struct.unpack('<h', day_index[:2])[0]
+                start_pos = struct.unpack('<l', day_index[2:])[0]
                 for r in range(records_in_day):
-                    f.fseek(212 + ((start_pos + r) * 88))
+                    f.seek(212 + ((start_pos + r) * 88))
                     record = f.read(88)
                     if ord(record[0]) != 1:
                         continue
@@ -476,8 +476,9 @@ class Datafile_wdat5(Datafile):
                         timedelta(minutes=decoded_record['packedTime'])
                     if date <= last_date:
                         continue
-                    result.append(self._convert_wdat_record(date,
-                                                            decoded_record))
+                    result.append({'date': date,
+                                   'line': self._convert_wdat_record(
+                                       date, decoded_record)})
         return result
 
     def _decode_wdat_record(self, record):
@@ -486,7 +487,7 @@ class Datafile_wdat5(Datafile):
         offset = 0
         for item in self.wdat_record_format:
             fmt, name = item.split()
-            result[name] = struct.unpack_from(fmt, record, offset)
+            result[name] = struct.unpack_from(fmt, record, offset)[0]
             offset += struct.calcsize(fmt)
         return result
 
@@ -541,9 +542,11 @@ class Datafile_wdat5(Datafile):
                    else r['ET'] / 1000.0 * 25.4)
 
         # Matric potential
-        r['soilMoisture'] = (r['soilMoisture']
-                             if self.matric_potential_unit == 'centibar'
-                             else r['soilMoisture'] / 9.80638)
+        for i in range(1, 7):
+            varname = 'soilMoisture' + str(i)
+            r[varname] = (r[varname]
+                          if self.matric_potential_unit == 'centibar'
+                          else r[varname] / 9.80638)
 
         # extraTemp etc.
         for x in ['extraTemp1', 'extraTemp2', 'extraTemp3', 'extraTemp4',
@@ -554,24 +557,28 @@ class Datafile_wdat5(Datafile):
             r[x] = (r[x] - 90 if self.temperature_unit == 'F' else
                     ((r[x] - 90) - 32) * 5 / 9.0)
 
-        result = "{date} {r.outsideTemp} {r.hiOutsideTemp} " \
-                 "{r.lowOutsideTemp} {r.insideTemp} {r.barometer} " \
-                 "{r.outsideHum} {r.insideHum} {r.rain} {r.hiRainRate} " \
-                 "{r.hiWindSpeed} {r.windDirection} {r.hiWindDirection} " \
-                 "{r.numWindSamples} {r.solarRad} {r.hiSolarRad} {r.UV} " \
-                 "{r.hiUV} " \
-                 "{r.leafTemp1} {r.leafTemp2} {r.leafTemp3} {r.leafTemp4} " \
-                 "{r.extraRad} {r.forecast} {r.ET} " \
-                 "{r.soilTemp1} {r.soilTemp2} {r.soilTemp3} " \
-                 "{r.soilTemp4} {r.soilTemp5} {r.soilTemp6} " \
-                 "{r.soilMoisture1} {r.soilMoisture2} {r.soilMoisture3} " \
-                 "{r.soilMoisture4} {r.soilMoisture5} {r.soilMoisture6} " \
-                 "{r.leafWetness1} {r.leafWetness2} " \
-                 "{r.leafWetness3} {r.leafWetness4} " \
-                 "{r.extraTemp1} {r.extraTemp2} {r.extraTemp3} " \
-                 "{r.extraTemp4} {r.extraTemp5} {r.extraTemp6} " \
-                 "{r.extraTemp7} " \
-                 "{r.extraHum1} {r.extraHum2} {r.extraHum3} " \
-                 "{r.extraHum4} {r.extraHum5} {r.extraHum6} " \
-                 "{r.extraHum7} ".format(date=date, r=r)
+        result = "{r[outsideTemp]} {r[hiOutsideTemp]} " \
+                 "{r[lowOutsideTemp]} {r[insideTemp]} {r[barometer]} " \
+                 "{r[outsideHum]} {r[insideHum]} {r[rain]} {r[hiRainRate]} " \
+                 "{r[hiWindSpeed]} {r[windDirection]} {r[hiWindDirection]} " \
+                 "{r[numWindSamples]} {r[solarRad]} {r[hiSolarRad]} {r[UV]} " \
+                 "{r[hiUV]} " \
+                 "{r[leafTemp1]} {r[leafTemp2]} " \
+                 "{r[leafTemp3]} {r[leafTemp4]} " \
+                 "{r[extraRad]} {r[forecast]} {r[ET]} " \
+                 "{r[soilTemp1]} {r[soilTemp2]} {r[soilTemp3]} " \
+                 "{r[soilTemp4]} {r[soilTemp5]} {r[soilTemp6]} " \
+                 "{r[soilMoisture1]} {r[soilMoisture2]} {r[soilMoisture3]} " \
+                 "{r[soilMoisture4]} {r[soilMoisture5]} {r[soilMoisture6]} " \
+                 "{r[leafWetness1]} {r[leafWetness2]} " \
+                 "{r[leafWetness3]} {r[leafWetness4]} " \
+                 "{r[extraTemp1]} {r[extraTemp2]} {r[extraTemp3]} " \
+                 "{r[extraTemp4]} {r[extraTemp5]} {r[extraTemp6]} " \
+                 "{r[extraTemp7]} " \
+                 "{r[extraHum1]} {r[extraHum2]} {r[extraHum3]} " \
+                 "{r[extraHum4]} {r[extraHum5]} {r[extraHum6]} " \
+                 "{r[extraHum7]} ".format(r=r)
         return result
+
+    def extract_value_and_flags(self, line, seq):
+        return line.split()[seq].strip()
