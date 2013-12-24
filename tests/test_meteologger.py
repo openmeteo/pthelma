@@ -15,16 +15,17 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 """
 
-from unittest import TestCase, skipUnless
-import os
-import tempfile
 import cookielib
-from urllib2 import build_opener, HTTPCookieProcessor, Request, HTTPError
 import json
+import os
 import sys
+import tempfile
+import textwrap
+from unittest import TestCase, skipUnless
+from urllib2 import build_opener, HTTPCookieProcessor, Request, HTTPError
 
-from pthelma.timeseries import Timeseries
 from pthelma.meteologger import Datafile_deltacom, Datafile_simple
+from pthelma.timeseries import Timeseries
 
 
 def full_testdata_filename(filename):
@@ -95,28 +96,28 @@ def read_timeseries(opener, base_url, ts):
     ts.read(fp)
 
 
-_connection_instructions = """
-Omitting the tests for meteologger; in order to run these tests, you
-must specify the PTHELMA_TEST_METEOLOGGER variable to contain a
-json-formatted string of parameters, like this (but it may be in one
-line):
+_connection_instructions = textwrap.dedent("""\
+    Omitting the tests for meteologger; in order to run these tests, you
+    must specify the PTHELMA_TEST_METEOLOGGER variable to contain a
+    json-formatted string of parameters, like this (but it may be in one
+    line):
 
-    { "base_url": "http://localhost:8001/",
-      "username": "admin",
-      "password": "secret",
-      "station_id": 1334,
-      "variable_id": 1,
-      "unit_of_measurement_id": 1,
-      "time_zone_id": 1 }
+        { "base_url": "http://localhost:8001/",
+        "username": "admin",
+        "password": "secret",
+        "station_id": 1334,
+        "variable_id": 1,
+        "unit_of_measurement_id": 1,
+        "time_zone_id": 1 }
 
-The first three parameters are for connecting to an appropriate
-database. Don't use a production database for that; although things
-are normally cleaned up (e.g. test timeseries created are deleted), id
-serial numbers will be affected and things might not be cleaned up if
-there is an error.
+    The first three parameters are for connecting to an appropriate
+    database. Don't use a production database for that; although things
+    are normally cleaned up (e.g. test timeseries created are deleted), id
+    serial numbers will be affected and things might not be cleaned up if
+    there is an error.
 
-The rest of the parameters are used when test timeseries are created.
-"""
+    The rest of the parameters are used when test timeseries are created.
+    """)
 
 
 def get_server_from_env(adict):
