@@ -382,15 +382,15 @@ class Datafile_wdat5(Datafile):
         '<h numWindSamples',
         '<h solarRad',
         '<h hiSolarRad',
-        '<b UV',
-        '<b hiUV',
+        '<B UV',
+        '<B hiUV',
         '<b leafTemp1', '<b leafTemp2',
         '<b leafTemp3', '<b leafTemp4',
         '<h extraRad',
         '<h newSensors1', '<h newSensors2', '<h newSensors3',
         '<h newSensors4', '<h newSensors5', '<h newSensors6',
         '<b forecast',
-        '<b ET',
+        '<B ET',
         '<b soilTemp1', '<b soilTemp2', '<b soilTemp3',
         '<b soilTemp4', '<b soilTemp5', '<b soilTemp6',
         '<b soilMoisture1', '<b soilMoisture2', '<b soilMoisture3',
@@ -462,7 +462,7 @@ class Datafile_wdat5(Datafile):
             if header[:6] != 'WDAT5.':
                 raise MeteologgerReadError('File {0} does not appear to be '
                                            'a WDAT 5.x file'.format(filename))
-            for day in range(1, 31):
+            for day in range(1, 32):
                 day_index = header[20 + (day * 6):20 + (day * 6) + 6]
                 records_in_day = struct.unpack('<h', day_index[:2])[0]
                 start_pos = struct.unpack('<l', day_index[2:])[0]
@@ -516,7 +516,7 @@ class Datafile_wdat5(Datafile):
         depth_per_click = {
             0x0000: 0.1 * 25.4,
             0x1000: 0.01 * 25.4,
-            0x2000: 0.3,
+            0x2000: 0.2,
             0x3000: 1.0,
             0x6000: 0.1,
         }[rain_collector_type]
@@ -526,12 +526,14 @@ class Datafile_wdat5(Datafile):
         r['hiRainRate'] = rate / 25.4 if self.rain_unit == 'inch' else rate
 
         # Wind speed
-        r['hiWindSpeed'] = (r['hiWindSpeed'] if self.wind_speed_unit == 'mph'
-                            else r['hiWindSpeed'] * 1609.344 / 3600)
+        convert_wind_speed = lambda x: (x/10.0 if self.wind_speed_unit == 'mph'
+                                        else x / 10.0 * 1609.344 / 3600)
+        r['windSpeed'] = convert_wind_speed(r['windSpeed'])
+        r['hiWindSpeed'] = convert_wind_speed(r['hiWindSpeed'])
 
         # Wind direction
         for x in ['windDirection', 'hiWindDirection']:
-            r[x] = r[x] / 16.0 * 360
+            r[x] = r[x] / 16.0 * 360 if r[x] >= 0 else 'NaN'
 
         # UV index
         r['UV'] = r['UV'] / 10.0
@@ -560,12 +562,16 @@ class Datafile_wdat5(Datafile):
         result = "{r[outsideTemp]} {r[hiOutsideTemp]} " \
                  "{r[lowOutsideTemp]} {r[insideTemp]} {r[barometer]} " \
                  "{r[outsideHum]} {r[insideHum]} {r[rain]} {r[hiRainRate]} " \
-                 "{r[hiWindSpeed]} {r[windDirection]} {r[hiWindDirection]} " \
+                 "{r[windSpeed]} {r[hiWindSpeed]} " \
+                 "{r[windDirection]} {r[hiWindDirection]} " \
                  "{r[numWindSamples]} {r[solarRad]} {r[hiSolarRad]} {r[UV]} " \
                  "{r[hiUV]} " \
                  "{r[leafTemp1]} {r[leafTemp2]} " \
                  "{r[leafTemp3]} {r[leafTemp4]} " \
-                 "{r[extraRad]} {r[forecast]} {r[ET]} " \
+                 "{r[extraRad]} " \
+                 "{r[newSensors1]} {r[newSensors2]} {r[newSensors3]} " \
+                 "{r[newSensors4]} {r[newSensors5]} {r[newSensors6]} " \
+                 "{r[forecast]} {r[ET]} " \
                  "{r[soilTemp1]} {r[soilTemp2]} {r[soilTemp3]} " \
                  "{r[soilTemp4]} {r[soilTemp5]} {r[soilTemp6]} " \
                  "{r[soilMoisture1]} {r[soilMoisture2]} {r[soilMoisture3]} " \
@@ -581,4 +587,5 @@ class Datafile_wdat5(Datafile):
         return result
 
     def extract_value_and_flags(self, line, seq):
-        return line.split()[seq].strip()
+        result = line.split()[seq - 1].strip()
+        return result

@@ -38,6 +38,7 @@ The rest of the parameters are used when test timeseries are created.
 
 import cookielib
 import json
+from math import isnan
 import os
 import tempfile
 from unittest import TestCase, skipUnless
@@ -293,6 +294,7 @@ class TestDst(TestCase):
 @skipUnless(os.getenv('PTHELMA_TEST_METEOLOGGER'),
             "set PTHELMA_TEST_METEOLOGGER")
 class TestWdat5(TestCase):
+    longMessage = True
     # The dicts below hold the parameter name as it is in the WeatherLink
     # README file, and the corresponding heading in the WeatherLink export file
     # (lowercase, after changing spaces to hyphens and removing dots), empty
@@ -314,7 +316,7 @@ class TestWdat5(TestCase):
         {'name': 'numWindSamples', 'expname': 'wind-samp'},
         {'name': 'solarRad', 'expname': 'solar-rad'},
         {'name': 'hiSolarRad', 'expname': 'hi-solar-rad'},
-        {'name': 'UV', 'expname': 'uv-dose'},
+        {'name': 'UV', 'expname': 'uv-index'},
         {'name': 'hiUV', 'expname': 'hi-uv'},
         {'name': 'leafTemp1', 'expname': ''},
         {'name': 'leafTemp2', 'expname': ''},
@@ -382,12 +384,12 @@ class TestWdat5(TestCase):
                 delete_timeseries(self.opener, self.base_url, parm['ts_id'])
 
     def runTest(self):
-        d = {'filename': full_testdata_filename('wdat5'),
+        d = {'filename': full_testdata_filename('wdat5/1'),
              'datafile_fields': self.datafile_fields}
         df = Datafile_wdat5(self.base_url, self.opener, d)
         df.update_database()
         self.check(d['filename'])
-        d['filename'] = full_testdata_filename('wdat5a')
+        d['filename'] = full_testdata_filename('wdat5/2')
         df = Datafile_wdat5(self.base_url, self.opener, d)
         df.update_database()
         self.check(d['filename'])
@@ -402,13 +404,42 @@ class TestWdat5(TestCase):
             with open(os.path.join(
                     datadir, 'generated', parm['expname'] + '.txt')) as f:
                 reference_ts.read(f)
-            self.assertTimeseriesEqual(actual_ts, reference_ts)
+                precision = self.guess_precision(f)
+            self.assertTimeseriesEqual(actual_ts, reference_ts, precision,
+                                       parm['expname'] + '.txt')
 
-    def assertTimeseriesEqual(self, ts1, ts2):
+    def guess_precision(self, f):
+        result = 0
+        f.seek(0)
+        # Take a sample of 200 rows
+        for i, line in enumerate(f):
+            if i >= 200:
+                break
+            value = line.split(',')[1].strip()
+            integral, sep, decimal = value.partition('.')
+            result = len(decimal) if len(decimal) > result else result
+        return result
+
+    def assertTimeseriesEqual(self, ts1, ts2, precision, filename):
         self.assertEqual(len(ts1), len(ts2))
         items1 = ts1.items()
         items2 = ts2.items()
-        for item1, item2 in zip(items1, items2):
+        for i, (item1, item2) in enumerate(zip(items1, items2)):
             self.assertEqual(item1[0], item2[0])
-            self.assertAlmostEqual(item1[1], item2[1], 4)
+            if isnan(item1[1]):
+                self.assertTrue(isnan(item2[1]),
+                                msg='{1}, row {0}'.format(i + 1, filename))
+            else:
+                self.assertAlmostEqual(
+                    item1[1], item2[1], places=precision,
+                    msg='{1}, row {0}'.format(i + 1, filename))
             self.assertEqual(item1[1].flags, item2[1].flags)
+
+    def assertAlmostEqual(self, a, b, places=7, msg=None):
+        """We redefine assertAlmostEqual so that, e.g. with places=1, 0.55 is
+        considered equal to both 0.5 and 0.6
+        """
+        tolerance = 10 ** (-places - 3)
+        if abs(a - b) <= 0.5 * 10 ** (-places) + tolerance:
+            return
+        super(TestWdat5, self).assertAlmostEqual(a, b, places=places, msg=msg)

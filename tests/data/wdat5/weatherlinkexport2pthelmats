@@ -18,6 +18,8 @@ import sys
 
 
 class WeatherLinkExportFile(object):
+    wind_dir_symbols = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
+                        'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW',]
 
     def __init__(self, filename):
         self.filename = filename
@@ -53,14 +55,29 @@ class WeatherLinkExportFile(object):
             items = line.strip().split('\t')
             date = items.pop(0)
             time = items.pop(0)
-            for item, fp in zip(items, fps):
-                fp.write('{0}T{1},{2},\n'.format(date, time, item))
+            for item, fp, fn in zip(items, fps, self.filenames):
+                if '-speed' in fn:
+                    value = '{0:.1f}'.format(self.kmh2ms(float(item)))
+                elif '-dir' in fn:
+                    value = (self.wind_dir_symbols.index(item) * 22.5
+                             if item in self.wind_dir_symbols else '')
+                else:
+                    value = item
+                fp.write('{0}T{1},{2},\n'.format(date, time, value))
         [fp.close() for fp in fps]
 
     def process(self):
         self.read_headings()
         self.create_output_files()
 
+    def kmh2ms(self, value):
+        """Convert km/h of wind speed to m/s"""
+
+        # First find what the original was in mph
+        mph = round(value / 1.609344, 0)
+
+        # Then convert that to m/s
+        return mph * 1609.344 / 3600
 
 export_file = sys.argv[1]
 with WeatherLinkExportFile(export_file) as w:
