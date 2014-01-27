@@ -76,8 +76,11 @@ def _diff_months(month1, month2):
 
 
 class Datafile(object):
+    required_options = ['filename', 'datafile_fields']
+    optional_options = ['nullstr', 'timezone']
 
     def __init__(self, base_url, opener, datafiledict, logger=None):
+        self.check_config(datafiledict)
         self.base_url = base_url
         self.opener = opener
         self.filename = datafiledict['filename']
@@ -97,6 +100,16 @@ class Datafile(object):
             self.logger = logging.getLogger('datafile')
             self.logger.setLevel(logging.WARNING)
             self.logger.addHandler(logging.StreamHandler())
+
+    def check_config(self, datafiledict):
+        for option in self.required_options:
+            if option not in datafiledict:
+                raise ConfigurationError('Option "{}" is required'
+                                         .format(option))
+        all_options = self.required_options + self.optional_options
+        for option in datafiledict:
+            if option not in all_options:
+                raise ConfigurationError('Unknown option "{}"'.format(option))
 
     def update_database(self):
         self.logger.info('Processing datafile %s' % (self.filename))
@@ -254,6 +267,8 @@ class Datafile_deltacom(Datafile):
 
 
 class Datafile_pc208w(Datafile):
+    required_options = Datafile.required_options + [
+        'subset_identifiers']
 
     def extract_date(self, line):
         try:
@@ -285,6 +300,8 @@ class Datafile_pc208w(Datafile):
 
 
 class Datafile_CR1000(Datafile):
+    required_options = Datafile.required_options + [
+        'subset_identifiers']
 
     def extract_date(self, line):
         try:
@@ -302,6 +319,8 @@ class Datafile_CR1000(Datafile):
 
 
 class Datafile_simple(Datafile):
+    optional_options = Datafile.optional_options + [
+        'nfields_to_ignore', 'delimiter', 'date_format']
 
     def __init__(self, base_url, opener, datafiledict, logger=None):
         super(Datafile_simple, self).__init__(base_url, opener, datafiledict,
@@ -336,6 +355,10 @@ class Datafile_simple(Datafile):
 
 
 class Datafile_lastem(Datafile):
+    required_options = Datafile.required_options + [
+        'subset_identifiers']
+    optional_options = Datafile.optional_options + [
+        'delimiter', 'decimal_separator', 'date_format']
 
     def extract_date(self, line):
         try:
@@ -526,7 +549,8 @@ class Datafile_wdat5(Datafile):
         r['hiRainRate'] = rate / 25.4 if self.rain_unit == 'inch' else rate
 
         # Wind speed
-        convert_wind_speed = lambda x: (x/10.0 if self.wind_speed_unit == 'mph'
+        convert_wind_speed = lambda x: (x / 10.0
+                                        if self.wind_speed_unit == 'mph'
                                         else x / 10.0 * 1609.344 / 3600)
         r['windSpeed'] = convert_wind_speed(r['windSpeed'])
         r['hiWindSpeed'] = convert_wind_speed(r['hiWindSpeed'])

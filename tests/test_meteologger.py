@@ -45,7 +45,7 @@ from unittest import TestCase, skipUnless
 from urllib2 import build_opener, HTTPCookieProcessor, Request, HTTPError
 
 from pthelma.meteologger import Datafile_deltacom, Datafile_simple, \
-    Datafile_wdat5
+    Datafile_wdat5, ConfigurationError
 from pthelma.timeseries import Timeseries
 
 
@@ -173,9 +173,18 @@ class _Test_logger(TestCase):
         delete_timeseries(self.opener, self.base_url, self.timeseries_id2)
         delete_timeseries(self.opener, self.base_url, self.timeseries_id1)
 
-    def runTest(self):
-        if not self.class_being_tested or not self.base_url:
-            return
+    def check_config_test(self):
+        self.assertRaises(ConfigurationError, self.class_being_tested,
+                          self.base_url, self.opener, {})
+        self.assertRaises(ConfigurationError, self.class_being_tested,
+                          self.base_url, self.opener,
+                          {'filename': 'hello', 'datafile_fields': '0',
+                           'nonexistent_config_option': True})
+        # Call it correctly and expect it doesn't raise anything
+        self.class_being_tested(self.base_url, self.opener,
+                                {'filename': 'hello', 'datafile_fields': '0'})
+
+    def upload_test(self):
         d = {'filename': self.file1,
              'datafile_fields': self.datafile_fields}
         d.update(self.datafiledict)
@@ -212,6 +221,12 @@ class _Test_logger(TestCase):
             self.assertEqual(items2[i][0], ritems2[i][0])
             self.assertAlmostEqual(items2[i][1], ritems2[i][1], 4)
             self.assertEqual(items2[i][1].flags, ritems2[i][1].flags)
+
+    def runTest(self):
+        if not self.class_being_tested or not self.base_url:
+            return
+        self.check_config_test()
+        self.upload_test()
 
 
 class TestDeltacom(_Test_logger):
@@ -293,7 +308,7 @@ class TestDst(TestCase):
 
 @skipUnless(os.getenv('PTHELMA_TEST_METEOLOGGER'),
             "set PTHELMA_TEST_METEOLOGGER")
-class TestWdat5(TestCase):
+class TestWdat5(_Test_logger):
     longMessage = True
     # The dicts below hold the parameter name as it is in the WeatherLink
     # README file, and the corresponding heading in the WeatherLink export file
@@ -383,7 +398,7 @@ class TestWdat5(TestCase):
             if parm['ts_id']:
                 delete_timeseries(self.opener, self.base_url, parm['ts_id'])
 
-    def runTest(self):
+    def upload_test(self):
         d = {'filename': full_testdata_filename('wdat5/1'),
              'datafile_fields': self.datafile_fields}
         df = Datafile_wdat5(self.base_url, self.opener, d)
