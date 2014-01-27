@@ -1,10 +1,31 @@
-v0.4.1, 2013-11-14 -- loggertodb compatible with Django 1.5.5 and later.
+dev
+---
 
-v0.4.0, 2013-10-31 -- Improve DST handling; use pytz.
+- loggertodb support for Davis WDAT5 files
 
-v0.3.0, 2013-10-14 -- Strip double quotes in loggertodb's simple data
-                      file format.
+- loggertodb checks for configuration errors
 
-v0.2.1, 2013-08-19 -- Improvements in installation procedure.
+0.4.1 (2013-11-14)
+------------------
 
-v0.1.0, 2013-08-14 -- Initial release.
+- loggertodb compatible with Django 1.5.5 and later.
+
+0.4.0 (2013-10-31)
+------------------
+
+- Improve DST handling; use pytz.
+
+0.3.0 (2013-10-14)
+------------------
+
+- Strip double quotes in loggertodb's simple data file format.
+
+0.2.1 (2013-08-19)
+------------------
+
+- Improvements in installation procedure.
+
+0.1.0 (2013-08-14)
+------------------
+
+- Initial release.
