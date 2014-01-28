@@ -84,8 +84,9 @@ class Datafile(object):
         self.base_url = base_url
         self.opener = opener
         self.filename = datafiledict['filename']
-        self.datafile_fields = [int(x) for x in datafiledict['datafile_fields']
-                                .split(',')]
+        self.datafile_fields = [
+            int(x) for x in datafiledict.get('datafile_fields', '').split(',')
+            if x != '']
         self.subset_identifiers = datafiledict.get('subset_identifiers', '')
         self.delimiter = datafiledict.get('delimiter', None)
         self.decimal_separator = datafiledict.get('decimal_separator', '')
@@ -427,10 +428,19 @@ class Datafile_wdat5(Datafile):
         '<b extraHum4', '<b extraHum5', '<b extraHum6',
         '<b extraHum7',
     ]
+    required_options = [x for x in Datafile.required_options
+                        if x != 'datafile_fields']
+    variables_labels = [x.split()[1] for x in wdat_record_format[5:]]
+    optional_options = variables_labels + ['timezone']
 
     def __init__(self, base_url, opener, datafiledict, logger=None):
         super(Datafile_wdat5, self).__init__(base_url, opener, datafiledict,
                                              logger)
+
+        self.variables = {}
+        for label in self.variables_labels:
+            self.variables[label] = datafiledict.get(label, None)
+
         unit_parameters = {
             'temperature_unit': ('C', 'F'),
             'rain_unit': ('mm', 'inch'),
@@ -447,14 +457,13 @@ class Datafile_wdat5(Datafile):
     def update_database(self):
         self.logger.info('Processing data directory %s' % (self.filename))
         self.last_timeseries_end_date = None
-        self.seq = 0  # sequence number of timeseries
-        for self.ts in self.datafile_fields:
-            self.seq = self.seq + 1
-            if self.ts == 0:
-                self.logger.info('Omitting position %d' % (self.seq))
+        for self.seq, label in enumerate(self.variables_labels, start=1):
+            self.ts = self.variables.get(label, None)
+            if not self.ts:
+                self.logger.debug('Omitting {}'.format(label))
                 continue
-            self.logger.info('Processing timeseries %d at position %d'
-                             % (self.ts, self.seq))
+            self.logger.info('Processing timeseries {} as {}'.format(self.ts,
+                                                                     label))
             self._update_timeseries()
 
     def _get_tail(self):

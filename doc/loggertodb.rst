@@ -71,14 +71,15 @@ datafile_format
    The format of the datafile. See `SUPPORTED FORMATS`_.
 
 datafile_fields
-   A series of comma-separated integers representing the ids of the
-   time series to which the data file fields correspond; a zero
-   indicates that the field is to be ignored. The first number
-   corresponds to the first field after the date (and possibly other
-   fixed fields depending on data file format, such as the subset
-   identifier) and should be the id of the corresponding time series,
-   or zero if the field is dummy; the second number corresponds to the
-   second field after the fixed fields, and so on.
+   (Not for the wdat5 format.) A series of comma-separated integers
+   representing the ids of the time series to which the data file
+   fields correspond; a zero indicates that the field is to be
+   ignored. The first number corresponds to the first field after the
+   date (and possibly other fixed fields depending on data file
+   format, such as the subset identifier) and should be the id of the
+   corresponding time series, or zero if the field is dummy; the
+   second number corresponds to the second field after the fixed
+   fields, and so on.
 
 nfields_to_ignore
    This is used only in the ``simple`` format; it's an integer that
@@ -117,6 +118,9 @@ temperature_unit, rain_unit, wind_speed_unit, pressure_unit, matric_potential_un
    temperature, mm or inch for rain and evapotranspiration, m/s or mph
    for wind speed, hPa or inch Hg for pressure, centibar or cm (of water) for
    matric potential. The defaults are C, mm, m/s, hPa, centibar.
+
+outsideTemp, hiOutsideTemp, etc.
+   Only for wdat5 format; see its description below.
 
 SUPPORTED FORMATS
 =================
@@ -192,11 +196,17 @@ wdat5
    ``filename`` to the directory name where your ``wlk`` files are
    stored (one file per month).
 
-   There are 61 ``datafile_fields``, in this order: outsideTemp,
-   hiOutsideTemp, lowOutsideTemp, insideTemp, barometer, outsideHum,
-   insideHum, rain, hiRainRate, windSpeed, hiWindSpeed, windDirection,
-   hiWindDirection, numWindSamples, solarRad, hiSolarRad, UV, hiUV,
-   leafTemp1, leafTemp2, leafTemp3, leafTemp4, extraRad, newSensors1,
+   You can specify time series ids like this::
+
+       outsideTemp = 1256
+       hiOutsideTemp = 1257
+       rain = 1652
+
+   The full list of variables is outsideTemp, hiOutsideTemp,
+   lowOutsideTemp, insideTemp, barometer, outsideHum, insideHum, rain,
+   hiRainRate, windSpeed, hiWindSpeed, windDirection, hiWindDirection,
+   numWindSamples, solarRad, hiSolarRad, UV, hiUV, leafTemp1,
+   leafTemp2, leafTemp3, leafTemp4, extraRad, newSensors1,
    newSensors2, newSensors3, newSensors4, newSensors5, newSensors6,
    forecast, ET, soilTemp1, soilTemp2, soilTemp3, soilTemp4,
    soilTemp5, soilTemp6, soilMoisture1, soilMoisture2, soilMoisture3,
@@ -207,12 +217,11 @@ wdat5
    extraHum7.
 
    Many of these fields may be reserved by Davis for future use or
-   they may not be used in the particular installation; for the ones
-   not being used, 0 must be specified in ``datafile_fields`` for that
-   position. It is also recommended to ignore (by specifying a zero
-   also) the calculated values such as ET (evapotranspiration). More
-   information about the meaning of the parameters can be found in the
-   Davis manuals and in the WeatherLink README file.
+   they may not be used in the particular installation; just don't use
+   them.  It is also recommended to ignore the calculated values such
+   as ET (evapotranspiration). More information about the meaning of
+   the parameters can be found in the Davis manuals and in the
+   WeatherLink README file.
 
 DAYLIGHT SAVING TIME
 ====================

@@ -309,6 +309,7 @@ class TestDst(TestCase):
 @skipUnless(os.getenv('PTHELMA_TEST_METEOLOGGER'),
             "set PTHELMA_TEST_METEOLOGGER")
 class TestWdat5(_Test_logger):
+    class_being_tested = Datafile_wdat5
     longMessage = True
     # The dicts below hold the parameter name as it is in the WeatherLink
     # README file, and the corresponding heading in the WeatherLink export file
@@ -390,17 +391,27 @@ class TestWdat5(_Test_logger):
             parm['ts_id'] = create_timeseries(self.opener, self.__dict__
                                               ) if parm['expname'] else 0
 
-        self.datafile_fields = ','.join([str(parm['ts_id'])
-                                         for parm in self.parameters])
-
     def tearDown(self):
         for parm in self.parameters:
             if parm['ts_id']:
                 delete_timeseries(self.opener, self.base_url, parm['ts_id'])
 
+    def check_config_test(self):
+        self.assertRaises(ConfigurationError, self.class_being_tested,
+                          self.base_url, self.opener, {})
+        self.assertRaises(ConfigurationError, self.class_being_tested,
+                          self.base_url, self.opener,
+                          {'filename': 'hello', 'outsideTemp': '0',
+                           'nonexistent_config_option': True})
+        # Call it correctly and expect it doesn't raise anything
+        self.class_being_tested(self.base_url, self.opener,
+                                {'filename': 'hello', 'outsideTemp': '0'})
+
     def upload_test(self):
-        d = {'filename': full_testdata_filename('wdat5/1'),
-             'datafile_fields': self.datafile_fields}
+        d = {'filename': full_testdata_filename('wdat5/1')}
+        for parm in self.parameters:
+            if parm['ts_id']:
+                d[parm['name']] = parm['ts_id']
         df = Datafile_wdat5(self.base_url, self.opener, d)
         df.update_database()
         self.check(d['filename'])
