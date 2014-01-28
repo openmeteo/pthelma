@@ -76,7 +76,7 @@ def _diff_months(month1, month2):
 
 
 class Datafile(object):
-    required_options = ['filename', 'datafile_fields']
+    required_options = ['filename', 'datafile_format', 'datafile_fields']
     optional_options = ['nullstr', 'timezone']
 
     def __init__(self, base_url, opener, datafiledict, logger=None):

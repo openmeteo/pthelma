@@ -179,14 +179,17 @@ class _Test_logger(TestCase):
         self.assertRaises(ConfigurationError, self.class_being_tested,
                           self.base_url, self.opener,
                           {'filename': 'hello', 'datafile_fields': '0',
+                           'datafile_format': 'irrelevant',
                            'nonexistent_config_option': True})
         # Call it correctly and expect it doesn't raise anything
         self.class_being_tested(self.base_url, self.opener,
-                                {'filename': 'hello', 'datafile_fields': '0'})
+                                {'filename': 'hello', 'datafile_fields': '0',
+                                 'datafile_format': 'irrelevant'})
 
     def upload_test(self):
         d = {'filename': self.file1,
-             'datafile_fields': self.datafile_fields}
+             'datafile_fields': self.datafile_fields,
+             'datafile_format': 'irrelevant'}
         d.update(self.datafiledict)
         df = self.class_being_tested(self.base_url, self.opener, d)
         df.update_database()
@@ -279,7 +282,8 @@ class TestDst(TestCase):
         if not self.base_url:
             return
         d = {'filename': full_testdata_filename(self.filename),
-             'datafile_fields': str(self.timeseries_id)}
+             'datafile_fields': str(self.timeseries_id),
+             'datafile_format': 'irrelevant'}
         d.update(self.datafiledict)
         df = Datafile_simple(self.base_url, self.opener, d)
         df.update_database()
@@ -402,13 +406,16 @@ class TestWdat5(_Test_logger):
         self.assertRaises(ConfigurationError, self.class_being_tested,
                           self.base_url, self.opener,
                           {'filename': 'hello', 'outsideTemp': '0',
+                           'datafile_format': 'irrelevant',
                            'nonexistent_config_option': True})
         # Call it correctly and expect it doesn't raise anything
         self.class_being_tested(self.base_url, self.opener,
-                                {'filename': 'hello', 'outsideTemp': '0'})
+                                {'filename': 'hello', 'outsideTemp': '0',
+                                 'datafile_format': 'irrelevant'})
 
     def upload_test(self):
-        d = {'filename': full_testdata_filename('wdat5/1')}
+        d = {'filename': full_testdata_filename('wdat5/1'),
+             'datafile_format': 'irrelevant'}
         for parm in self.parameters:
             if parm['ts_id']:
                 d[parm['name']] = parm['ts_id']
