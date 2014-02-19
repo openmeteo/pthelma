@@ -54,7 +54,7 @@ kwargs = {
     'name': "pthelma",
     'version': "dev",
     'license': "GPL3",
-    'description': "Hydro/meteorological-related library, including timeseries",
+    'description': "Hydro/meteorological timeseries library",
     'author': "Antonis Christofides",
     'author_email': "anthony@itia.ntua.gr",
     'packages': find_packages(),
@@ -67,7 +67,9 @@ kwargs = {
 
 try:
     # Py2exe stuff; ignored if not in Windows or if py2exe is not installed
+
     import py2exe
+    py2exe  # Does nothing, but lint checkers won't warn about unused py2exe
 
     import atexit
     import os
@@ -75,16 +77,13 @@ try:
     import tempfile
     import urllib2
 
-
     # Download and save MSVC++ 2008 redistributable in a temporary directory
     # that will be removed when the program exits
     response = urllib2.urlopen('http://download.microsoft.com/download/'
                                '1/1/1/1116b75a-9ec3-481a-a3c8-1777b5381140/'
                                'vcredist_x86.exe')
     tmpdir = tempfile.mkdtemp()
-    def delete_tmpdir():
-        shutil.rmtree(tmpdir, ignore_errors=True)
-    atexit.register(delete_tmpdir)
+    atexit.register(lambda: shutil.rmtree(tmpdir, ignore_errors=True))
     vcredist_filename = os.path.join(tmpdir, 'vcredist_x86.exe')
     with open(vcredist_filename, 'wb') as f:
         f.write(response.read())
