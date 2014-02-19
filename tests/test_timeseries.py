@@ -24,7 +24,8 @@ GNU General Public License for more details.
 from datetime import datetime, timedelta
 import math
 import os
-import psycopg2
+if os.getenv('PSYCOPG_CONNECTION'):
+    import psycopg2
 from StringIO import StringIO
 import sys
 import textwrap
