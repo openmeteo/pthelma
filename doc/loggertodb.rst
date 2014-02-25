@@ -13,24 +13,178 @@ SYNOPSIS
 
 ``loggertodb config_file``
 
-DESCRIPTION
-===========
+DESCRIPTION AND QUICK START
+===========================
 
-``loggertodb`` reads a plain text data file, connects to Enhydris,
-determines which records in the file are newer than those stored in
-Enhydris, and appends them. The details of its operation are specified
-in the configuration file specified on the command line.
+``loggertodb`` reads a data file (or several data files), connects to
+Enhydris, determines which records in the file are newer than those
+stored in Enhydris, and appends them. The details of its operation are
+specified in the configuration file specified on the command line.
 
-``loggertodb`` connects to the server and gets the end date for each
-time series specified in the ``datafilefields`` parameter. It then
-picks up a time series id, scans the data file, determines which is
-the first record of that time series not already stored in the
-database, and appends that record and all subsequent records to the
-database. It does this for all time series specified in
-``datafilefields``.
+Installation
+------------
 
-CONFIGURATION FILE
-==================
+To install ``loggertodb``, see :ref:`install`.
+
+How to run it
+-------------
+
+First, you need to create a configuration file with a text editor such
+as ``vim``, ``emacs``, ``notepad``, or whatever. Create such a file
+and name it, for example, :file:`/var/tmp/loggertodb.conf`, or, on
+Windows, something like :file:`C:\\Users\\user\\loggertodb.conf`, with
+the following contents (the contents don't matter at this stage, just
+copy and paste them from below):
+
+.. code-block:: ini
+
+    [General]
+    base_url = http://openmeteo.org/
+    user = user1
+    password = topsecret
+    loglevel = INFO
+
+Then, open a command prompt and give it this command:
+
+**Unix/Linux**::
+
+    loggertodb /var/tmp/loggertodb.conf
+
+**Windows**::
+
+    C:\Program Files\Loggertodb\loggertodb.exe C:\Users\user\loggertodb.conf
+
+(the details may differ; for example, in 64-bit Windows, it may be
+:file:`C:\Program Files (x86)` instead of :file:`C:\Program Files`.)
+
+If you have done everything correctly, it should output something like
+this::
+
+    Starting loggertodb, 2014-02-25T14:21:35.082263
+    Loggertodb finished, 2014-02-25T14:21:35.422038
+    
+With the above configuration file, ``loggertodb`` does absolutely
+nothing (but we've been through the essentials of running it).
+
+Configuration file examples
+---------------------------
+
+.. highlight:: ini
+
+The following instructs ``loggertodb`` to use the single data file
+:file:`zeno.data` and upload its data to ``openmeteo.org``; the first
+field of each line (after the date and time) will be uploaded to time
+series 232, the second to 233, and so on. The last field of each line
+will not be uploaded (symbolized with the 0)::
+
+    [General]
+    loglevel = WARNING
+    logfile = /var/log/loggertodb/itiameteo.log
+    base_url = https://openmeteo.org/
+    user = aptiko
+    password = topsecret
+
+    [NTUA]
+    filename = /var/local/openmeteo/logger_data_files/ntua/zeno.data
+    datafile_format = simple
+    date_format = %y/%m/%d %H:%M:%S
+    datafile_fields = 232,233,247,248,237,238,236,9141,5461,6659,9139,6661,240,6539,6541,230,234,0
+
+The following instructs ``loggertodb`` to use two data files (one for
+meteorological station PRASINOS, one for VILIA; these are just labels
+to make it easy for you to read the file; that are not used anywhere).
+While reading that each line's fields, the value "NAN" instead of a
+number will be interpreted as an empty (or missing, or null) value.
+The ``timezone`` parameter is used for daylight saving time
+adjustments (see `DAYLIGHT SAVING TIME`_)::
+
+    [General]
+    loglevel = WARNING
+    logfile = /var/log/loggertodb/defkalion.log
+    base_url = https://openmeteo.org/
+    user = aptiko
+    password = topsecret
+
+    [PRASINOS]
+    filename = /var/local/openmeteo/logger_data_files/defkalion/prasino.data
+    datafile_format = simple
+    date_format = %d/%m/%Y %H:%M:%S
+    datafile_fields = 9180,9182,9184,9178
+    nullstr = NAN
+    timezone = Europe/Athens
+
+    [VILIA]
+    filename = /var/local/openmeteo/logger_data_files/defkalion/vilia.data
+    datafile_format = simple
+    date_format = %d/%m/%Y %H:%M:%S
+    datafile_fields = 9172,9174,9176,9170
+    nullstr = NAN
+    timezone = Europe/Athens
+
+The next is very similar to the previous one, but it's for Windows, it
+uses a star for null values, and the fields in the files are delimited
+with commas instead of spaces. In addition, the sixth field of each
+line (after the date and time) is not uploaded::
+
+    [General]
+    loglevel = INFO
+    logfile = C:\a2a\loggertodb-kostilata.log
+    base_url = https://openmeteo.org/
+    user = aptiko
+    password = topsecret
+
+    [ANO_KOSTILATA]
+    filename = C:\a2a\ano_kostilata_20130601.txt
+    datafile_format = simple
+    delimiter = ,
+    date_format = %d-%m-%Y %H:%M:%S
+    datafile_fields = 9290,9285,9292,9294,9295,0,9291,9289,9288,9286
+    nullstr = *
+    timezone = Europe/Athens
+
+    [KATO_KOSTILATA]
+    filename = C:\a2a\ano_kostilata_20130601.txt
+    datafile_format = simple
+    delimiter = ,
+    date_format = %d-%m-%Y %H:%M:%S
+    datafile_fields = 9279,9274,9281,9283,9284,0,9280,9278,9277,9275
+    nullstr = *
+    timezone = Europe/Athens
+
+Finally, an example of a configuration that uses the files produced by
+Davis WeatherLink. In this case, :file:`C:\\WeatherLink\\komboti` is the
+directory that contains the .WLK files (it is necessary to read more
+below about :ref:`WDAT5 units <wdat5_units>` and :ref:`the WDAT5 format
+<wdat5>`)::
+
+    [General]
+    loglevel = INFO
+    logfile = C:\WeatherLink\komboti\loggertodb.log
+    base_url = https://openmeteo.org/
+    user = aptiko
+    password = topsecret
+
+    [KOMBOTI]
+    filename = C:\WeatherLink\komboti
+    datafile_format = wdat5
+    outsideTemp = 1256
+    hiOutsideTemp = 1257
+    rain = 1652
+    timezone = Europe/Athens  
+    temperature_unit = F
+    rain_unit = inch
+
+Running automatically
+---------------------
+
+You probably want to have ``loggertodb`` automatically update the
+data. To do this, either run it periodically (from ``cron`` on Unix
+and ``Task Scheduler`` on Windows), or, if the software you use to
+download the data from the meteorological station has the feature, add
+``loggertodb`` as a trigger.
+
+CONFIGURATION FILE REFERENCE
+============================
 
 The configuration file has the format of INI files. There is a
 ``[General]`` section with general parameters, and any number of other
@@ -113,6 +267,8 @@ delimiter, decimal_separator, date_format
 timezone
    See `DAYLIGHT SAVING TIME`_.
 
+.. _wdat5_units:
+
 temperature_unit, rain_unit, wind_speed_unit, pressure_unit, matric_potential_unit
    In the wdat5 format, you can select some of the units; C or F for
    temperature, mm or inch for rain and evapotranspiration, m/s or mph
@@ -190,8 +346,10 @@ pc208w
    order: subset identifier, logger id (ignored), year, day of year,
    time in ``HHmm``, measurements.
 
+.. _wdat5:
+
 wdat5
-   The ``wdat5`` format is a binary format used by Davis Weatherlink;
+   The ``wdat5`` format is a binary format used by Davis WeatherLink;
    the files have a ``wlk`` extension.  When using it, set
    ``filename`` to the directory name where your ``wlk`` files are
    stored (one file per month).
@@ -313,9 +471,9 @@ This version of ``loggertodb`` has nothing to do with versions older
 than 2005, which were completely different, in a different programming
 language (Perl rather than Python), and not based on ``autoupdate``.
 
-Copyright (C) 2005-2012 National Technical University of Athens
-
-Copyright (C) 2004 Antonis Christofides.
+| Copyright (C) 2013-2014 TEI of Epirus
+| Copyright (C) 2005-2012 National Technical University of Athens
+| Copyright (C) 2004 Antonis Christofides.
 
 ``loggertodb`` is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
