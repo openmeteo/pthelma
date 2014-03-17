@@ -134,8 +134,8 @@ class Datafile(object):
            empty
         """
         t = Timeseries()
-        t.read(self.opener.open('%stimeseries/d/%d/bottom/' %
-                                (self.base_url, self.ts)))
+        t.read(self.opener.open('{}timeseries/d/{}/bottom/'.format(
+                                self.base_url, self.ts)))
         bounding_dates = t.bounding_dates()
         end_date = bounding_dates[1] if bounding_dates else None
         self.logger.info('Last date in database: %s' % (str(end_date)))
@@ -430,7 +430,7 @@ class Datafile_wdat5(Datafile):
     ]
     required_options = [x for x in Datafile.required_options
                         if x != 'datafile_fields']
-    variables_labels = [x.split()[1] for x in wdat_record_format[5:]]
+    variables_labels = [x.split()[1].lower() for x in wdat_record_format[5:]]
     optional_options = variables_labels + ['timezone']
 
     def __init__(self, base_url, opener, datafiledict, logger=None):

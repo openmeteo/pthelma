@@ -405,12 +405,12 @@ class TestWdat5(_Test_logger):
                           self.base_url, self.opener, {})
         self.assertRaises(ConfigurationError, self.class_being_tested,
                           self.base_url, self.opener,
-                          {'filename': 'hello', 'outsideTemp': '0',
+                          {'filename': 'hello', 'outsidetemp': '0',
                            'datafile_format': 'irrelevant',
                            'nonexistent_config_option': True})
         # Call it correctly and expect it doesn't raise anything
         self.class_being_tested(self.base_url, self.opener,
-                                {'filename': 'hello', 'outsideTemp': '0',
+                                {'filename': 'hello', 'outsidetemp': '0',
                                  'datafile_format': 'irrelevant'})
 
     def upload_test(self):
@@ -418,7 +418,7 @@ class TestWdat5(_Test_logger):
              'datafile_format': 'irrelevant'}
         for parm in self.parameters:
             if parm['ts_id']:
-                d[parm['name']] = parm['ts_id']
+                d[parm['name'].lower()] = parm['ts_id']
         df = Datafile_wdat5(self.base_url, self.opener, d)
         df.update_database()
         self.check(d['filename'])
