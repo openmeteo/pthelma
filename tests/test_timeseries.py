@@ -623,6 +623,27 @@ class _Test_Timeseries_read(TestCase):
             2005-08-27 00:02,,DIAMONDS\r
             """))
 
+    def test_read_emptylines(self):
+        instring = StringIO(textwrap.dedent("""\
+            \r
+            \r
+            2005-08-23 18:53,93,\r
+            \r
+            \r
+            2005-08-24 19:52,108.7,\r
+            \r
+            \r
+            """))
+        cleanstring = textwrap.dedent("""\
+            2005-08-23 18:53,93,\r
+            2005-08-24 19:52,108.7,\r
+            """)
+        outstring = StringIO()
+        ts = Timeseries()
+        ts.read(instring)
+        ts.write(outstring)
+        self.assertEqual(outstring.getvalue(), cleanstring)
+
     def test_error1(self):
         self.assertRaises(ValueError, Timeseries.read, Timeseries(),
                           StringIO('85'))
