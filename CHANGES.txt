@@ -1,3 +1,10 @@
+0.7.0 (2014-03-18)
+------------------
+
+- Davis WDAT5 loggertodb file format now works
+
+- Time series files can have empty lines
+
 0.6.0 (2014-02-25)
 ------------------
 
