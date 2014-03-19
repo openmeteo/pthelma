@@ -69,7 +69,7 @@ except VersionError as e:
 
 kwargs = {
     'name': "pthelma",
-    'version': "0.7.0",
+    'version': "0.7.1",
     'license': "GPL3",
     'description': "Hydro/meteorological timeseries library",
     'author': "Antonis Christofides",
