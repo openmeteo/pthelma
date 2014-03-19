@@ -1,15 +1,32 @@
 #!/usr/bin/env python
 
+import atexit
 from ctypes import CDLL, c_char_p
+import os
 import platform
+import pytz
+import shutil
 import sys
+import tempfile
 import textwrap
+import urllib2
+from zipfile import ZipFile
 
 from setuptools import setup, find_packages
 from pkg_resources import parse_version
 
 
 REQUIRED_DICKINSON_VERSION = '0.2.0'
+
+
+def add_dir_to_zipfile(zipfile, dir, zipdir):
+    """Recursively adds all files of dir in the zipfile, modifying their
+    location by replacing dir with zipdir."""
+    for dirpath, dirnames, filenames in os.walk(dir):
+        assert(dirpath.startswith(dir))
+        zippath = dirpath.replace(dir, zipdir, 1)
+        for f in filenames:
+            zipfile.write(os.path.join(dirpath, f), os.path.join(zippath, f))
 
 
 class VersionError(Exception):
@@ -71,12 +88,6 @@ try:
     import py2exe
     py2exe  # Does nothing, but lint checkers won't warn about unused py2exe
 
-    import atexit
-    import os
-    import shutil
-    import tempfile
-    import urllib2
-
     # Download and save MSVC++ 2008 redistributable in a temporary directory
     # that will be removed when the program exits
     response = urllib2.urlopen('http://download.microsoft.com/download/'
@@ -98,3 +109,10 @@ except ImportError:
     pass
 
 setup(**kwargs)
+
+
+if len(sys.argv) >= 2 and sys.argv[1] == 'py2exe':
+    # Add pytz zoneinfo to library.zip
+    zoneinfo_dir = os.path.join(os.path.dirname(pytz.__file__), 'zoneinfo')
+    with ZipFile(os.path.join('dist', 'library.zip'), 'a') as z:
+        add_dir_to_zipfile(z, zoneinfo_dir, os.path.join('pytz', 'zoneinfo'))
