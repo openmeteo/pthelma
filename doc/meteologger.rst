@@ -27,14 +27,13 @@ software used to unload data from a logger, provides a different kind
 of data file. Therefore, Datafile subclasses are specialized, each to
 a specific kind of file.
 
-.. class:: Datafile(base_url, opener, datafiledict[, logger=None])
+.. class:: Datafile(base_url, cookies, datafiledict[, logger=None])
 
    A Datafile instance should never be constructed; instead, a
    subclass should be constructed; however, the call for constructing
    any subclass has the same arguments: *base_url* is the location of
-   the target Enhydris installation. *opener* is a
-   :class:`urllib2.OpenerDirector` object, which has been used to get
-   a csrf token from Enhydris and login.  *datafiledict* is a
+   the target Enhydris installation. *cookies* is the value returned
+   from :func:`enhydris_api.login`.  *datafiledict* is a
    dictionary containing values for :attr:`filename` and
    :attr:`datafile_fields`, and optionally for
    :attr:`subset_identifiers`, :attr:`delimiter`,

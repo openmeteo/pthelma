@@ -1,23 +1,7 @@
-#!/usr/bin/python
 """
-Tests for meteologger.
-
-Copyright (C) 2009-2013 National Technical University of Athens
-Copyright (C) 2013 TEI of Epirus
-
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
-
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
 In order to run the meteologger tests, you must specify the
-PTHELMA_TEST_METEOLOGGER variable to contain a json-formatted string of
-parameters, like this:
+PTHELMA_TEST_ENHYDRIS_API environment variable to contain a
+json-formatted string of parameters, like this:
 
     { "base_url": "http://localhost:8001/",
     "username": "admin",
@@ -27,23 +11,23 @@ parameters, like this:
     "unit_of_measurement_id": 1,
     "time_zone_id": 1 }
 
-The first three parameters are for connecting to an appropriate
-database. Don't use a production database for that; although things
-are normally cleaned up (e.g. test timeseries created are deleted), id
-serial numbers will be affected and things might not be cleaned up if
-there is an error.
+Make sure to read more information about this parameter in
+tests_enhydris_api.py.
 
-The rest of the parameters are used when test timeseries are created.
+The parameters station_id, variable_id, unit_of_measurement_id and
+time_zone_id are used when test timeseries are created.
 """
 
-import cookielib
 import json
 from math import isnan
 import os
+from StringIO import StringIO
 import tempfile
 from unittest import TestCase, skipUnless
-from urllib2 import build_opener, HTTPCookieProcessor, Request, HTTPError
 
+import requests
+
+from pthelma import enhydris_api
 from pthelma.meteologger import Datafile_deltacom, Datafile_simple, \
     Datafile_wdat5, ConfigurationError
 from pthelma.timeseries import Timeseries
@@ -55,78 +39,46 @@ def full_testdata_filename(filename):
     return full_pathname
 
 
-class RequestWithMethod(Request):
-    """
-    See http://benjamin.smedbergs.us/blog/2008-10-21/putting-and-deleteing
-    """
-    def __init__(self, method, *args, **kwargs):
-        self._method = method
-        Request.__init__(self, *args, **kwargs)
-
-    def get_method(self):
-        return self._method
-
-
-def connect_to_server(base_url, username, password):
-    cookiejar = cookielib.CookieJar()
-    opener = build_opener(HTTPCookieProcessor(cookiejar))
-    opener.open(base_url + 'accounts/login/').read()
-    opener.addheaders = [('X-CSRFToken', cookie.value)
-                         for cookie in cookiejar if cookie.name == 'csrftoken']
-    data = 'username={0}&password={1}'.format(username, password)
-    opener.open(base_url + 'accounts/login/', data)
-    opener.addheaders = [('X-CSRFToken', cookie.value)
-                         for cookie in cookiejar if cookie.name == 'csrftoken']
-    return opener
-
-
-def create_timeseries(opener, adict):
+def create_timeseries(cookies, adict):
     # Create a timeseries on the server and return its id
     j = {'gentity': adict['station_id'],
          'variable': adict['variable_id'],
          'unit_of_measurement': adict['unit_of_measurement_id'],
          'time_zone': adict['time_zone_id'], }
-    r = Request(adict['base_url'] + 'api/Timeseries/', data=json.dumps(j),
-                headers={'Content-type': 'application/json'})
-    fp = opener.open(r)
-    response_text = fp.read()
-    return json.loads(response_text)['id']
+    r = requests.post(adict['base_url'] + 'api/Timeseries/',
+                      data=json.dumps(j),
+                      headers={'Content-type': 'application/json',
+                               'X-CSRFToken': cookies['csrftoken']},
+                      cookies=cookies)
+    return json.loads(r.text)['id']
 
 
-def delete_timeseries(opener, base_url, ts_id):
+def delete_timeseries(cookies, base_url, ts_id):
     url = base_url + 'api/Timeseries/{0}/'.format(ts_id)
-    r = RequestWithMethod('DELETE', url)
-    try:
-        opener.open(r)
-        # According to the theory at
-        # http://stackoverflow.com/questions/7032890/ and elsewhere,
-        # we shouldn't reach this point; in practice, however, I see
-        # that a 204 response results in coming here, not in raising an
-        # exception (and with no way to check the status code). I assume
-        # that if we come here everything was OK.
-    except HTTPError as e:
-        # But just to be sure, also assume that a 204 response might
-        # lead us here as well.
-        if e.code != 204:
-            raise
+    r = requests.delete(url,
+                        cookies=cookies,
+                        headers={'X-CSRFToken': cookies['csrftoken']},
+                        )
+    if r.status_code != 204:
+        raise requests.exceptions.HTTPError()
 
 
-def read_timeseries(opener, base_url, ts):
-    r = Request(base_url + 'api/tsdata/{0}/'.format(ts.id))
-    fp = opener.open(r)
-    ts.read(fp)
+def read_timeseries(cookies, base_url, ts):
+    r = requests.get(base_url + 'api/tsdata/{0}/'.format(ts.id),
+                     cookies=cookies)
+    ts.read(StringIO(r.content))
 
 
 def get_server_from_env(adict):
-    conn = os.getenv("PTHELMA_TEST_METEOLOGGER")
+    conn = os.getenv("PTHELMA_TEST_ENHYDRIS_API")
     v = json.loads(conn)
     for item in 'base_url username password station_id variable_id ' \
                 'unit_of_measurement_id time_zone_id'.split():
         adict[item] = v[item]
 
 
-@skipUnless(os.getenv('PTHELMA_TEST_METEOLOGGER'),
-            "set PTHELMA_TEST_METEOLOGGER")
+@skipUnless(os.getenv('PTHELMA_TEST_ENHYDRIS_API'),
+            "set PTHELMA_TEST_ENHYDRIS_API")
 class _Test_logger(TestCase):
     class_being_tested = None
     datafilename = ''
@@ -155,13 +107,14 @@ class _Test_logger(TestCase):
             fp.write(line)
         fp.close()
 
-        # Connect to server
-        self.opener = connect_to_server(self.base_url, self.username,
-                                        self.password)
+        # Login
+        self.cookies = enhydris_api.login(self.base_url,
+                                          self.username,
+                                          self.password)
 
         # Create two timeseries
-        self.timeseries_id1 = create_timeseries(self.opener, self.__dict__)
-        self.timeseries_id2 = create_timeseries(self.opener, self.__dict__)
+        self.timeseries_id1 = create_timeseries(self.cookies, self.__dict__)
+        self.timeseries_id2 = create_timeseries(self.cookies, self.__dict__)
         self.datafile_fields = "0,{0},{1}".format(self.timeseries_id1,
                                                   self.timeseries_id2)
         self.ts1 = Timeseries(self.timeseries_id1)
@@ -170,19 +123,19 @@ class _Test_logger(TestCase):
     def tearDown(self):
         if not self.class_being_tested or not self.base_url:
             return
-        delete_timeseries(self.opener, self.base_url, self.timeseries_id2)
-        delete_timeseries(self.opener, self.base_url, self.timeseries_id1)
+        delete_timeseries(self.cookies, self.base_url, self.timeseries_id2)
+        delete_timeseries(self.cookies, self.base_url, self.timeseries_id1)
 
     def check_config_test(self):
         self.assertRaises(ConfigurationError, self.class_being_tested,
-                          self.base_url, self.opener, {})
+                          self.base_url, self.cookies, {})
         self.assertRaises(ConfigurationError, self.class_being_tested,
-                          self.base_url, self.opener,
+                          self.base_url, self.cookies,
                           {'filename': 'hello', 'datafile_fields': '0',
                            'datafile_format': 'irrelevant',
                            'nonexistent_config_option': True})
         # Call it correctly and expect it doesn't raise anything
-        self.class_being_tested(self.base_url, self.opener,
+        self.class_being_tested(self.base_url, self.cookies,
                                 {'filename': 'hello', 'datafile_fields': '0',
                                  'datafile_format': 'irrelevant'})
 
@@ -191,10 +144,10 @@ class _Test_logger(TestCase):
              'datafile_fields': self.datafile_fields,
              'datafile_format': 'irrelevant'}
         d.update(self.datafiledict)
-        df = self.class_being_tested(self.base_url, self.opener, d)
+        df = self.class_being_tested(self.base_url, self.cookies, d)
         df.update_database()
-        read_timeseries(self.opener, self.base_url, self.ts1)
-        read_timeseries(self.opener, self.base_url, self.ts2)
+        read_timeseries(self.cookies, self.base_url, self.ts1)
+        read_timeseries(self.cookies, self.base_url, self.ts2)
         self.assertEqual(len(self.ts1), 60)
         self.assertEqual(len(self.ts2), 60)
         (items1, items2, ritems1, ritems2) = [
@@ -208,10 +161,10 @@ class _Test_logger(TestCase):
             self.assertAlmostEqual(items2[i][1], ritems2[i][1], 4)
             self.assertEqual(items2[i][1].flags, ritems2[i][1].flags)
         d['filename'] = full_testdata_filename(self.datafilename)
-        df = self.class_being_tested(self.base_url, self.opener, d)
+        df = self.class_being_tested(self.base_url, self.cookies, d)
         df.update_database()
-        read_timeseries(self.opener, self.base_url, self.ts1)
-        read_timeseries(self.opener, self.base_url, self.ts2)
+        read_timeseries(self.cookies, self.base_url, self.ts1)
+        read_timeseries(self.cookies, self.base_url, self.ts2)
         self.assertEqual(len(self.ts1), 100)
         self.assertEqual(len(self.ts2), 100)
         (items1, items2, ritems1, ritems2) = [
@@ -257,8 +210,8 @@ class TestSimple3(_Test_logger):
                     'delimiter': ','}
 
 
-@skipUnless(os.getenv('PTHELMA_TEST_METEOLOGGER'),
-            "set PTHELMA_TEST_METEOLOGGER")
+@skipUnless(os.getenv('PTHELMA_TEST_ENHYDRIS_API'),
+            "set PTHELMA_TEST_ENHYDRIS_API")
 class TestDst(TestCase):
     datafiledict = {'date_format': '%Y-%m-%dT%H:%M',
                     'timezone': 'Europe/Athens'}
@@ -268,15 +221,15 @@ class TestDst(TestCase):
         self.ref_ts = Timeseries(0)
         if not self.base_url:
             return
-        self.opener = connect_to_server(self.base_url, self.username,
-                                        self.password)
-        self.timeseries_id = create_timeseries(self.opener, self.__dict__)
+        self.cookies = enhydris_api.login(self.base_url, self.username,
+                                          self.password)
+        self.timeseries_id = create_timeseries(self.cookies, self.__dict__)
         self.ts = Timeseries(self.timeseries_id)
 
     def tearDown(self):
         if not self.base_url:
             return
-        delete_timeseries(self.opener, self.base_url, self.timeseries_id)
+        delete_timeseries(self.cookies, self.base_url, self.timeseries_id)
 
     def run_test(self):
         if not self.base_url:
@@ -285,9 +238,9 @@ class TestDst(TestCase):
              'datafile_fields': str(self.timeseries_id),
              'datafile_format': 'irrelevant'}
         d.update(self.datafiledict)
-        df = Datafile_simple(self.base_url, self.opener, d)
+        df = Datafile_simple(self.base_url, self.cookies, d)
         df.update_database()
-        read_timeseries(self.opener, self.base_url, self.ts)
+        read_timeseries(self.cookies, self.base_url, self.ts)
         self.assertEqual(len(self.ts), len(self.ref_ts))
         (items, ritems) = [x.items() for x in (self.ts, self.ref_ts)]
         for item, ritem in zip(items, ritems):
@@ -295,14 +248,14 @@ class TestDst(TestCase):
             self.assertAlmostEqual(item[1], ritem[1], 4)
             self.assertEqual(item[1].flags, ritem[1].flags)
 
-    @skipUnless(os.getenv('PTHELMA_TEST_METEOLOGGER'), "see above")
+    @skipUnless(os.getenv('PTHELMA_TEST_ENHYDRIS_API'), "see above")
     def test_to_dst(self):
         self.filename = 'data_at_change_to_dst.txt'
         self.ref_ts.read(open(full_testdata_filename(
             'timeseries_at_change_to_dst.txt')))
         self.run_test()
 
-    @skipUnless(os.getenv('PTHELMA_TEST_METEOLOGGER'), "see above")
+    @skipUnless(os.getenv('PTHELMA_TEST_ENHYDRIS_API'), "see above")
     def test_from_dst(self):
         self.filename = 'data_at_change_from_dst.txt'
         self.ref_ts.read(open(full_testdata_filename(
@@ -310,8 +263,8 @@ class TestDst(TestCase):
         self.run_test()
 
 
-@skipUnless(os.getenv('PTHELMA_TEST_METEOLOGGER'),
-            "set PTHELMA_TEST_METEOLOGGER")
+@skipUnless(os.getenv('PTHELMA_TEST_ENHYDRIS_API'),
+            "set PTHELMA_TEST_ENHYDRIS_API")
 class TestWdat5(_Test_logger):
     class_being_tested = Datafile_wdat5
     longMessage = True
@@ -387,29 +340,29 @@ class TestWdat5(_Test_logger):
         get_server_from_env(self.__dict__)
 
         # Connect to server
-        self.opener = connect_to_server(self.base_url, self.username,
-                                        self.password)
+        self.cookies = enhydris_api.login(self.base_url, self.username,
+                                          self.password)
 
         # Create as many timeseries as there are not-to-ignore parameters
         for parm in self.parameters:
-            parm['ts_id'] = create_timeseries(self.opener, self.__dict__
+            parm['ts_id'] = create_timeseries(self.cookies, self.__dict__
                                               ) if parm['expname'] else 0
 
     def tearDown(self):
         for parm in self.parameters:
             if parm['ts_id']:
-                delete_timeseries(self.opener, self.base_url, parm['ts_id'])
+                delete_timeseries(self.cookies, self.base_url, parm['ts_id'])
 
     def check_config_test(self):
         self.assertRaises(ConfigurationError, self.class_being_tested,
-                          self.base_url, self.opener, {})
+                          self.base_url, self.cookies, {})
         self.assertRaises(ConfigurationError, self.class_being_tested,
-                          self.base_url, self.opener,
+                          self.base_url, self.cookies,
                           {'filename': 'hello', 'outsidetemp': '0',
                            'datafile_format': 'irrelevant',
                            'nonexistent_config_option': True})
         # Call it correctly and expect it doesn't raise anything
-        self.class_being_tested(self.base_url, self.opener,
+        self.class_being_tested(self.base_url, self.cookies,
                                 {'filename': 'hello', 'outsidetemp': '0',
                                  'datafile_format': 'irrelevant'})
 
@@ -419,11 +372,11 @@ class TestWdat5(_Test_logger):
         for parm in self.parameters:
             if parm['ts_id']:
                 d[parm['name'].lower()] = parm['ts_id']
-        df = Datafile_wdat5(self.base_url, self.opener, d)
+        df = Datafile_wdat5(self.base_url, self.cookies, d)
         df.update_database()
         self.check(d['filename'])
         d['filename'] = full_testdata_filename('wdat5/2')
-        df = Datafile_wdat5(self.base_url, self.opener, d)
+        df = Datafile_wdat5(self.base_url, self.cookies, d)
         df.update_database()
         self.check(d['filename'])
 
@@ -432,7 +385,7 @@ class TestWdat5(_Test_logger):
             if not parm['ts_id']:
                 continue
             actual_ts = Timeseries(parm['ts_id'])
-            read_timeseries(self.opener, self.base_url, actual_ts)
+            read_timeseries(self.cookies, self.base_url, actual_ts)
             reference_ts = Timeseries()
             with open(os.path.join(
                     datadir, 'generated', parm['expname'] + '.txt')) as f:

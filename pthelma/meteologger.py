@@ -23,10 +23,10 @@ import math
 import os
 import struct
 from urllib import urlencode
-from urllib2 import Request
 from StringIO import StringIO
 
 from pytz import timezone
+import requests
 
 from xreverse import xreverse
 from timeseries import Timeseries, datetime_from_iso, isoformat_nosecs
@@ -79,10 +79,10 @@ class Datafile(object):
     required_options = ['filename', 'datafile_format', 'datafile_fields']
     optional_options = ['nullstr', 'timezone']
 
-    def __init__(self, base_url, opener, datafiledict, logger=None):
+    def __init__(self, base_url, cookies, datafiledict, logger=None):
         self.check_config(datafiledict)
         self.base_url = base_url
-        self.opener = opener
+        self.cookies = cookies
         self.filename = datafiledict['filename']
         self.datafile_fields = [
             int(x) for x in datafiledict.get('datafile_fields', '').split(',')
@@ -134,8 +134,10 @@ class Datafile(object):
            empty
         """
         t = Timeseries()
-        t.read(self.opener.open('{}timeseries/d/{}/bottom/'.format(
-                                self.base_url, self.ts)))
+        r = requests.get('{}timeseries/d/{}/bottom/'.format(self.base_url,
+                                                            self.ts),
+                         cookies=self.cookies)
+        t.read(StringIO(r.content))
         bounding_dates = t.bounding_dates()
         end_date = bounding_dates[1] if bounding_dates else None
         self.logger.info('Last date in database: %s' % (str(end_date)))
@@ -179,15 +181,16 @@ class Datafile(object):
         fp = StringIO()
         ts_to_append.write(fp)
         timeseries_records = fp.getvalue()
-        fp = self.opener.open(Request(
+        r = requests.post(
             '{0}api/tsdata/{1}/'.format(self.base_url, ts_to_append.id),
             data=urlencode({'timeseries_records': timeseries_records}),
-            headers={'Content-type': 'application/x-www-form-urlencoded'}))
-        response_text = fp.read()
-        if not response_text.isdigit():
-            raise MeteologgerServerError(response_text)
+            headers={'Content-type': 'application/x-www-form-urlencoded',
+                     'X-CSRFToken': self.cookies['csrftoken']},
+            cookies=self.cookies)
+        if not r.text.isdigit():
+            raise MeteologgerServerError(r.text)
         self.logger.info(
-            'Successfully appended {0} records'.format(response_text))
+            'Successfully appended {0} records'.format(r.text))
 
     def _get_tail(self):
         "Read the part of the datafile after last_timeseries_end_date"
@@ -323,8 +326,8 @@ class Datafile_simple(Datafile):
     optional_options = Datafile.optional_options + [
         'nfields_to_ignore', 'delimiter', 'date_format']
 
-    def __init__(self, base_url, opener, datafiledict, logger=None):
-        super(Datafile_simple, self).__init__(base_url, opener, datafiledict,
+    def __init__(self, base_url, cookies, datafiledict, logger=None):
+        super(Datafile_simple, self).__init__(base_url, cookies, datafiledict,
                                               logger)
         self.__separate_time = False
 
@@ -433,8 +436,8 @@ class Datafile_wdat5(Datafile):
     variables_labels = [x.split()[1].lower() for x in wdat_record_format[5:]]
     optional_options = variables_labels + ['timezone']
 
-    def __init__(self, base_url, opener, datafiledict, logger=None):
-        super(Datafile_wdat5, self).__init__(base_url, opener, datafiledict,
+    def __init__(self, base_url, cookies, datafiledict, logger=None):
+        super(Datafile_wdat5, self).__init__(base_url, cookies, datafiledict,
                                              logger)
 
         self.variables = {}

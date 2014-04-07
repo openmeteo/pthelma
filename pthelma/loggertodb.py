@@ -20,11 +20,9 @@ import sys
 from datetime import datetime
 from ConfigParser import RawConfigParser
 import logging
-from urllib2 import build_opener, HTTPCookieProcessor
-import cookielib
 import traceback
 
-from pthelma import meteologger
+from pthelma import enhydris_api, meteologger
 from pthelma.meteologger import ConfigurationError
 
 
@@ -70,23 +68,6 @@ def setup_logger(config):
     return logger
 
 
-def login_to_enhydris(config):
-    cookiejar = cookielib.CookieJar()
-    opener = build_opener(HTTPCookieProcessor(cookiejar))
-    login_url = config.base_url + 'accounts/login/'
-    opener.open(login_url)
-    opener.addheaders = [('X-CSRFToken', cookie.value)
-                         for cookie in cookiejar if cookie.name == 'csrftoken'
-                         ] + [('Referer', login_url)]
-    data = 'username={0}&password={1}'.format(
-        config.get('General', 'user'), config.get('General', 'password'))
-    opener.open(login_url, data)
-    opener.addheaders = [('X-CSRFToken', cookie.value)
-                         for cookie in cookiejar if cookie.name == 'csrftoken'
-                         ]
-    return opener
-
-
 def execute():
     logger = None
     config = None
@@ -96,13 +77,14 @@ def execute():
         config = read_configuration(sys.argv[1])
         logger = setup_logger(config)
         logger.info('Starting loggertodb, %s' % (datetime.today().isoformat()))
-        opener = login_to_enhydris(config)
+        cookies = enhydris_api.login(config.base_url, config.username,
+                                     config.password)
         sections = config.sections()[:]
         sections.remove('General')
         for section in sections:
             datafileclass = eval('meteologger.Datafile_%s' %
                                 (config.get(section, 'datafile_format'),))
-            adatafile = datafileclass(config.base_url, opener,
+            adatafile = datafileclass(config.base_url, cookies,
                                       dict(config.items(section)), logger)
             try:
                 adatafile.update_database()

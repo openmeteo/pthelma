@@ -17,6 +17,7 @@ Developer documentation:
    timeseries
    tsprocess
    meteologger
+   enhydris_api
    meteocalcs
    cplot
    curves
