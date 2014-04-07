@@ -218,13 +218,23 @@ class Datafile(object):
                 self.tail.append({'date': date, 'line': line})
         self.tail.reverse()
 
-    def _fix_dst(self, adatetime):
+    def _fix_dst(self, adatetime, now=None):
         """Remove any DST from a date.
+
            Determine if a date contains DST. If it does, remove the
-           extra hour. Returns the fixed date."""
+           extra hour. Returns the fixed date.
+
+           The "now" argument is only used for testing. Normally the method
+           assigns the current datetime to it. However, when testing, we
+           sometimes want to pretend the time is different.
+        """
         result = adatetime
         if self.timezone.zone != 'UTC':
-            is_dst = bool(datetime.now(self.timezone).dst())
+            if not now:
+                now = datetime.now(self.timezone)
+            now_naive = now.replace(tzinfo=None)
+            is_dst = bool(now.dst()) and (
+                abs(adatetime - now_naive) < timedelta(hours=24))
             result -= self.timezone.dst(adatetime, is_dst=is_dst)
         return result
 

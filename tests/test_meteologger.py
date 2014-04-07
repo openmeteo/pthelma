@@ -18,6 +18,7 @@ The parameters station_id, variable_id, unit_of_measurement_id and
 time_zone_id are used when test timeseries are created.
 """
 
+from datetime import datetime
 import json
 from math import isnan
 import os
@@ -25,6 +26,7 @@ from StringIO import StringIO
 import tempfile
 from unittest import TestCase, skipUnless
 
+import pytz
 import requests
 
 from pthelma import enhydris_api
@@ -261,6 +263,42 @@ class TestDst(TestCase):
         self.ref_ts.read(open(full_testdata_filename(
             'timeseries_at_change_from_dst.txt')))
         self.run_test()
+
+    def test_fix_dst(self):
+        d = {'filename': 'irrelevant',
+             'datafile_fields': '0',
+             'datafile_format': 'irrelevant'}
+        d.update(self.datafiledict)
+        df = Datafile_simple('http://irrelevant/', {}, d)
+        self.assertEquals(df._fix_dst(datetime(2012, 10, 28, 02, 59)),
+                          datetime(2012, 10, 28, 01, 59))
+        self.assertEquals(df._fix_dst(datetime(2012, 10, 28, 03, 00)),
+                          datetime(2012, 10, 28, 03, 00))
+        self.assertEquals(df._fix_dst(datetime(2012, 10, 28, 04, 00)),
+                          datetime(2012, 10, 28, 04, 00))
+
+        # Now we pretend that the switch from dst hasn't occurred yet.
+        # This is the only case when loggertodb should assume that
+        # ambiguous times refer to before the switch.
+        athens = pytz.timezone('Europe/Athens')
+        now = athens.localize(datetime(2012, 10, 28, 3, 59), is_dst=True)
+        self.assertEquals(df._fix_dst(datetime(2012, 10, 28, 02, 59), now=now),
+                          datetime(2012, 10, 28, 01, 59))
+        self.assertEquals(df._fix_dst(datetime(2012, 10, 28, 03, 00), now=now),
+                          datetime(2012, 10, 28, 02, 00))
+        self.assertEquals(df._fix_dst(datetime(2012, 10, 28, 04, 00), now=now),
+                          datetime(2012, 10, 28, 04, 00))
+
+        # Once more; the switch from DST has just occurred; now it
+        # should be assumed that ambiguous times refer to after the
+        # switch.
+        now = athens.localize(datetime(2012, 10, 28, 3, 0), is_dst=False)
+        self.assertEquals(df._fix_dst(datetime(2012, 10, 28, 02, 59), now=now),
+                          datetime(2012, 10, 28, 01, 59))
+        self.assertEquals(df._fix_dst(datetime(2012, 10, 28, 03, 00), now=now),
+                          datetime(2012, 10, 28, 03, 00))
+        self.assertEquals(df._fix_dst(datetime(2012, 10, 28, 04, 00), now=now),
+                          datetime(2012, 10, 28, 04, 00))
 
 
 @skipUnless(os.getenv('PTHELMA_TEST_ENHYDRIS_API'),
