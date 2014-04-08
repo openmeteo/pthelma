@@ -79,6 +79,7 @@ kwargs = {
     'test_suite': "tests",
     'install_requires': [
         "pytz",
+        "requests>=0.12.1,<3",
     ],
 }
 

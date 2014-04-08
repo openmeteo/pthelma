@@ -1,3 +1,10 @@
+dev
+---
+
+- enhydris_api client module
+
+- Fixed a minor DST bug
+
 0.7.1 (2014-03-19)
 ------------------
 
