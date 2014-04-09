@@ -1,3 +1,5 @@
+from StringIO import StringIO
+
 import requests
 
 
@@ -18,3 +20,17 @@ def login(base_url, username, password):
     r1.raise_for_status()
     result = r1.cookies
     return result
+
+
+def post_tsdata(base_url, session_cookies, timeseries):
+    if base_url[-1] != '/':
+        base_url += '/'
+    f = StringIO()
+    timeseries.write(f)
+    r = requests.post(
+        base_url + 'api/tsdata/{}/'.format(timeseries.id),
+        data={'timeseries_records': f.getvalue()},
+        headers={'Content-type': 'application/x-www-form-urlencoded',
+                 'X-CSRFToken': session_cookies['csrftoken']},
+        cookies=session_cookies)
+    r.raise_for_status()

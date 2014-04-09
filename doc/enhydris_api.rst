@@ -38,3 +38,10 @@ Enhydris API.
                         headers={'Content-type': 'application/json',
                                  'X-CSRFToken': session_cookies['csrftoken']},
                         data=timeseries_json)
+
+.. function:: post_tsdata(base_url, session_cookies, timeseries)
+
+   Posts a time series to Enhydris "api/tsdata", appending the records
+   to any already existing. *session_cookies* is the value returned
+   from :func:`.login`; *timeseries* is a
+   :class:`~timeseries.Timeseries` object that has :attr:`id` defined.

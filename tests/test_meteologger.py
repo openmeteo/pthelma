@@ -1,21 +1,7 @@
 """
 In order to run the meteologger tests, you must specify the
-PTHELMA_TEST_ENHYDRIS_API environment variable to contain a
-json-formatted string of parameters, like this:
-
-    { "base_url": "http://localhost:8001/",
-    "username": "admin",
-    "password": "secret",
-    "station_id": 1334,
-    "variable_id": 1,
-    "unit_of_measurement_id": 1,
-    "time_zone_id": 1 }
-
-Make sure to read more information about this parameter in
+PTHELMA_TEST_ENHYDRIS_API environment variable as explained in
 tests_enhydris_api.py.
-
-The parameters station_id, variable_id, unit_of_measurement_id and
-time_zone_id are used when test timeseries are created.
 """
 
 from datetime import datetime
@@ -74,7 +60,7 @@ def read_timeseries(cookies, base_url, ts):
 def get_server_from_env(adict):
     conn = os.getenv("PTHELMA_TEST_ENHYDRIS_API")
     v = json.loads(conn)
-    for item in 'base_url username password station_id variable_id ' \
+    for item in 'base_url user password station_id variable_id ' \
                 'unit_of_measurement_id time_zone_id'.split():
         adict[item] = v[item]
 
@@ -111,7 +97,7 @@ class _Test_logger(TestCase):
 
         # Login
         self.cookies = enhydris_api.login(self.base_url,
-                                          self.username,
+                                          self.user,
                                           self.password)
 
         # Create two timeseries
@@ -223,7 +209,7 @@ class TestDst(TestCase):
         self.ref_ts = Timeseries(0)
         if not self.base_url:
             return
-        self.cookies = enhydris_api.login(self.base_url, self.username,
+        self.cookies = enhydris_api.login(self.base_url, self.user,
                                           self.password)
         self.timeseries_id = create_timeseries(self.cookies, self.__dict__)
         self.ts = Timeseries(self.timeseries_id)
@@ -378,7 +364,7 @@ class TestWdat5(_Test_logger):
         get_server_from_env(self.__dict__)
 
         # Connect to server
-        self.cookies = enhydris_api.login(self.base_url, self.username,
+        self.cookies = enhydris_api.login(self.base_url, self.user,
                                           self.password)
 
         # Create as many timeseries as there are not-to-ignore parameters
