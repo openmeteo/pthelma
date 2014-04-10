@@ -36,13 +36,6 @@ from pthelma import enhydris_api
 from pthelma.timeseries import Timeseries
 
 
-def urljoin(*args):
-    result = '/'.join([s.strip('/') for s in args])
-    if args[-1].endswith('/'):
-        result += '/'
-    return result
-
-
 @skipUnless(os.getenv('PTHELMA_TEST_ENHYDRIS_API'),
             'set PTHELMA_TEST_ENHYDRIS_API')
 class LoginTestCase(TestCase):
@@ -104,13 +97,8 @@ class PostTsDataTestCase(TestCase):
             'unit_of_measurement': v['unit_of_measurement_id'],
             'time_zone': v['time_zone_id'],
         }
-        r = requests.post(urljoin(v['base_url'], 'api/Timeseries/'),
-                          headers={'Content-type': 'application/json',
-                                   'X-CSRFToken': cookies['csrftoken']},
-                          cookies=cookies,
-                          data=json.dumps(j)
-                          )
-        ts_id = json.loads(r.text)['id']
+        ts_id = enhydris_api.post_model(v['base_url'], cookies, 'Timeseries',
+                                        j)
 
         # Now upload some data
         ts = Timeseries(ts_id)
@@ -118,7 +106,8 @@ class PostTsDataTestCase(TestCase):
         enhydris_api.post_tsdata(v['base_url'], cookies, ts)
 
         # Read and check the time series
-        url = urljoin(v['base_url'], 'timeseries/d/{}/download/'.format(ts.id))
+        url = enhydris_api.urljoin(v['base_url'],
+                                   'timeseries/d/{}/download/'.format(ts.id))
         r = requests.get(url, cookies=cookies)
         r.raise_for_status()
         self.assertEquals(get_after_blank_line(r.content),
@@ -130,7 +119,8 @@ class PostTsDataTestCase(TestCase):
         enhydris_api.post_tsdata(v['base_url'], cookies, ts)
 
         # Read and check the time series
-        url = urljoin(v['base_url'], 'timeseries/d/{}/download/'.format(ts.id))
+        url = enhydris_api.urljoin(v['base_url'],
+                                   'timeseries/d/{}/download/'.format(ts.id))
         r = requests.get(url, cookies=cookies)
         r.raise_for_status()
         self.assertEquals(get_after_blank_line(r.content),

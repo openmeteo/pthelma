@@ -22,14 +22,15 @@ from glob import glob
 import math
 import os
 import struct
-from urllib import urlencode
 from StringIO import StringIO
 
 from pytz import timezone
 import requests
 
 from xreverse import xreverse
-from timeseries import Timeseries, datetime_from_iso, isoformat_nosecs
+
+from pthelma import enhydris_api
+from pthelma.timeseries import Timeseries, datetime_from_iso, isoformat_nosecs
 
 
 class MeteologgerError(Exception):
@@ -180,17 +181,9 @@ class Datafile(object):
     def _append_records_to_database(self, ts_to_append):
         fp = StringIO()
         ts_to_append.write(fp)
-        timeseries_records = fp.getvalue()
-        r = requests.post(
-            '{0}api/tsdata/{1}/'.format(self.base_url, ts_to_append.id),
-            data=urlencode({'timeseries_records': timeseries_records}),
-            headers={'Content-type': 'application/x-www-form-urlencoded',
-                     'X-CSRFToken': self.cookies['csrftoken']},
-            cookies=self.cookies)
-        if not r.text.isdigit():
-            raise MeteologgerServerError(r.text)
+        r = enhydris_api.post_tsdata(self.base_url, self.cookies, ts_to_append)
         self.logger.info(
-            'Successfully appended {0} records'.format(r.text))
+            'Successfully appended {0} records'.format(r))
 
     def _get_tail(self):
         "Read the part of the datafile after last_timeseries_end_date"

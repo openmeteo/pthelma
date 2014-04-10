@@ -8,12 +8,10 @@ from datetime import datetime
 import json
 from math import isnan
 import os
-from StringIO import StringIO
 import tempfile
 from unittest import TestCase, skipUnless
 
 import pytz
-import requests
 
 from pthelma import enhydris_api
 from pthelma.meteologger import Datafile_deltacom, Datafile_simple, \
@@ -33,28 +31,7 @@ def create_timeseries(cookies, adict):
          'variable': adict['variable_id'],
          'unit_of_measurement': adict['unit_of_measurement_id'],
          'time_zone': adict['time_zone_id'], }
-    r = requests.post(adict['base_url'] + 'api/Timeseries/',
-                      data=json.dumps(j),
-                      headers={'Content-type': 'application/json',
-                               'X-CSRFToken': cookies['csrftoken']},
-                      cookies=cookies)
-    return json.loads(r.text)['id']
-
-
-def delete_timeseries(cookies, base_url, ts_id):
-    url = base_url + 'api/Timeseries/{0}/'.format(ts_id)
-    r = requests.delete(url,
-                        cookies=cookies,
-                        headers={'X-CSRFToken': cookies['csrftoken']},
-                        )
-    if r.status_code != 204:
-        raise requests.exceptions.HTTPError()
-
-
-def read_timeseries(cookies, base_url, ts):
-    r = requests.get(base_url + 'api/tsdata/{0}/'.format(ts.id),
-                     cookies=cookies)
-    ts.read(StringIO(r.content))
+    return enhydris_api.post_model(adict['base_url'], cookies, 'Timeseries', j)
 
 
 def get_server_from_env(adict):
@@ -111,8 +88,10 @@ class _Test_logger(TestCase):
     def tearDown(self):
         if not self.class_being_tested or not self.base_url:
             return
-        delete_timeseries(self.cookies, self.base_url, self.timeseries_id2)
-        delete_timeseries(self.cookies, self.base_url, self.timeseries_id1)
+        enhydris_api.delete_model(self.base_url, self.cookies,
+                                  'Timeseries', self.timeseries_id2)
+        enhydris_api.delete_model(self.base_url, self.cookies,
+                                  'Timeseries', self.timeseries_id1)
 
     def check_config_test(self):
         self.assertRaises(ConfigurationError, self.class_being_tested,
@@ -134,8 +113,8 @@ class _Test_logger(TestCase):
         d.update(self.datafiledict)
         df = self.class_being_tested(self.base_url, self.cookies, d)
         df.update_database()
-        read_timeseries(self.cookies, self.base_url, self.ts1)
-        read_timeseries(self.cookies, self.base_url, self.ts2)
+        enhydris_api.read_tsdata(self.base_url, self.cookies, self.ts1)
+        enhydris_api.read_tsdata(self.base_url, self.cookies, self.ts2)
         self.assertEqual(len(self.ts1), 60)
         self.assertEqual(len(self.ts2), 60)
         (items1, items2, ritems1, ritems2) = [
@@ -151,8 +130,8 @@ class _Test_logger(TestCase):
         d['filename'] = full_testdata_filename(self.datafilename)
         df = self.class_being_tested(self.base_url, self.cookies, d)
         df.update_database()
-        read_timeseries(self.cookies, self.base_url, self.ts1)
-        read_timeseries(self.cookies, self.base_url, self.ts2)
+        enhydris_api.read_tsdata(self.base_url, self.cookies, self.ts1)
+        enhydris_api.read_tsdata(self.base_url, self.cookies, self.ts2)
         self.assertEqual(len(self.ts1), 100)
         self.assertEqual(len(self.ts2), 100)
         (items1, items2, ritems1, ritems2) = [
@@ -217,7 +196,8 @@ class TestDst(TestCase):
     def tearDown(self):
         if not self.base_url:
             return
-        delete_timeseries(self.cookies, self.base_url, self.timeseries_id)
+        enhydris_api.delete_model(self.base_url, self.cookies,
+                                  'Timeseries', self.timeseries_id)
 
     def run_test(self):
         if not self.base_url:
@@ -228,7 +208,7 @@ class TestDst(TestCase):
         d.update(self.datafiledict)
         df = Datafile_simple(self.base_url, self.cookies, d)
         df.update_database()
-        read_timeseries(self.cookies, self.base_url, self.ts)
+        enhydris_api.read_tsdata(self.base_url, self.cookies, self.ts)
         self.assertEqual(len(self.ts), len(self.ref_ts))
         (items, ritems) = [x.items() for x in (self.ts, self.ref_ts)]
         for item, ritem in zip(items, ritems):
@@ -375,7 +355,8 @@ class TestWdat5(_Test_logger):
     def tearDown(self):
         for parm in self.parameters:
             if parm['ts_id']:
-                delete_timeseries(self.cookies, self.base_url, parm['ts_id'])
+                enhydris_api.delete_model(self.base_url, self.cookies,
+                                          'Timeseries', parm['ts_id'])
 
     def check_config_test(self):
         self.assertRaises(ConfigurationError, self.class_being_tested,
@@ -409,7 +390,7 @@ class TestWdat5(_Test_logger):
             if not parm['ts_id']:
                 continue
             actual_ts = Timeseries(parm['ts_id'])
-            read_timeseries(self.cookies, self.base_url, actual_ts)
+            enhydris_api.read_tsdata(self.base_url, self.cookies, actual_ts)
             reference_ts = Timeseries()
             with open(os.path.join(
                     datadir, 'generated', parm['expname'] + '.txt')) as f:
