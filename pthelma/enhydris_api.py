@@ -31,7 +31,7 @@ def get_model(base_url, session_cookies, model, id):
     url = urljoin(base_url, 'api/{}/{}/'.format(model, id))
     r = requests.get(url, cookies=session_cookies)
     r.raise_for_status()
-    return r.json()
+    return r.json
 
 
 def post_model(base_url, session_cookies, model, data):
