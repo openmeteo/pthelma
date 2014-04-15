@@ -1,7 +1,7 @@
 """
 In order to run the meteologger tests, you must specify the
 PTHELMA_TEST_ENHYDRIS_API environment variable as explained in
-tests_enhydris_api.py.
+test_enhydris_api.py.
 """
 
 from datetime import datetime
