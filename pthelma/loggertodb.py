@@ -18,9 +18,10 @@ GNU General Public License for more details.
 
 import sys
 from datetime import datetime
-from ConfigParser import RawConfigParser
 import logging
 import traceback
+
+from six.moves.configparser import RawConfigParser
 
 from pthelma import enhydris_api, meteologger
 from pthelma.meteologger import ConfigurationError
@@ -88,7 +89,7 @@ def execute():
                                       dict(config.items(section)), logger)
             try:
                 adatafile.update_database()
-            except meteologger.MeteologgerError, e:
+            except meteologger.MeteologgerError as e:
                 msg = 'Error while processing item {0}: {1}'.format(section,
                                                                     str(e))
                 sys.stderr.write(msg + '\n')

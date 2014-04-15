@@ -26,9 +26,10 @@ affected and things might not be cleaned up if there is an error.
 
 import json
 import os
-from StringIO import StringIO
 import textwrap
 from unittest import TestCase, skipUnless
+
+from six import StringIO
 
 import requests
 
@@ -46,14 +47,14 @@ class LoginTestCase(TestCase):
 
         # Verify we are logged out
         r = requests.get(base_url)
-        self.assertEquals(r.status_code, 200)
+        self.assertEqual(r.status_code, 200)
         self.assertTrue('Login' in r.text)
         self.assertFalse('Logout' in r.text)
 
         # Now login and verify we're logged on
         cookies = enhydris_api.login(base_url, user, password)
         r = requests.get(base_url, cookies=cookies)
-        self.assertEquals(r.status_code, 200)
+        self.assertEqual(r.status_code, 200)
         self.assertFalse('Login' in r.text)
         self.assertTrue('Logout' in r.text)
 
@@ -110,8 +111,8 @@ class PostTsDataTestCase(TestCase):
                                    'timeseries/d/{}/download/'.format(ts.id))
         r = requests.get(url, cookies=cookies)
         r.raise_for_status()
-        self.assertEquals(get_after_blank_line(r.content),
-                          self.test_timeseries_top)
+        self.assertEqual(get_after_blank_line(r.text),
+                         self.test_timeseries_top)
 
         # Upload more data
         ts = Timeseries(ts_id)
@@ -123,5 +124,5 @@ class PostTsDataTestCase(TestCase):
                                    'timeseries/d/{}/download/'.format(ts.id))
         r = requests.get(url, cookies=cookies)
         r.raise_for_status()
-        self.assertEquals(get_after_blank_line(r.content),
-                          self.test_timeseries)
+        self.assertEqual(get_after_blank_line(r.text),
+                         self.test_timeseries)

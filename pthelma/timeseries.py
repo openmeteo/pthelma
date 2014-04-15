@@ -18,21 +18,22 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 """
 
-import zlib
-import random
-import re
-from datetime import datetime, timedelta
-from StringIO import StringIO
-from math import sin, cos, atan2, pi
-from ConfigParser import ParsingError
 from codecs import BOM_UTF8
-from os import SEEK_SET
-
-psycopg2 = None  # Do not import unless needed
-import math
-
 from ctypes import CDLL, c_int, c_longlong, c_double, c_char, c_char_p, \
     byref, Structure, c_void_p, POINTER, string_at
+from datetime import datetime, timedelta
+import math
+from math import sin, cos, atan2, pi
+from os import SEEK_SET
+import random
+import re
+import zlib
+
+import six
+from six import u, StringIO
+from six.moves.configparser import ParsingError
+
+psycopg2 = None  # Do not import unless needed
 
 
 class T_REC(Structure):
@@ -92,6 +93,9 @@ def isoformat_nosecs(adatetime, sep='T'):
 
 
 _DT_BASE = datetime(1970, 1, 1, 0, 0)
+_SECONDS_PER_DAY = 86400
+if 'long' in [c.__name__ for c in six.integer_types]:
+    _SECONDS_PER_DAY = long(_SECONDS_PER_DAY)
 
 
 def _datetime_to_time_t(d):
@@ -99,12 +103,12 @@ def _datetime_to_time_t(d):
     if not isinstance(d, datetime):
         d = datetime_from_iso(d)
     delta = d - _DT_BASE
-    return delta.days * 86400L + delta.seconds
+    return delta.days * _SECONDS_PER_DAY + delta.seconds
 
 
 def _time_t_to_datetime(t):
     """Convert t (number of seconds since 1970) to datetime."""
-    return _DT_BASE + timedelta(t / 86400, t % 86400)
+    return _DT_BASE + timedelta(days=t // 86400, seconds=t % 86400)
 
 
 def read_timeseries_tail_from_db(db, id):
@@ -304,8 +308,8 @@ class Timeseries(dict):
     SQLDRIVER_NONE = 0
     SQLDRIVER_PSYCOPG2 = 1
 
-    def __init__(self, id=0, time_step=None, unit=u'', title=u'', timezone=u'',
-                 variable=u'', precision=None, comment=u'',
+    def __init__(self, id=0, time_step=None, unit=u(''), title=u(''),
+                 timezone=u(''), variable=u(''), precision=None, comment=u(''),
                  driver=SQLDRIVER_PSYCOPG2):
         self.ts_handle = None
         self.id = id
@@ -375,7 +379,7 @@ class Timeseries(dict):
         else:
             null_c = 0
             value_c = c_double(tsvalue)
-        flags_c = c_char_p(' '.join(tsvalue.flags))
+        flags_c = c_char_p((' '.join(tsvalue.flags)).encode('ascii'))
         err_str_c = c_char_p()
         index_c = c_int()
         err_no_c = dickinson.ts_insert_record(
@@ -388,8 +392,8 @@ class Timeseries(dict):
 
     def __getitem__(self, key):
         if not isinstance(key, datetime) and (
-                (not isinstance(key, unicode) and
-                 not isinstance(key, str))
+                (not isinstance(key, six.string_types[0]) and
+                 not isinstance(key, six.text_type))
                 or len(key) < 4 or not key[0].isdigit()):
             raise KeyError(key)
         timestamp_c = c_longlong(_datetime_to_time_t(key))
@@ -404,7 +408,7 @@ class Timeseries(dict):
             value = float('NaN')
         else:
             value = arec.value
-        flags = arec.flags
+        flags = arec.flags.decode('ascii')
         flags = flags.split()
         return _Tsvalue(value, flags)
 
@@ -442,13 +446,13 @@ class Timeseries(dict):
         errline = c_int()
         try:
             if dickinson.ts_readfromstring(
-                    c_char_p(fp.read()), self.ts_handle, byref(errline),
-                    byref(err_str_c)):
+                    c_char_p(fp.read().encode('ascii')), self.ts_handle,
+                    byref(errline), byref(err_str_c)):
                 line_number += errline.value - 1
                 raise ValueError('Error when reading time series '
                                  'line from I/O: ' + repr(err_str_c.value))
             line_number += errline.value - 1
-        except Exception, e:
+        except Exception as e:
             e.args = e.args + (line_number,)
             raise
 
@@ -469,7 +473,7 @@ class Timeseries(dict):
             raise IOError('Error when writing time series: %s' %
                           (errstr.value,))
         try:
-            fp.write(string_at(text))
+            fp.write(string_at(text).decode('ascii'))
         finally:
             dickinson.freemem(text)
 
@@ -495,6 +499,8 @@ class Timeseries(dict):
         blank. Raises ParsingError if next line in fp is not a valid header
         line."""
         line = fp.readline()
+        if isinstance(line, six.binary_type):
+            line = line.decode('utf-8')
         (name, value) = '', ''
         if line.isspace():
             return (name, value)
@@ -523,16 +529,18 @@ class Timeseries(dict):
                 return minutes, months
             except Exception:
                 raise ParsingError(('Value should be "minutes, months"'))
-        #Ignore the BOM_UTF8 byte mark if present by advancing
+
+        # Ignore the BOM_UTF8 byte mark if present
         saved_pos = fp.tell()
         if fp.read(len(BOM_UTF8)) != BOM_UTF8:
             fp.seek(saved_pos)
+
         line_number = 1
         try:
-# Changed the behavior when 'version=2' is not present..
-# If version=2 not parsed, then the file is considered as
-# a plain text file with time series data only, withoud
-# head section with meta information. Stefanos, 2011-06-10
+            # Changed the behavior when 'version=2' is not present..
+            # If version=2 not parsed, then the file is considered as
+            # a plain text file with time series data only, withoud
+            # head section with meta information. Stefanos, 2011-06-10
             try:
                 saved_pos = fp.tell()
                 (name, value) = self.__read_meta_line(fp)
@@ -585,7 +593,7 @@ class Timeseries(dict):
                 elif name == 'comment':
                     if self.comment:
                         self.comment += '\n'
-                    self.comment += value.decode('utf-8')
+                    self.comment += value
                 elif name == 'count':
                     pass
                 line_number += 1
@@ -593,7 +601,7 @@ class Timeseries(dict):
                 if not name and not value:
                     return line_number
             return line_number
-        except ParsingError, e:
+        except ParsingError as e:
             e.args = e.args + (line_number,)
             raise
 
@@ -602,37 +610,38 @@ class Timeseries(dict):
         self.read(fp, line_number=line_number)
 
     def write_file(self, fp):
-        fp.write(u"Version=2\r\n")
+        fp.write(u("Version=2\r\n"))
         if self.unit:
-            fp.write(u"Unit=%s\r\n" % (self.unit,))
-        fp.write(u"Count=%d\r\n" % (len(self),))
+            fp.write(u("Unit=%s\r\n") % (self.unit,))
+        fp.write(u("Count=%d\r\n") % (len(self),))
         if self.title:
-            fp.write(u"Title=%s\r\n" % (self.title,))
+            fp.write(u("Title=%s\r\n") % (self.title,))
         for line in self.comment.splitlines():
-            fp.write(u"Comment=%s\r\n" % (line,))
+            fp.write(u("Comment=%s\r\n") % (line,))
         if self.timezone:
-            fp.write(u"Timezone=%s\r\n" % (self.timezone,))
+            fp.write(u("Timezone=%s\r\n") % (self.timezone,))
         if self.time_step.length_minutes or self.time_step.length_months:
-            fp.write(u"Time_step=%d,%d\r\n" % (self.time_step.length_minutes,
-                                               self.time_step.length_months))
+            fp.write(u("Time_step=%d,%d\r\n") % (self.time_step.length_minutes,
+                                                 self.time_step.length_months))
             if self.time_step.nominal_offset:
-                fp.write(u"Nominal_offset=%d,%d\r\n" %
+                fp.write(u("Nominal_offset=%d,%d\r\n") %
                          self.time_step.nominal_offset)
 
-            fp.write(u"Actual_offset=%d,%d\r\n" %
+            fp.write(u("Actual_offset=%d,%d\r\n") %
                      self.time_step.actual_offset)
         if self.time_step.interval_type:
             fp.write(
-                u"Interval_type=%s\r\n" % ({
-                IntervalType.SUM: u"sum", IntervalType.AVERAGE: u"average",
-                IntervalType.MAXIMUM: u"maximum",
-                IntervalType.MINIMUM: u"minimum",
-                IntervalType.VECTOR_AVERAGE: u"vector_average"
-                }[self.time_step.interval_type],))
+                u("Interval_type={}\r\n").format({
+                    IntervalType.SUM: u("sum"),
+                    IntervalType.AVERAGE: u("average"),
+                    IntervalType.MAXIMUM: u("maximum"),
+                    IntervalType.MINIMUM: u("minimum"),
+                    IntervalType.VECTOR_AVERAGE: u("vector_average")
+                }[self.time_step.interval_type]))
         if self.variable:
-            fp.write(u"Variable=%s\r\n" % (self.variable,))
+            fp.write(u("Variable=%s\r\n") % (self.variable,))
         if self.precision is not None:
-            fp.write(u"Precision=%d\r\n" % (self.precision,))
+            fp.write(u("Precision=%d\r\n") % (self.precision,))
 
         fp.write("\r\n")
         self.write(fp)
@@ -683,10 +692,13 @@ class Timeseries(dict):
             self.write(fp, end=dates[Timeseries.ROWS_IN_TOP_BOTTOM - 1])
             top = fp.getvalue()
             fp.truncate(0)
+            fp.seek(0)
             self.write(fp, start=dates[Timeseries.ROWS_IN_TOP_BOTTOM],
                        end=dates[-(Timeseries.ROWS_IN_TOP_BOTTOM + 1)])
-            middle = self.blob_create(zlib.compress(fp.getvalue()))
+            middle = self.blob_create(
+                zlib.compress(fp.getvalue().encode('ascii')))
             fp.truncate(0)
+            fp.seek(0)
             self.write(fp, start=dates[-Timeseries.ROWS_IN_TOP_BOTTOM])
             bottom = fp.getvalue()
         fp.close()
@@ -797,7 +809,7 @@ class Timeseries(dict):
         return (
             _time_t_to_datetime(rec.timestamp),
             _Tsvalue(float('NaN') if rec.null else rec.value,
-                     rec.flags.split()))
+                     rec.flags.decode('ascii').split()))
 
     def _get_bounding_indexes(self, start_date, end_date):
         """Return a tuple, (start_index, end_index).  If arguments are None,
@@ -1017,7 +1029,7 @@ def identify_events(ts_list,
                 c_double(start_threshold), c_double(end_threshold),
                 c_int(ntimeseries_start_threshold),
                 c_int(ntimeseries_end_threshold),
-                c_longlong(time_separator.days * 86400L +
+                c_longlong(time_separator.days * _SECONDS_PER_DAY +
                            time_separator.seconds),
                 a_interval_list, byref(errstr)):
             raise Exception(errstr.value)

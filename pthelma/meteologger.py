@@ -22,15 +22,15 @@ from glob import glob
 import math
 import os
 import struct
-from StringIO import StringIO
+
+from six import StringIO
 
 from pytz import timezone
 import requests
 
-from xreverse import xreverse
-
 from pthelma import enhydris_api
 from pthelma.timeseries import Timeseries, datetime_from_iso, isoformat_nosecs
+from pthelma.xreverse import xreverse
 
 
 class MeteologgerError(Exception):
@@ -138,7 +138,7 @@ class Datafile(object):
         r = requests.get('{}timeseries/d/{}/bottom/'.format(self.base_url,
                                                             self.ts),
                          cookies=self.cookies)
-        t.read(StringIO(r.content))
+        t.read(StringIO(r.text))
         bounding_dates = t.bounding_dates()
         end_date = bounding_dates[1] if bounding_dates else None
         self.logger.info('Last date in database: %s' % (str(end_date)))
@@ -192,7 +192,7 @@ class Datafile(object):
         prev_date = ''
         while True:
             try:
-                line = xr.next()
+                line = xr.next().decode('ascii')
             except StopIteration:
                 break
             self.logger.debug(line)
@@ -497,7 +497,7 @@ class Datafile_wdat5(Datafile):
         result = []
         with open(filename, 'rb') as f:
             header = f.read(212)
-            if header[:6] != 'WDAT5.':
+            if header[:6] != b'WDAT5.':
                 raise MeteologgerReadError('File {0} does not appear to be '
                                            'a WDAT 5.x file'.format(filename))
             for day in range(1, 32):
@@ -507,7 +507,7 @@ class Datafile_wdat5(Datafile):
                 for r in range(records_in_day):
                     f.seek(212 + ((start_pos + r) * 88))
                     record = f.read(88)
-                    if ord(record[0]) != 1:
+                    if record[0] != b'\x01'[0]:
                         continue
                     decoded_record = self._decode_wdat_record(record)
                     date = datetime(year=year, month=month, day=day) + \

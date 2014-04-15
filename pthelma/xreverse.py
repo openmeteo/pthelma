@@ -6,7 +6,7 @@ class xreverse:
         self.fo = fo = file_object
         fo.seek(0, 2)        # go to the end of the file
         self.pos = fo.tell() # where we are 
-        self.buffer = ''     # data buffer
+        self.buffer = b''    # data buffer
         self.lbuf = []       # buffer for parsed lines
         self.done = 0        # we've read the last line
         self.jump = -1 * buf_size
@@ -20,12 +20,12 @@ class xreverse:
             self.pos = new_position
 
             self.buffer = new + self.buffer
-            if '\n' in new: break
+            if b'\n' in new: break
             if self.pos == 0: return self.buffer
 
-        nl = self.buffer.split('\n')
-        nlb = [ i + '\n' for i in nl[1:-1] ]
-        if not self.buffer[-1] == '\n': nlb.append(nl[-1])
+        nl = self.buffer.split(b'\n')
+        nlb = [ i + b'\n' for i in nl[1:-1] ]
+        if not self.buffer[-1] == b'\n': nlb.append(nl[-1])
         self.buffer = nl[0]
         self.lbuf = nlb
 
@@ -45,9 +45,9 @@ class xreverse:
                 fo.seek(new_position)
                 self.pos = new_position
 
-                nl = (new + self.buffer).split('\n')
+                nl = (new + self.buffer).split(b'\n')
                 self.buffer = nl.pop(0)
-                self.lbuf = [ i + '\n' for i in nl ]
+                self.lbuf = [ i + b'\n' for i in nl ]
 
                 if self.lbuf: return self.lbuf.pop()
                 elif self.pos == 0:
@@ -55,7 +55,7 @@ class xreverse:
                         raise StopIteration
                     else:
                         self.done = 1
-                        return self.buffer + '\n'
+                        return self.buffer + b'\n'
 
 def dump(rtype, fn):
     import sys
@@ -91,7 +91,7 @@ def test_compare(rtype, fn):
     t3 = os.times()
 
     for i in range(5):
-        print t2[i] - t1[i], t3[i] - t2[i]
+        print(t2[i] - t1[i], t3[i] - t2[i])
     
 
 

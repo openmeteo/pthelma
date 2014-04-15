@@ -26,11 +26,11 @@ import math
 import os
 if os.getenv('PSYCOPG_CONNECTION'):
     import psycopg2
-from StringIO import StringIO
-import sys
 import textwrap
 from unittest import TestCase, skipUnless
 import zlib
+
+from six import u, StringIO
 
 from pthelma.timeseries import TimeStep, strip_trailing_zeros, \
     datetime_from_iso, isoformat_nosecs, Timeseries, IntervalType, \
@@ -159,7 +159,7 @@ tenmin_vector_test_timeseries = textwrap.dedent("""\
             """)
 
 
-tenmin_test_timeseries_file = textwrap.dedent(u"""\
+tenmin_test_timeseries_file = textwrap.dedent(u("""\
             Version=2\r
             Unit=°C\r
             Count=22\r
@@ -198,7 +198,7 @@ tenmin_test_timeseries_file = textwrap.dedent(u"""\
             2008-02-07 12:50,12.1,\r
             2008-02-07 13:00,12.2,\r
             2008-02-07 13:10,12.3,\r
-            """)
+            """))
 
 
 aggregated_hourly_sum = textwrap.dedent("""\
@@ -449,7 +449,7 @@ class _Test_Timeseries_setitem(TestCase):
 
     def test3(self):
         self.ts[self.date] = float('NaN')
-        self.assert_(math.isnan(self.ts[self.date]))
+        self.assertTrue(math.isnan(self.ts[self.date]))
 
 
 class _Test_Timeseries_write_empty(TestCase):
@@ -562,8 +562,8 @@ class _Test_Timeseries_file(TestCase):
         self.reference_ts = Timeseries(
             time_step=TimeStep(length_minutes=10, length_months=0,
                                nominal_offset=(0, 0)),
-            unit=u'°C', title=u"A test 10-min time series", precision=1,
-            timezone=u"EET (UTC+0200)", variable=u"temperature",
+            unit=u('°C'), title=u("A test 10-min time series"), precision=1,
+            timezone=u("EET (UTC+0200)"), variable=u("temperature"),
             comment="This timeseries is extremely important\n"
                     "because the comment that describes it\n"
                     "spans five lines.\n\n"
@@ -691,10 +691,8 @@ class _Test_Timeseries_write_to_db(TestCase):
                      WHERE id=%d""" % (ts.id))
         (top, middle, bottom) = c.fetchone()
         c.close()
-        sys.stderr.write('------------------\n' + top
-                         + '--------------------\n')
         self.assertFalse(top)
-        self.assert_(middle is None)
+        self.assertTrue(middle is None)
         self.assertEqual(bottom, textwrap.dedent("""\
             2005-08-23 18:53,93,\r
             2005-08-24 19:52,108.7,\r
@@ -723,7 +721,8 @@ class _Test_Timeseries_write_to_db(TestCase):
                                           Timeseries.ROWS_IN_TOP_BOTTOM,
                                           -Timeseries.ROWS_IN_TOP_BOTTOM)
             self.assertEqual(db_top, actual_top)
-            self.assertEqual(zlib.decompress(str(db_middle)), actual_middle)
+            self.assertEqual(zlib.decompress(db_middle).decode('ascii'),
+                             actual_middle)
             self.assertEqual(db_bottom, actual_bottom)
         finally:
             Timeseries.MAX_ALL_BOTTOM = saved_max_all_bottom
@@ -822,6 +821,7 @@ class _Test_Timeseries_append_to_db(TestCase):
         ts1.clear()
         ts1.read_from_db(self.db)
         out.truncate(0)
+        out.seek(0)
         ts1.write(out)
         self.assertEqual(out.getvalue(), big_test_timeseries)
         ts1.clear()
@@ -858,7 +858,7 @@ class _Test_Timeseries_item(TestCase):
 
     def test_matches_last(self):
         item = self.ts.item('2009-02-28 17:03', downwards=True)
-        self.assert_(math.isnan(item[1]))
+        self.assertTrue(math.isnan(item[1]))
         self.assertEqual(isoformat_nosecs(item[0]), '2005-08-27T00:02')
         self.assertEqual(item[1].flags, set(['DIAMONDS']))
 
@@ -892,19 +892,19 @@ class _Test_Timeseries_min_max_avg_sum(TestCase):
 
     def test_min_nan(self):
         value = self.ts.min('2004-08-21 00:00', '2004-08-22 12:00')
-        self.assert_(math.isnan(value))
+        self.assertTrue(math.isnan(value))
 
     def test_max_nan(self):
         value = self.ts.max('2004-08-21 00:00', '2004-08-22 12:00')
-        self.assert_(math.isnan(value))
+        self.assertTrue(math.isnan(value))
 
     def test_average_nan(self):
         value = self.ts.average('2004-08-21 00:00', '2004-08-22 12:00')
-        self.assert_(math.isnan(value))
+        self.assertTrue(math.isnan(value))
 
     def test_sum_nan(self):
         value = self.ts.sum('2004-08-21 00:00', '2004-08-22 12:00')
-        self.assert_(math.isnan(value))
+        self.assertTrue(math.isnan(value))
 
 
 class _Test_Timeseries_aggregate(TestCase):
@@ -923,6 +923,7 @@ class _Test_Timeseries_aggregate(TestCase):
         result.write(out)
         self.assertEqual(out.getvalue(), aggregated_hourly_sum)
         out.truncate(0)
+        out.seek(0)
         missing.write(out)
         self.assertEqual(out.getvalue(), aggregated_hourly_missing)
 
@@ -949,6 +950,7 @@ class _Test_Timeseries_aggregate(TestCase):
         result.write(out)
         self.assertEqual(out.getvalue(), aggregated_hourly_max)
         out.truncate(0)
+        out.seek(0)
         missing.write(out)
         self.assertEqual(out.getvalue(), aggregated_hourly_missing)
 
@@ -961,6 +963,7 @@ class _Test_Timeseries_aggregate(TestCase):
         result.write(out)
         self.assertEqual(out.getvalue(), aggregated_hourly_min)
         out.truncate(0)
+        out.seek(0)
         missing.write(out)
         self.assertEqual(out.getvalue(), aggregated_hourly_missing)
 

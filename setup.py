@@ -9,7 +9,12 @@ import shutil
 import sys
 import tempfile
 import textwrap
-import urllib2
+try:
+    # Python 3
+    from urllib.request import urlopen
+except ImportError:
+    # Python 2
+    from urllib2 import urlopen
 from zipfile import ZipFile
 
 from setuptools import setup, find_packages
@@ -79,7 +84,8 @@ kwargs = {
     'test_suite': "tests",
     'install_requires': [
         "pytz",
-        "requests>=0.12.1,<3",
+        "requests>=1,<3",
+        "six>=1.6,<2"
     ],
 }
 
@@ -91,9 +97,9 @@ try:
 
     # Download and save MSVC++ 2008 redistributable in a temporary directory
     # that will be removed when the program exits
-    response = urllib2.urlopen('http://download.microsoft.com/download/'
-                               '1/1/1/1116b75a-9ec3-481a-a3c8-1777b5381140/'
-                               'vcredist_x86.exe')
+    response = urlopen('http://download.microsoft.com/download/'
+                       '1/1/1/1116b75a-9ec3-481a-a3c8-1777b5381140/'
+                       'vcredist_x86.exe')
     tmpdir = tempfile.mkdtemp()
     atexit.register(lambda: shutil.rmtree(tmpdir, ignore_errors=True))
     vcredist_filename = os.path.join(tmpdir, 'vcredist_x86.exe')

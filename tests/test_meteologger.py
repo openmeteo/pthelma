@@ -63,13 +63,14 @@ class _Test_logger(TestCase):
         (fd, self.file1) = tempfile.mkstemp(text=True)
         fp = os.fdopen(fd, 'w')
         i = 0
-        for line in open(full_testdata_filename(self.datafilename)):
-            if i >= 60:
-                break
-            if not line.strip():
-                continue
-            i += 1
-            fp.write(line)
+        with open(full_testdata_filename(self.datafilename)) as f:
+            for line in f:
+                if i >= 60:
+                    break
+                if not line.strip():
+                    continue
+                i += 1
+                fp.write(line)
         fp.close()
 
         # Login
@@ -219,15 +220,17 @@ class TestDst(TestCase):
     @skipUnless(os.getenv('PTHELMA_TEST_ENHYDRIS_API'), "see above")
     def test_to_dst(self):
         self.filename = 'data_at_change_to_dst.txt'
-        self.ref_ts.read(open(full_testdata_filename(
-            'timeseries_at_change_to_dst.txt')))
+        with open(full_testdata_filename('timeseries_at_change_to_dst.txt')
+                  ) as f:
+            self.ref_ts.read(f)
         self.run_test()
 
     @skipUnless(os.getenv('PTHELMA_TEST_ENHYDRIS_API'), "see above")
     def test_from_dst(self):
         self.filename = 'data_at_change_from_dst.txt'
-        self.ref_ts.read(open(full_testdata_filename(
-            'timeseries_at_change_from_dst.txt')))
+        with open(full_testdata_filename('timeseries_at_change_from_dst.txt')
+                  ) as f:
+            self.ref_ts.read(f)
         self.run_test()
 
     def test_fix_dst(self):
@@ -236,35 +239,35 @@ class TestDst(TestCase):
              'datafile_format': 'irrelevant'}
         d.update(self.datafiledict)
         df = Datafile_simple('http://irrelevant/', {}, d)
-        self.assertEquals(df._fix_dst(datetime(2012, 10, 28, 02, 59)),
-                          datetime(2012, 10, 28, 01, 59))
-        self.assertEquals(df._fix_dst(datetime(2012, 10, 28, 03, 00)),
-                          datetime(2012, 10, 28, 03, 00))
-        self.assertEquals(df._fix_dst(datetime(2012, 10, 28, 04, 00)),
-                          datetime(2012, 10, 28, 04, 00))
+        self.assertEqual(df._fix_dst(datetime(2012, 10, 28, 2, 59)),
+                         datetime(2012, 10, 28, 1, 59))
+        self.assertEqual(df._fix_dst(datetime(2012, 10, 28, 3, 00)),
+                         datetime(2012, 10, 28, 3, 00))
+        self.assertEqual(df._fix_dst(datetime(2012, 10, 28, 4, 00)),
+                         datetime(2012, 10, 28, 4, 00))
 
         # Now we pretend that the switch from dst hasn't occurred yet.
         # This is the only case when loggertodb should assume that
         # ambiguous times refer to before the switch.
         athens = pytz.timezone('Europe/Athens')
         now = athens.localize(datetime(2012, 10, 28, 3, 59), is_dst=True)
-        self.assertEquals(df._fix_dst(datetime(2012, 10, 28, 02, 59), now=now),
-                          datetime(2012, 10, 28, 01, 59))
-        self.assertEquals(df._fix_dst(datetime(2012, 10, 28, 03, 00), now=now),
-                          datetime(2012, 10, 28, 02, 00))
-        self.assertEquals(df._fix_dst(datetime(2012, 10, 28, 04, 00), now=now),
-                          datetime(2012, 10, 28, 04, 00))
+        self.assertEqual(df._fix_dst(datetime(2012, 10, 28, 2, 59), now=now),
+                         datetime(2012, 10, 28, 1, 59))
+        self.assertEqual(df._fix_dst(datetime(2012, 10, 28, 3, 00), now=now),
+                         datetime(2012, 10, 28, 2, 00))
+        self.assertEqual(df._fix_dst(datetime(2012, 10, 28, 4, 00), now=now),
+                         datetime(2012, 10, 28, 4, 00))
 
         # Once more; the switch from DST has just occurred; now it
         # should be assumed that ambiguous times refer to after the
         # switch.
         now = athens.localize(datetime(2012, 10, 28, 3, 0), is_dst=False)
-        self.assertEquals(df._fix_dst(datetime(2012, 10, 28, 02, 59), now=now),
-                          datetime(2012, 10, 28, 01, 59))
-        self.assertEquals(df._fix_dst(datetime(2012, 10, 28, 03, 00), now=now),
-                          datetime(2012, 10, 28, 03, 00))
-        self.assertEquals(df._fix_dst(datetime(2012, 10, 28, 04, 00), now=now),
-                          datetime(2012, 10, 28, 04, 00))
+        self.assertEqual(df._fix_dst(datetime(2012, 10, 28, 2, 59), now=now),
+                         datetime(2012, 10, 28, 1, 59))
+        self.assertEqual(df._fix_dst(datetime(2012, 10, 28, 3, 00), now=now),
+                         datetime(2012, 10, 28, 3, 00))
+        self.assertEqual(df._fix_dst(datetime(2012, 10, 28, 4, 00), now=now),
+                         datetime(2012, 10, 28, 4, 00))
 
 
 @skipUnless(os.getenv('PTHELMA_TEST_ENHYDRIS_API'),
