@@ -6,6 +6,7 @@ Copyright and credits
 Pthelma is
 
 | Copyright (C) 2005-2011 National Technical University of Athens
+| Copyright (C) 2013-2014 TEI of Epirus
 
 Pthelma is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License, as published by the

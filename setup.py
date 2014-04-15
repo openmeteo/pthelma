@@ -85,7 +85,9 @@ kwargs = {
     'install_requires': [
         "pytz",
         "requests>=1,<3",
-        "six>=1.6,<2"
+        "six>=1.6,<2",
+        "numpy>=1.6,<2",
+        "gdal>=1.9,<2",
     ],
 }
 

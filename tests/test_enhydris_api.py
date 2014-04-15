@@ -9,11 +9,13 @@ of parameters, like this:
       "station_id": 1334,
       "variable_id": 1,
       "unit_of_measurement_id": 1,
-      "time_zone_id": 1
+      "time_zone_id": 1,
+      "owner_id": 5
     }
 
-The parameters station_id, variable_id, unit_of_measurement_id and
-time_zone_id are used when test timeseries are created.
+The parameters station_id, variable_id, unit_of_measurement_id,
+time_zone_id and owner_id are used when test timeseries or stations are
+created.
 
 Note that some other testing modules may also use
 PTHELMA_TEST_ENHYDRIS_API, but might require additional parameters.
