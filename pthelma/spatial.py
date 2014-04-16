@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 import os
 
 from six import StringIO
+from six.moves.urllib.parse import quote_plus
 
 import numpy as np
 from osgeo import ogr, gdal
@@ -99,7 +100,9 @@ def create_ogr_layer_from_stations(group, data_source, cache_dir):
     for item in group:
         # Get the point from the cache, or fetch it anew on cache miss
         cache_filename = os.path.join(
-            cache_dir, 'timeseries_{}_point'.format(item['id']))
+            cache_dir,
+            'timeseries_{}_{}_point'.format(quote_plus(item['base_url']),
+                                            item['id']))
         try:
             with open(cache_filename) as f:
                 pointwkt = f.read()
