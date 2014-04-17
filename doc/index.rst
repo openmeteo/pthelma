@@ -18,6 +18,7 @@ Developer documentation:
    tsprocess
    meteologger
    enhydris_api
+   spatial
    meteocalcs
    cplot
    curves
