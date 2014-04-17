@@ -37,7 +37,7 @@ def idw(point, data_layer, alpha=1):
     return (weights * values).sum()
 
 
-def interpolate_spatially(dataset, data_layer, funct, kwargs={}):
+def interpolate_spatially(dataset, data_layer, target_band, funct, kwargs={}):
     """
     Perform interpolation on an entire surface.
 
@@ -45,21 +45,19 @@ def interpolate_spatially(dataset, data_layer, funct, kwargs={}):
     gridpoints of the mask have value zero or non-zero. data_layer is
     an ogr.Layer object containing one or more points with values (all
     data_layer features must be points and must also have a value
-    attribute). funct is a python function whose first two arguments
-    are an ogr.Point and data_layer, and kwargs is a dictionary with
-    keyword arguments to be given to funct.
+    attribute). target_band is a band on which the result will be
+    written; it must have the same GeoTransform as dataset.  funct is
+    a python function whose first two arguments are an ogr.Point and
+    data_layer, and kwargs is a dictionary with keyword arguments to
+    be given to funct.
 
     This function calls funct for each non-zero gridpoint of the mask.
-    The result is added as a new band to dataset.
 
     NOTE: It is assumed that there is no x_rotation and y_rotation
     (i.e. that dataset.GetGeoTransform()[3] and [4] are zero).
     """
 
-    # Get the mask and prepare the result band
     mask = dataset.GetRasterBand(1).ReadAsArray()
-    dataset.AddBand(gdal.GDT_Float64)
-    new_band = dataset.GetRasterBand(dataset.RasterCount)
 
     # Create an array with the x co-ordinate of each grid point, and
     # one with the y co-ordinate of each grid point
@@ -80,7 +78,7 @@ def interpolate_spatially(dataset, data_layer, funct, kwargs={}):
                                otypes=[np.float64, np.float64, np.bool])
 
     # Make the calculation
-    new_band.WriteArray(interpolate(xarray, yarray, mask))
+    target_band.WriteArray(interpolate(xarray, yarray, mask))
 
 
 def create_ogr_layer_from_stations(group, data_source, cache_dir):

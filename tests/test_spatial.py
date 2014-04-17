@@ -68,6 +68,10 @@ class InterpolateSpatiallyTestCase(TestCase):
                                                           gdal.GDT_Byte)
         self.dataset.GetRasterBand(1).WriteArray(self.mask)
 
+        # Prepare the result band
+        self.dataset.AddBand(gdal.GDT_Float64)
+        self.target_band = self.dataset.GetRasterBand(self.dataset.RasterCount)
+
         # Our grid represents a 70x150m area, lower-left co-ordinates (0, 0).
         self.dataset.SetGeoTransform((0, 10, 0, 70, 0, -10))
 
@@ -85,8 +89,9 @@ class InterpolateSpatiallyTestCase(TestCase):
         self.raster = None
 
     def test_interpolate_idw(self):
-        interpolate_spatially(self.dataset, self.data_layer, idw)
-        result = self.dataset.GetRasterBand(2).ReadAsArray()
+        interpolate_spatially(self.dataset, self.data_layer, self.target_band,
+                              idw)
+        result = self.target_band.ReadAsArray()
 
         # All masked points and only those must be NaN
         # (^ is bitwise xor in Python)
