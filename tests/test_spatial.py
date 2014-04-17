@@ -10,8 +10,8 @@ import numpy as np
 from osgeo import ogr, gdal
 
 from pthelma import enhydris_api
-from pthelma.spatial import idw, interpolate_spatially, \
-    update_timeseries_cache, create_ogr_layer_from_stations
+from pthelma.spatial import idw, integrate, update_timeseries_cache, \
+    create_ogr_layer_from_stations, _ts_cache_filename
 from pthelma.timeseries import Timeseries
 
 
@@ -56,7 +56,7 @@ class IdwTestCase(TestCase):
                                places=4)
 
 
-class InterpolateSpatiallyTestCase(TestCase):
+class IntegrateTestCase(TestCase):
 
     def setUp(self):
         # We will test on a 7x15 grid
@@ -88,9 +88,8 @@ class InterpolateSpatiallyTestCase(TestCase):
         self.data_source = None
         self.raster = None
 
-    def test_interpolate_idw(self):
-        interpolate_spatially(self.dataset, self.data_layer, self.target_band,
-                              idw)
+    def test_integrate_idw(self):
+        integrate(self.dataset, self.data_layer, self.target_band, idw)
         result = self.target_band.ReadAsArray()
 
         # All masked points and only those must be NaN
@@ -252,7 +251,8 @@ class UpdateTimeseriesTestCase(TestCase):
         update_timeseries_cache(self.tempdir, timeseries_groups)
 
         # Check that the cached stuff is what it should be
-        file1, file2 = [os.path.join(self.tempdir, '{}.hts'.format(x))
+        file1, file2 = [_ts_cache_filename(self.tempdir,
+                                           self.parms['base_url'], x)
                         for x in (self.ts1_id, self.ts2_id)]
         with open(file1) as f:
             self.assertEqual(f.read().replace('\r', ''), self.timeseries1_top)
@@ -271,7 +271,8 @@ class UpdateTimeseriesTestCase(TestCase):
         update_timeseries_cache(self.tempdir, timeseries_groups)
 
         # Check that the cached stuff is what it should be
-        file1, file2 = [os.path.join(self.tempdir, '{}.hts'.format(x))
+        file1, file2 = [_ts_cache_filename(self.tempdir,
+                                           self.parms['base_url'], x)
                         for x in (self.ts1_id, self.ts2_id)]
         with open(file1) as f:
             self.assertEqual(f.read().replace('\r', ''), self.test_timeseries1)

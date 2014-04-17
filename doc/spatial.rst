@@ -1,10 +1,10 @@
 .. _spatial:
 
-:mod:`spatial` --- Utilities for spatial interpolation
-======================================================
+:mod:`spatial` --- Utilities for spatial integration
+====================================================
 
 .. module:: spatial
-   :synopsis: Utilities for spatial interpolation.
+   :synopsis: Utilities for spatial integration.
 .. moduleauthor:: Antonis Christofides <anthony@itia.ntua.gr>
 .. sectionauthor:: Antonis Christofides <anthony@itia.ntua.gr>
 
@@ -23,16 +23,16 @@
    > 1, the so-called distance-decay effect will be more than
    proportional to an increase in distance, and vice-versa.
 
-.. function:: interpolate_spatially(dataset, data_layer, target_band, funct, kwargs={})
+.. function:: integrate(mask, data_layer, target_band, funct, kwargs={})
 
-   Performs interpolation on an entire surface.
+   Performs integration on an entire surface.
 
-   *dataset* is a gdal dataset whose first band is the mask; the
+   *mask* is a gdal dataset whose first band is the mask; the
    gridpoints of the mask have value zero or non-zero. *data_layer* is
    an :class:`ogr.Layer` object containing one or more points with
    values (all *data_layer* features must be points and must also have
    a *value* attribute). *target_band* is a band on which the result
-   will be written; it must have the same GeoTransform as *dataset*.
+   will be written; it must have the same GeoTransform as *mask*.
    *funct* is a python function whose first two arguments are an
    :class:`ogr.Point` and *data_layer*, and *kwargs* is a dictionary
    with keyword arguments to be given to *funct*.
@@ -41,7 +41,7 @@
    mask.
 
    NOTE: It is assumed that there is no x_rotation and y_rotation
-   (i.e. that :samp:`dataset.GetGeoTransform()[3]` and :samp:`[4]` are
+   (i.e. that :samp:`mask.GetGeoTransform()[3]` and :samp:`[4]` are
    zero).
 
 .. function:: create_ogr_layer_from_stations(group, data_source, cache_dir)
@@ -69,3 +69,28 @@
    each item is a list of dictionaries, each one representing an
    Enhydris time series; its keys are *base_url*, *user*, *password*,
    *id*.
+
+.. function:: h_integrate(group, mask, stations, cache_dir, date, output_dir, filename_prefix, date_fmt, funct, kwargs)
+
+   Given an area mask, a list of cached time series, and a layer with
+   stations, performs spatial integration and writes the result to a
+   tif file. The *h* in the name signifies that this is a high level
+   function, in contrast to :func:`integrate()`, which does the actual
+   job.
+
+   *group* is a list of time series, in the form accepted by
+   :func:`update_timeseries_cache()`. *mask* is a raster with the area
+   of study, in the form accepted by :func:`integrate()`.  *stations*
+   is an :class:`ogr.Layer` object like the one returned by
+   :func:`create_ogr_layer_from_stations()`. *cache_dir* is the
+   directory where the cached time series are stored by
+   :func:`update_timeseries_cache()`. *date* is a
+   :class:`~datetime.datetime` object specifying the date and time for
+   which we are to perform integration. *output_dir* is the directory
+   to which the resulting GeoTiff file will be written.  The filename
+   has the form :samp:`{filename_prefix}-{d}.tif`, where *d* is the
+   *date* formatted by :func:`datetime.strftime()` with the format
+   *date_fmt*. *funct* and *kwargs* are passed to :func:`integrate()`.
+
+   All time series in *group* must have *date* in the cache. If not,
+   the function raises :exc:`IntegrationDateMissingError`.

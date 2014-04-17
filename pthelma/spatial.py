@@ -1,11 +1,16 @@
+from argparse import ArgumentParser
 from datetime import datetime, timedelta
+import logging
 import os
+import sys
 
 from six import StringIO
+from six.moves import configparser
+from six.moves.configparser import RawConfigParser, NoOptionError
 from six.moves.urllib.parse import quote_plus
 
 import numpy as np
-from osgeo import ogr
+from osgeo import ogr, gdal
 import requests
 
 from pthelma import enhydris_api
@@ -23,7 +28,7 @@ def idw(point, data_layer, alpha=1):
     return (weights * values).sum()
 
 
-def interpolate_spatially(dataset, data_layer, target_band, funct, kwargs={}):
+def integrate(dataset, data_layer, target_band, funct, kwargs={}):
     mask = dataset.GetRasterBand(1).ReadAsArray()
 
     # Create an array with the x co-ordinate of each grid point, and
@@ -81,6 +86,11 @@ def create_ogr_layer_from_stations(group, data_source, cache_dir):
     return layer
 
 
+def _ts_cache_filename(cache_dir, base_url, id):
+    return os.path.join(cache_dir,
+                        '{}_{}.hts'.format(quote_plus(base_url), id))
+
+
 def update_timeseries_cache(cache_dir, groups):
 
     def update_one_timeseries(base_url, id, user=None, password=None):
@@ -88,7 +98,7 @@ def update_timeseries_cache(cache_dir, groups):
             base_url += '/'
 
         # Read timeseries from cache file
-        cache_filename = os.path.join(cache_dir, '{}.hts'.format(id))
+        cache_filename = _ts_cache_filename(cache_dir, base_url, id)
         ts1 = Timeseries()
         if os.path.exists(cache_filename):
             with open(cache_filename) as f:
@@ -123,3 +133,47 @@ def update_timeseries_cache(cache_dir, groups):
     for group in groups:
         for item in groups[group]:
             update_one_timeseries(**item)
+
+
+class IntegrationDateMissingError(Exception):
+    pass
+
+
+def h_integrate(group, mask, stations_layer, cache_dir, date, output_dir,
+                filename_prefix, date_fmt, funct, kwargs):
+
+    # Read the time series values and add the 'value' attribute to
+    # stations_layer
+    stations_layer.CreateField(ogr.FieldDefn('value', ogr.OFTReal))
+    for station in stations_layer:
+        ts_id = station.GetField('timeseries_id')
+        base_url = [t['base_url'] for t in group if t['id'] == ts_id][0]
+        cache_filename = _ts_cache_filename(cache_dir, base_url, ts_id)
+        t = Timeseries()
+        with open(cache_filename) as f:
+            t.read(f)
+        try:
+            station.SetField('value', t[date])
+        except KeyError:
+            raise IntegrationDateMissingError(
+                'Timeseries from {} with id={} does not have date {}'
+                .format(base_url, ts_id, date))
+
+    # Create destination data source
+    output_filename = os.path.join(
+        output_dir, '{}-{}.tif'.format(filename_prefix,
+                                       date.strftime(date_fmt)))
+    output = gdal.GetDriverByName('GTiff').Create(
+        output_filename, mask.GetRasterXSize(), mask.GetRasterYSize(), 1,
+        gdal.GDT_Real)
+
+    try:
+        # Set geotransform and projection in the output data source
+        output.SetGeoTransform(mask.GetGeoTransform())
+        output.SetProjection(mask.GetSpatialRef().ExportToWkt())
+
+        # Do the integration
+        integrate(mask, stations_layer, output.GetRasterBand(1), funct, kwargs)
+    finally:
+        # Close the dataset
+        output = None
