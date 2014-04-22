@@ -23,7 +23,11 @@ def idw(point, data_layer, alpha=1):
     distances = np.array([point.Distance(f.GetGeometryRef())
                           for f in features])
     values = np.array([f.GetField('value') for f in features])
-    invdistances = distances ** (-alpha)
+    matches_station_exactly = abs(distances) < 1e-3
+    if matches_station_exactly.any():
+        invdistances = np.where(matches_station_exactly, 1, 0)
+    else:
+        invdistances = distances ** (-alpha)
     weights = invdistances / invdistances.sum()
     return (weights * values).sum()
 
@@ -154,6 +158,7 @@ def h_integrate(group, mask, stations_layer, cache_dir, date, output_dir,
             t.read(f)
         try:
             station.SetField('value', t[date])
+            stations_layer.SetFeature(station)
         except KeyError:
             raise IntegrationDateMissingError(
                 'Timeseries from {} with id={} does not have date {}'
@@ -164,13 +169,13 @@ def h_integrate(group, mask, stations_layer, cache_dir, date, output_dir,
         output_dir, '{}-{}.tif'.format(filename_prefix,
                                        date.strftime(date_fmt)))
     output = gdal.GetDriverByName('GTiff').Create(
-        output_filename, mask.GetRasterXSize(), mask.GetRasterYSize(), 1,
-        gdal.GDT_Real)
+        output_filename, mask.RasterXSize, mask.RasterYSize, 1,
+        gdal.GDT_Float64)
 
     try:
         # Set geotransform and projection in the output data source
         output.SetGeoTransform(mask.GetGeoTransform())
-        output.SetProjection(mask.GetSpatialRef().ExportToWkt())
+        output.SetProjection(mask.GetProjection())
 
         # Do the integration
         integrate(mask, stations_layer, output.GetRasterBand(1), funct, kwargs)

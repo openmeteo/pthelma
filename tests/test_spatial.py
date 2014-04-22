@@ -1,7 +1,9 @@
+from datetime import datetime
 import json
 import os
 import shutil
 from six import StringIO
+from six.moves.urllib.parse import quote_plus
 import tempfile
 import textwrap
 from unittest import TestCase, skipUnless
@@ -11,7 +13,7 @@ from osgeo import ogr, gdal
 
 from pthelma import enhydris_api
 from pthelma.spatial import idw, integrate, update_timeseries_cache, \
-    create_ogr_layer_from_stations, _ts_cache_filename
+    create_ogr_layer_from_stations, _ts_cache_filename, h_integrate
 from pthelma.timeseries import Timeseries
 
 
@@ -278,3 +280,98 @@ class UpdateTimeseriesTestCase(TestCase):
             self.assertEqual(f.read().replace('\r', ''), self.test_timeseries1)
         with open(file2) as f:
             self.assertEqual(f.read().replace('\r', ''), self.test_timeseries2)
+
+
+class HIntegrateTestCase(TestCase):
+    """
+    We will test on a 4x3 raster:
+
+                        ABCD
+                       1
+                       2
+                       3
+
+    There will be three stations: two will be exactly at the center of
+    gridpoints A3 and B3, and one will be slightly outside the grid (somewhere
+    in E2). We assume the bottom left corner of A3 to have co-ordinates (0, 0)
+    and the gridpoint to be 10 km across. We also consider C1 to be masked out.
+    """
+    data = [{'base_url': 'http://irrelevant.gr/',
+             'id': 1234,
+             'user': '',
+             'password': '',
+             'data': textwrap.dedent("""\
+                                     2014-04-22 12:50,5.03,
+                                     2014-04-22 13:00,0.54,
+                                     2014-04-22 13:10,6.93,
+                                     """),
+             'point': 'POINT (5000.00 5000.00)',
+             },
+            {'base_url': 'http://irrelevant.gr/',
+             'id': 1235,
+             'user': '',
+             'password': '',
+             'data': textwrap.dedent("""\
+                                     2014-04-22 12:50,2.90,
+                                     2014-04-22 13:00,2.40,
+                                     2014-04-22 13:10,9.16,
+                                     """),
+             'point': 'POINT (15000.00 5000.00)',
+             },
+            {'base_url': 'http://irrelevant.gr/',
+             'id': 1236,
+             'user': '',
+             'password': '',
+             'data': textwrap.dedent("""\
+                                     2014-04-22 12:50,9.70,
+                                     2014-04-22 13:00,1.84,
+                                     2014-04-22 13:10,7.63,
+                                     """),
+             'point': 'POINT (42000.00 14000.00)',
+             },
+            ]
+
+    def write_data_to_cache(self):
+        for item in self.data:
+            point_filename = 'timeseries_{}_{}_point'.format(
+                quote_plus(item['base_url']), item['id'])
+            with open(os.path.join(self.tempdir, point_filename), 'w') as f:
+                f.write(item['point'])
+            ts_cache_filename = _ts_cache_filename(
+                self.tempdir, item['base_url'], item['id'])
+            with open(os.path.join(self.tempdir, ts_cache_filename), 'w') as f:
+                f.write(item['data'])
+
+    def create_mask(self):
+        mask_array = np.ones((3, 4), np.int8)
+        mask_array[0, 2] = 0
+        self.mask = gdal.GetDriverByName('mem').Create('mask', 4, 3, 1,
+                                                       gdal.GDT_Byte)
+        self.mask.SetGeoTransform((0, 10000, 0, 30000, 0, -10000))
+        self.mask.GetRasterBand(1).WriteArray(mask_array)
+
+    def setUp(self):
+        # Temporary directory for cache files
+        self.tempdir = tempfile.mkdtemp()
+
+        self.write_data_to_cache()
+        self.create_mask()
+        self.stations = ogr.GetDriverByName('memory').CreateDataSource('tmp')
+        self.stations_layer = create_ogr_layer_from_stations(
+            self.data, self.stations, self.tempdir)
+
+    def tearDown(self):
+        shutil.rmtree(self.tempdir)
+
+    def test_h_integrate(self):
+        h_integrate(group=self.data, mask=self.mask,
+                    stations_layer=self.stations_layer, cache_dir=self.tempdir,
+                    date=datetime(2014, 4, 22, 13, 0), output_dir=self.tempdir,
+                    filename_prefix='test', date_fmt='%Y-%m-%d-%H-%M',
+                    funct=idw, kwargs={})
+        f = gdal.Open(os.path.join(self.tempdir, 'test-2014-04-22-13-00.tif'))
+        result = f.GetRasterBand(1).ReadAsArray()
+        expected_result = np.array([[1.5088, 1.6064, np.nan, 1.7237],
+                                    [1.3828, 1.6671, 1.7336, 1.7662],
+                                    [0.5400, 2.4000, 1.7954, 1.7504]])
+        np.testing.assert_almost_equal(result, expected_result, decimal=4)

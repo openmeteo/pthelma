@@ -70,7 +70,7 @@
    Enhydris time series; its keys are *base_url*, *user*, *password*,
    *id*.
 
-.. function:: h_integrate(group, mask, stations, cache_dir, date, output_dir, filename_prefix, date_fmt, funct, kwargs)
+.. function:: h_integrate(group, mask, stations_layer, cache_dir, date, output_dir, filename_prefix, date_fmt, funct, kwargs)
 
    Given an area mask, a list of cached time series, and a layer with
    stations, performs spatial integration and writes the result to a
@@ -80,10 +80,10 @@
 
    *group* is a list of time series, in the form accepted by
    :func:`update_timeseries_cache()`. *mask* is a raster with the area
-   of study, in the form accepted by :func:`integrate()`.  *stations*
-   is an :class:`ogr.Layer` object like the one returned by
-   :func:`create_ogr_layer_from_stations()`. *cache_dir* is the
-   directory where the cached time series are stored by
+   of study, in the form accepted by :func:`integrate()`.
+   *stations_layer* is an :class:`ogr.Layer` object like the one
+   returned by :func:`create_ogr_layer_from_stations()`. *cache_dir*
+   is the directory where the cached time series are stored by
    :func:`update_timeseries_cache()`. *date* is a
    :class:`~datetime.datetime` object specifying the date and time for
    which we are to perform integration. *output_dir* is the directory
