@@ -12,7 +12,7 @@ import numpy as np
 from osgeo import ogr, gdal
 
 from pthelma import enhydris_api
-from pthelma.spatial import idw, integrate, update_timeseries_cache, \
+from pthelma.spatial import idw, integrate, TimeseriesCache, \
     create_ogr_layer_from_stations, _ts_cache_filename, h_integrate
 from pthelma.timeseries import Timeseries
 
@@ -181,7 +181,7 @@ class CreateOgrLayerFromStationsTestCase(TestCase):
 
 @skipUnless(os.getenv('PTHELMA_TEST_ENHYDRIS_API'),
             'set PTHELMA_TEST_ENHYDRIS_API')
-class UpdateTimeseriesTestCase(TestCase):
+class TimeseriesCacheTestCase(TestCase):
     test_timeseries1 = textwrap.dedent("""\
                                    2014-01-01 08:00,11,
                                    2014-01-02 08:00,12,
@@ -213,6 +213,9 @@ class UpdateTimeseriesTestCase(TestCase):
             'variable': self.parms['variable_id'],
             'unit_of_measurement': self.parms['unit_of_measurement_id'],
             'time_zone': self.parms['time_zone_id'],
+            'time_step': 3,
+            'actual_offset_minutes': 0,
+            'actual_offset_months': 0,
         }
         self.ts1_id = enhydris_api.post_model(
             self.parms['base_url'], self.cookies, 'Timeseries', j)
@@ -234,7 +237,7 @@ class UpdateTimeseriesTestCase(TestCase):
     def tearDown(self):
         shutil.rmtree(self.tempdir)
 
-    def test_update_timeseries_cache(self):
+    def test_update(self):
         self.parms = json.loads(os.getenv('PTHELMA_TEST_ENHYDRIS_API'))
         timeseries_groups = {
             'one': [{'base_url': self.parms['base_url'],
@@ -250,7 +253,8 @@ class UpdateTimeseriesTestCase(TestCase):
                     ],
         }
         # Cache the two timeseries
-        update_timeseries_cache(self.tempdir, timeseries_groups)
+        cache = TimeseriesCache(self.tempdir, timeseries_groups)
+        cache.update()
 
         # Check that the cached stuff is what it should be
         file1, file2 = [_ts_cache_filename(self.tempdir,
@@ -260,6 +264,10 @@ class UpdateTimeseriesTestCase(TestCase):
             self.assertEqual(f.read().replace('\r', ''), self.timeseries1_top)
         with open(file2) as f:
             self.assertEqual(f.read().replace('\r', ''), self.timeseries2_top)
+        with open(file1 + '_step') as f:
+            self.assertEqual(f.read(), '3')
+        with open(file2 + '_step') as f:
+            self.assertEqual(f.read(), '3')
 
         # Append a record to the database for each timeseries
         ts = Timeseries(self.ts1_id)
@@ -270,7 +278,7 @@ class UpdateTimeseriesTestCase(TestCase):
         enhydris_api.post_tsdata(self.parms['base_url'], self.cookies, ts)
 
         # Update the cache
-        update_timeseries_cache(self.tempdir, timeseries_groups)
+        cache.update()
 
         # Check that the cached stuff is what it should be
         file1, file2 = [_ts_cache_filename(self.tempdir,

@@ -95,48 +95,72 @@ def _ts_cache_filename(cache_dir, base_url, id):
                         '{}_{}.hts'.format(quote_plus(base_url), id))
 
 
-def update_timeseries_cache(cache_dir, groups):
+class TimeseriesCache(object):
 
-    def update_one_timeseries(base_url, id, user=None, password=None):
-        if base_url[-1] != '/':
-            base_url += '/'
+    def __init__(self, cache_dir, timeseries_groups):
+        self.cache_dir = cache_dir
+        self.timeseries_groups = timeseries_groups
 
-        # Read timeseries from cache file
-        cache_filename = _ts_cache_filename(cache_dir, base_url, id)
-        ts1 = Timeseries()
-        if os.path.exists(cache_filename):
-            with open(cache_filename) as f:
+    def update(self):
+        for group in self.timeseries_groups:
+            for item in self.timeseries_groups[group]:
+                self.base_url = item['base_url']
+                if self.base_url[-1] != '/':
+                    self.base_url += '/'
+                self.timeseries_id = item['id']
+                self.user = item['user']
+                self.password = item['password']
+                self.update_for_one_timeseries()
+
+    def update_for_one_timeseries(self):
+        self.cache_filename = _ts_cache_filename(
+            self.cache_dir, self.base_url, self.timeseries_id)
+        ts1 = self.read_timeseries_from_cache_file()
+        end_date = self.get_timeseries_end_date(ts1)
+        start_date = end_date + timedelta(minutes=1)
+        self.append_newer_timeseries(start_date, ts1)
+        with open(self.cache_filename, 'w') as f:
+            ts1.write(f)
+        self.save_timeseries_step_to_cache()
+
+    def read_timeseries_from_cache_file(self):
+        result = Timeseries()
+        if os.path.exists(self.cache_filename):
+            with open(self.cache_filename) as f:
                 try:
-                    ts1.read_file(f)
+                    result.read_file(f)
                 except ValueError:
                     # File may be corrupted; continue with empty time series
-                    ts1 = Timeseries()
+                    result = Timeseries()
+        return result
 
-        # Get its end date
+    def get_timeseries_end_date(self, timeseries):
         try:
-            end_date = ts1.bounding_dates()[1]
+            end_date = timeseries.bounding_dates()[1]
         except TypeError:
             # Timeseries is totally empty; no start and end date
             end_date = datetime(1, 1, 1, 0, 0)
-        start_date = end_date + timedelta(minutes=1)
+        return end_date
 
-        # Get newer timeseries and append it
-        session_cookies = enhydris_api.login(base_url, user, password)
-        url = base_url + 'timeseries/d/{}/download/{}/'.format(
-            id, start_date.isoformat())
-        r = requests.get(url, cookies=session_cookies)
+    def append_newer_timeseries(self, start_date, ts1):
+        self.session_cookies = enhydris_api.login(self.base_url, self.user,
+                                                  self.password)
+        url = self.base_url + 'timeseries/d/{}/download/{}/'.format(
+            self.timeseries_id, start_date.isoformat())
+        r = requests.get(url, cookies=self.session_cookies)
         r.raise_for_status()
         ts2 = Timeseries()
         ts2.read_file(StringIO(r.text))
         ts1.append(ts2)
 
-        # Save it
-        with open(cache_filename, 'w') as f:
-            ts1.write(f)
-
-    for group in groups:
-        for item in groups[group]:
-            update_one_timeseries(**item)
+    def save_timeseries_step_to_cache(self):
+        step_cache_filename = self.cache_filename + '_step'
+        if not os.path.exists(step_cache_filename):
+            step_id = enhydris_api.get_model(
+                self.base_url, self.session_cookies, 'Timeseries',
+                self.timeseries_id)['time_step']
+            with open(step_cache_filename, 'w') as f:
+                f.write(str(step_id))
 
 
 class IntegrationDateMissingError(Exception):
