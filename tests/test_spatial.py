@@ -3,7 +3,6 @@ import json
 import os
 import shutil
 from six import StringIO
-from six.moves.urllib.parse import quote_plus
 import tempfile
 import textwrap
 from unittest import TestCase, skipUnless
@@ -13,7 +12,7 @@ from osgeo import ogr, gdal
 
 from pthelma import enhydris_api
 from pthelma.spatial import idw, integrate, TimeseriesCache, \
-    create_ogr_layer_from_stations, _ts_cache_filename, h_integrate
+    create_ogr_layer_from_stations, h_integrate
 from pthelma.timeseries import Timeseries
 
 
@@ -165,7 +164,8 @@ class CreateOgrLayerFromStationsTestCase(TestCase):
                   'user': self.parms['user'],
                   'id': self.timeseries2_id}]
         layer = create_ogr_layer_from_stations(group, data_source,
-                                               self.tempdir)
+                                               TimeseriesCache(self.tempdir,
+                                                               {}))
         self.assertTrue(layer.GetFeatureCount(), 2)
         ref = [{'x': 23.78743, 'y': 37.97385,
                 'timeseries_id': self.timeseries1_id},
@@ -257,8 +257,7 @@ class TimeseriesCacheTestCase(TestCase):
         cache.update()
 
         # Check that the cached stuff is what it should be
-        file1, file2 = [_ts_cache_filename(self.tempdir,
-                                           self.parms['base_url'], x)
+        file1, file2 = [cache.get_filename(self.parms['base_url'], x)
                         for x in (self.ts1_id, self.ts2_id)]
         with open(file1) as f:
             self.assertEqual(f.read().replace('\r', ''), self.timeseries1_top)
@@ -281,8 +280,7 @@ class TimeseriesCacheTestCase(TestCase):
         cache.update()
 
         # Check that the cached stuff is what it should be
-        file1, file2 = [_ts_cache_filename(self.tempdir,
-                                           self.parms['base_url'], x)
+        file1, file2 = [cache.get_filename(self.parms['base_url'], x)
                         for x in (self.ts1_id, self.ts2_id)]
         with open(file1) as f:
             self.assertEqual(f.read().replace('\r', ''), self.test_timeseries1)
@@ -340,14 +338,15 @@ class HIntegrateTestCase(TestCase):
             ]
 
     def write_data_to_cache(self):
+        self.cache = TimeseriesCache(self.tempdir, {})
         for item in self.data:
-            point_filename = 'timeseries_{}_{}_point'.format(
-                quote_plus(item['base_url']), item['id'])
-            with open(os.path.join(self.tempdir, point_filename), 'w') as f:
+            point_filename = self.cache.get_point_filename(item['base_url'],
+                                                           item['id'])
+            with open(point_filename, 'w') as f:
                 f.write(item['point'])
-            ts_cache_filename = _ts_cache_filename(
-                self.tempdir, item['base_url'], item['id'])
-            with open(os.path.join(self.tempdir, ts_cache_filename), 'w') as f:
+            ts_cache_filename = self.cache.get_filename(item['base_url'],
+                                                        item['id'])
+            with open(ts_cache_filename, 'w') as f:
                 f.write(item['data'])
 
     def create_mask(self):
@@ -366,14 +365,15 @@ class HIntegrateTestCase(TestCase):
         self.create_mask()
         self.stations = ogr.GetDriverByName('memory').CreateDataSource('tmp')
         self.stations_layer = create_ogr_layer_from_stations(
-            self.data, self.stations, self.tempdir)
+            self.data, self.stations, self.cache)
 
     def tearDown(self):
         shutil.rmtree(self.tempdir)
 
     def test_h_integrate(self):
         h_integrate(group=self.data, mask=self.mask,
-                    stations_layer=self.stations_layer, cache_dir=self.tempdir,
+                    stations_layer=self.stations_layer,
+                    cache=TimeseriesCache(self.tempdir, {}),
                     date=datetime(2014, 4, 22, 13, 0), output_dir=self.tempdir,
                     filename_prefix='test', date_fmt='%Y-%m-%d-%H-%M',
                     funct=idw, kwargs={})

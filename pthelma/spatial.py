@@ -57,15 +57,12 @@ def integrate(dataset, data_layer, target_band, funct, kwargs={}):
     target_band.WriteArray(interpolate(xarray, yarray, mask))
 
 
-def create_ogr_layer_from_stations(group, data_source, cache_dir):
+def create_ogr_layer_from_stations(group, data_source, cache):
     layer = data_source.CreateLayer('stations')
     layer.CreateField(ogr.FieldDefn('timeseries_id', ogr.OFTInteger))
     for item in group:
         # Get the point from the cache, or fetch it anew on cache miss
-        cache_filename = os.path.join(
-            cache_dir,
-            'timeseries_{}_{}_point'.format(quote_plus(item['base_url']),
-                                            item['id']))
+        cache_filename = cache.get_point_filename(item['base_url'], item['id'])
         try:
             with open(cache_filename) as f:
                 pointwkt = f.read()
@@ -90,16 +87,21 @@ def create_ogr_layer_from_stations(group, data_source, cache_dir):
     return layer
 
 
-def _ts_cache_filename(cache_dir, base_url, id):
-    return os.path.join(cache_dir,
-                        '{}_{}.hts'.format(quote_plus(base_url), id))
-
-
 class TimeseriesCache(object):
 
     def __init__(self, cache_dir, timeseries_groups):
         self.cache_dir = cache_dir
         self.timeseries_groups = timeseries_groups
+
+    def get_filename(self, base_url, id):
+        return os.path.join(self.cache_dir,
+                            '{}_{}.hts'.format(quote_plus(base_url), id))
+
+    def get_point_filename(self, base_url, id):
+        return os.path.join(
+            self.cache_dir,
+            'timeseries_{}_{}_point'.format(quote_plus(base_url),
+                                            id))
 
     def update(self):
         for group in self.timeseries_groups:
@@ -113,8 +115,8 @@ class TimeseriesCache(object):
                 self.update_for_one_timeseries()
 
     def update_for_one_timeseries(self):
-        self.cache_filename = _ts_cache_filename(
-            self.cache_dir, self.base_url, self.timeseries_id)
+        self.cache_filename = self.get_filename(self.base_url,
+                                                self.timeseries_id)
         ts1 = self.read_timeseries_from_cache_file()
         end_date = self.get_timeseries_end_date(ts1)
         start_date = end_date + timedelta(minutes=1)
@@ -167,7 +169,7 @@ class IntegrationDateMissingError(Exception):
     pass
 
 
-def h_integrate(group, mask, stations_layer, cache_dir, date, output_dir,
+def h_integrate(group, mask, stations_layer, cache, date, output_dir,
                 filename_prefix, date_fmt, funct, kwargs):
 
     # Read the time series values and add the 'value' attribute to
@@ -176,7 +178,7 @@ def h_integrate(group, mask, stations_layer, cache_dir, date, output_dir,
     for station in stations_layer:
         ts_id = station.GetField('timeseries_id')
         base_url = [t['base_url'] for t in group if t['id'] == ts_id][0]
-        cache_filename = _ts_cache_filename(cache_dir, base_url, ts_id)
+        cache_filename = cache.get_filename(base_url, ts_id)
         t = Timeseries()
         with open(cache_filename) as f:
             t.read(f)
