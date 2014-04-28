@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 from datetime import datetime, timedelta
+from glob import glob
 import logging
 import os
 import sys
@@ -14,7 +15,8 @@ from osgeo import ogr, gdal
 import requests
 
 from pthelma import enhydris_api
-from pthelma.timeseries import Timeseries
+from pthelma.timeseries import Timeseries, datetime_from_iso
+from pthelma.xreverse import xreverse
 
 
 def idw(point, data_layer, alpha=1):
@@ -170,6 +172,12 @@ class IntegrationDateMissingError(Exception):
 
 def h_integrate(group, mask, stations_layer, cache, date, output_dir,
                 filename_prefix, date_fmt, funct, kwargs):
+    # Return immediately if output file already exists
+    output_filename = os.path.join(
+        output_dir, '{}-{}.tif'.format(filename_prefix,
+                                       date.strftime(date_fmt)))
+    if os.path.exists(output_filename):
+        return
 
     # Read the time series values and add the 'value' attribute to
     # stations_layer
@@ -190,9 +198,6 @@ def h_integrate(group, mask, stations_layer, cache, date, output_dir,
                 .format(base_url, ts_id, date))
 
     # Create destination data source
-    output_filename = os.path.join(
-        output_dir, '{}-{}.tif'.format(filename_prefix,
-                                       date.strftime(date_fmt)))
     output = gdal.GetDriverByName('GTiff').Create(
         output_filename, mask.RasterXSize, mask.RasterYSize, 1,
         gdal.GDT_Float64)
@@ -207,3 +212,232 @@ def h_integrate(group, mask, stations_layer, cache, date, output_dir,
     finally:
         # Close the dataset
         output = None
+
+
+class InvalidOptionError(configparser.Error):
+    pass
+
+
+class WrongValueError(configparser.Error):
+    pass
+
+
+class BitiaApp(object):
+
+    def read_command_line(self):
+        parser = ArgumentParser(description='Perform spatial interpolation')
+        parser.add_argument('config_file', help='Configuration file')
+        parser.add_argument('--traceback', action='store_true',
+                            help='Display traceback on error')
+        self.args = parser.parse_args()
+
+    def setup_logger(self):
+        self.logger = logging.getLogger('bitia')
+        self.logger.setLevel(
+            logging.__dict__[self.config.get('General', 'loglevel')])
+        if self.config.has_option('General', 'logfile'):
+            self.logger.addHandler(
+                logging.FileHandler(self.config.get('General', 'logfile')))
+        else:
+            self.logger.addHandler(logging.StreamHandler())
+
+    def read_configuration(self):
+        defaults = (('General', 'loglevel', 'WARNING'),
+                    ('General', 'alpha', '1'),
+                    )
+
+        # Read config
+        cp = RawConfigParser()
+        cp.read((self.args.config_file,))
+        # Convert config to dictionary (for Python 2.7 compatibility)
+        self.config = {}
+        for section in cp.sections():
+            self.config[section] = {}
+            for item in cp.items(section):
+                self.config[section][item] = cp.get(section, item)
+
+        # Set defaults
+        for section, item, default in defaults:
+            self.config.setdefault(section, {})
+            self.config[section].setdefault(item, default)
+
+        # Convert all sections but 'General' into a list of time series
+        self.timeseries_group = []
+        for section in self.config:
+            if section == 'General':
+                continue
+            item = self.config[section]
+            item['name'] = section
+            self.timeseries_group.append(item)
+
+        self.check_configuration()
+
+    def check_configuration(self):
+        compulsory = (('General', 'mask'),
+                      ('General', 'cache_dir'),
+                      ('General', 'output_dir'),
+                      ('General', 'filename_prefix'),
+                      ('General', 'files_to_keep'),
+                      ('General', 'method'),
+                      )
+
+        # Check compulsory options
+        for section, option in compulsory:
+            if (section not in self.config) or (
+                    option not in self.config['section']):
+                raise NoOptionError(
+                    'Section [{}] does not have compulsory option "{}".'
+                    .format(section, option))
+
+        self.check_configuration_log_levels()
+        self.check_configuration_timeseries_sections()
+        self.check_configuration_method()
+
+    def check_configuration_log_levels(self):
+        log_levels = ['ERROR', 'WARNING', 'INFO', 'DEBUG']
+        if self.config['General']['loglevel'] not in log_levels:
+            raise WrongValueError('loglevel must be one of {}'.format(
+                ', '.join(log_levels)))
+
+    def check_configuration_timeseries_sections(self):
+        for ts in self.timeseries_group:
+            for item in ts:
+                if item not in ('name', 'base_url', 'user', 'password', 'id'):
+                    raise InvalidOptionError(
+                        'Invalid option {} in section [{}]'
+                        .format(item, ts['name']))
+                if ('base_url' not in ts) or ('id' not in ts):
+                    raise NoOptionError(
+                        'Section [{}] is missing base_url or id'
+                        .format(ts['name']))
+
+    def check_configuration_method(self):
+        # Check method
+        if self.config['General']['method'] != 'idw':
+            raise WrongValueError('Option "method" can currently only be idw')
+        # Check alpha
+        try:
+            float(self.config['General']['alpha'])
+        except ValueError:
+            raise WrongValueError('Option "alpha" must be a number')
+
+    def get_last_dates(self, fp, n, filename):
+        """
+        Given file-like object fp that is a time series in file format or text
+        format, it scans it from the bottom and returns the list of the n last
+        dates (may be less than n if the time series is too small). 'filename'
+        is used in error messages.
+        """
+        result = []
+        for i, line in enumerate(xreverse(fp)):
+            if i >= n:
+                break
+            datestring = line.split(',')[0]
+            try:
+                result.insert(0, datetime_from_iso(datestring))
+            except ValueError as e:
+                raise ValueError(e.message +
+                                 ' (file {}, {} lines from the end)'.format(
+                                     filename, i))
+        return result
+
+    @property
+    def dates_to_calculate(self):
+        """
+        Generator that yields the dates for which h_integrate should be run;
+        this is the latest list of dates such that:
+        * At least one of the time series has data
+        * The length of the list is the 'files_to_keep' configuration option
+          (maybe less if the time series don't have enough data yet.
+        On entry self.cache must be an updated TimeseriesCache object.
+        """
+        n = self.config['General']['files_to_keep']
+        dates = set()
+        for item in self.timeseries_group:
+            filename = self.cache.get_filename(item['base_url'], item['id'])
+            with open(filename) as f:
+                dates |= set(self.get_last_dates(f, n, filename))
+        dates = list(dates)
+        dates.sort()
+        dates = dates[-n:]
+        for d in dates:
+            yield d
+
+    @property
+    def date_fmt(self):
+        """
+        Determine date_fmt based on time series time step.
+        Call after updating self.cache.
+        """
+        time_step = None
+        for item in self.timeseries_group:
+            timestep_filename = self.cache.get_filename(
+                item['base_url'], item['id']) + '_step'
+            with open(timestep_filename) as f:
+                item_time_step = int(f.read())
+            if time_step and (item_time_step != time_step):
+                raise WrongValueError(
+                    'Not all time series have the same step')
+            time_step = item_time_step
+        return {1: '%Y-%m-%d-%H-%M',
+                2: '%Y-%m-%d-%H-%M',
+                3: '%Y-%m-%d',
+                4: '%Y-%m',
+                5: '%Y',
+                6: '%Y-%m-%d-%H-%M',
+                7: '%Y-%m-%d-%H-%M'}[time_step]
+
+    def delete_obsolete_files(self):
+        """
+        Delete all tif files produced in the past except the last N,
+        where N is the 'files_to_keep' configuration option.
+        """
+        n = self.config['General']['files_to_keep']
+        output_dir = self.config['General']['output_dir']
+        filename_prefix = self.config['General']['filename_prefix']
+        pattern = os.path.join(output_dir, '{}-*.tif'.format(filename_prefix))
+        files = glob(pattern)
+        files.sort()
+        for filename in files[1:-n]:
+            os.remove(filename)
+
+    def execute(self):
+        self.logger.info(
+            'Starting bitia, {}'.format(datetime.today().isoformat()))
+        cache_dir = self.config['General']['cache_dir']
+        self.cache = TimeseriesCache(cache_dir, self.timeseries_group)
+        self.cache.update()
+        stations = ogr.GetDriverByName('memory').CreateDataSource('stations')
+        stations_layer = create_ogr_layer_from_stations(self.timeseries_group,
+                                                        stations, self.cache)
+        mask = gdal.Open(self.config['General']['mask'])
+        if self.config['General']['method'] == 'idw':
+            funct = idw
+            kwargs = {'alpha': float(self.config['General']['alpha']), }
+        else:
+            assert False
+        date_fmt = self.date_fmt
+        for date in self.dates_to_calculate:
+            h_integrate(self.timeseries_group, mask, stations_layer,
+                        self.cache, date,
+                        self.config['General']['output_dir'],
+                        self.config['General']['filename_prefix'],
+                        date_fmt, funct, kwargs)
+        self.delete_obsolete_files()
+
+    def run(self):
+        self.args = None
+        self.logger = None
+        try:
+            self.read_command_line()
+            self.read_configuration()
+            self.setup_logger()
+            self.execute()
+        except Exception as e:
+            msg = str(e)
+            sys.stderr.write(msg + '\n')
+            if self.logger:
+                self.logger.error(msg)
+            if self.args and self.args.traceback:
+                raise
+            sys.exit(1)

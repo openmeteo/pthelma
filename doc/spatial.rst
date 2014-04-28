@@ -102,7 +102,9 @@
    to which the resulting GeoTiff file will be written.  The filename
    has the form :samp:`{filename_prefix}-{d}.tif`, where *d* is the
    *date* formatted by :func:`datetime.strftime()` with the format
-   *date_fmt*. *funct* and *kwargs* are passed to :func:`integrate()`.
+   *date_fmt*; if the file already exists, the function returns immediately
+   without doing anything. *funct* and *kwargs* are passed to
+   :func:`integrate()`.
 
    All time series in *group* must have *date* in the cache. If not,
    the function raises :exc:`IntegrationDateMissingError`.
