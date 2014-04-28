@@ -17,7 +17,7 @@
    *user*, *password*, *id*.
 
    .. method:: update()
-   
+
       Downloads everything that has not already been downloaded (or all
       the timeseries if nothing is in the cache).
 
