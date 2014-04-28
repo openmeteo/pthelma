@@ -165,7 +165,7 @@ class CreateOgrLayerFromStationsTestCase(TestCase):
                   'id': self.timeseries2_id}]
         layer = create_ogr_layer_from_stations(group, data_source,
                                                TimeseriesCache(self.tempdir,
-                                                               {}))
+                                                               []))
         self.assertTrue(layer.GetFeatureCount(), 2)
         ref = [{'x': 23.78743, 'y': 37.97385,
                 'timeseries_id': self.timeseries1_id},
@@ -239,21 +239,19 @@ class TimeseriesCacheTestCase(TestCase):
 
     def test_update(self):
         self.parms = json.loads(os.getenv('PTHELMA_TEST_ENHYDRIS_API'))
-        timeseries_groups = {
-            'one': [{'base_url': self.parms['base_url'],
-                     'id': self.ts1_id,
-                     'user': self.parms['user'],
-                     'password': self.parms['password'],
-                     },
-                    {'base_url': self.parms['base_url'],
-                     'id': self.ts2_id,
-                     'user': self.parms['user'],
-                     'password': self.parms['password'],
-                     },
-                    ],
-        }
+        timeseries_group = [{'base_url': self.parms['base_url'],
+                             'id': self.ts1_id,
+                             'user': self.parms['user'],
+                             'password': self.parms['password'],
+                             },
+                            {'base_url': self.parms['base_url'],
+                             'id': self.ts2_id,
+                             'user': self.parms['user'],
+                             'password': self.parms['password'],
+                             },
+                            ]
         # Cache the two timeseries
-        cache = TimeseriesCache(self.tempdir, timeseries_groups)
+        cache = TimeseriesCache(self.tempdir, timeseries_group)
         cache.update()
 
         # Check that the cached stuff is what it should be
@@ -338,7 +336,7 @@ class HIntegrateTestCase(TestCase):
             ]
 
     def write_data_to_cache(self):
-        self.cache = TimeseriesCache(self.tempdir, {})
+        self.cache = TimeseriesCache(self.tempdir, [])
         for item in self.data:
             point_filename = self.cache.get_point_filename(item['base_url'],
                                                            item['id'])
@@ -373,7 +371,7 @@ class HIntegrateTestCase(TestCase):
     def test_h_integrate(self):
         h_integrate(group=self.data, mask=self.mask,
                     stations_layer=self.stations_layer,
-                    cache=TimeseriesCache(self.tempdir, {}),
+                    cache=TimeseriesCache(self.tempdir, []),
                     date=datetime(2014, 4, 22, 13, 0), output_dir=self.tempdir,
                     filename_prefix='test', date_fmt='%Y-%m-%d-%H-%M',
                     funct=idw, kwargs={})

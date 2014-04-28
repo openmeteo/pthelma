@@ -89,9 +89,9 @@ def create_ogr_layer_from_stations(group, data_source, cache):
 
 class TimeseriesCache(object):
 
-    def __init__(self, cache_dir, timeseries_groups):
+    def __init__(self, cache_dir, timeseries_group):
         self.cache_dir = cache_dir
-        self.timeseries_groups = timeseries_groups
+        self.timeseries_group = timeseries_group
 
     def get_filename(self, base_url, id):
         return os.path.join(self.cache_dir,
@@ -104,15 +104,14 @@ class TimeseriesCache(object):
                                             id))
 
     def update(self):
-        for group in self.timeseries_groups:
-            for item in self.timeseries_groups[group]:
-                self.base_url = item['base_url']
-                if self.base_url[-1] != '/':
-                    self.base_url += '/'
-                self.timeseries_id = item['id']
-                self.user = item['user']
-                self.password = item['password']
-                self.update_for_one_timeseries()
+        for item in self.timeseries_group:
+            self.base_url = item['base_url']
+            if self.base_url[-1] != '/':
+                self.base_url += '/'
+            self.timeseries_id = item['id']
+            self.user = item['user']
+            self.password = item['password']
+            self.update_for_one_timeseries()
 
     def update_for_one_timeseries(self):
         self.cache_filename = self.get_filename(self.base_url,
