@@ -1,4 +1,5 @@
 from argparse import ArgumentParser
+from copy import copy
 from datetime import datetime, timedelta
 from glob import glob
 import logging
@@ -223,6 +224,22 @@ class WrongValueError(configparser.Error):
 
 
 class BitiaApp(object):
+                          # Section     Option            Default
+    config_file_options = {'General': {'mask':            None,
+                                       'cache_dir':       None,
+                                       'output_dir':      None,
+                                       'filename_prefix': None,
+                                       'files_to_keep':   None,
+                                       'method':          None,
+                                       'loglevel':        'WARNING',
+                                       'alpha':           '1',
+                                       },
+                           'other':   {'base_url':        None,
+                                       'id':              None,
+                                       'user':            '',
+                                       'password':        '',
+                                       }
+                           }
 
     def read_command_line(self):
         parser = ArgumentParser(description='Perform spatial integration')
@@ -234,60 +251,58 @@ class BitiaApp(object):
     def setup_logger(self):
         self.logger = logging.getLogger('bitia')
         self.logger.setLevel(
-            logging.__dict__[self.config.get('General', 'loglevel')])
-        if self.config.has_option('General', 'logfile'):
+            getattr(logging, self.config['General']['loglevel']))
+        if 'logfile' in self.config['General']:
             self.logger.addHandler(
-                logging.FileHandler(self.config.get('General', 'logfile')))
+                logging.FileHandler(self.config['General']['logfile']))
         else:
             self.logger.addHandler(logging.StreamHandler())
 
     def read_configuration(self):
-        defaults = (('General', 'loglevel', 'WARNING'),
-                    ('General', 'alpha', '1'),
-                    )
-
         # Read config
         cp = RawConfigParser()
         cp.read((self.args.config_file,))
+
         # Convert config to dictionary (for Python 2.7 compatibility)
         self.config = {}
         for section in cp.sections():
-            self.config[section] = {}
-            for item in cp.items(section):
-                self.config[section][item] = cp.get(section, item)
+            self.config[section] = dict(cp.items(section))
 
         # Set defaults
-        for section, item, default in defaults:
-            self.config.setdefault(section, {})
-            self.config[section].setdefault(item, default)
+        for section in self.config:
+            section_options_key = section if section == 'General' else 'other'
+            section_options = self.config_file_options[section_options_key]
+            for option in section_options:
+                value = section_options[option]
+                if value is not None:
+                    self.config[section].setdefault(option, value)
 
         # Convert all sections but 'General' into a list of time series
         self.timeseries_group = []
         for section in self.config:
             if section == 'General':
                 continue
-            item = self.config[section]
+            item = copy(self.config[section])
             item['name'] = section
             self.timeseries_group.append(item)
 
         self.check_configuration()
 
     def check_configuration(self):
-        compulsory = (('General', 'mask'),
-                      ('General', 'cache_dir'),
-                      ('General', 'output_dir'),
-                      ('General', 'filename_prefix'),
-                      ('General', 'files_to_keep'),
-                      ('General', 'method'),
-                      )
-
-        # Check compulsory options
-        for section, option in compulsory:
-            if (section not in self.config) or (
-                    option not in self.config['section']):
-                raise NoOptionError(
-                    'Section [{}] does not have compulsory option "{}".'
-                    .format(section, option))
+        # Check compulsory options and invalid options
+        for section in self.config:
+            if section != 'General':
+                continue
+            section_options = self.config_file_options[section]
+            for option in section_options:
+                if (section_options[option] is None) and (
+                        option not in self.config[section]):
+                    raise NoOptionError(option, section)
+            for option in self.config[section]:
+                if option not in section_options:
+                    raise InvalidOptionError(
+                        'Invalid option {} in section [{}]'
+                        .format(option, section))
 
         self.check_configuration_log_levels()
         self.check_configuration_timeseries_sections()
@@ -300,16 +315,19 @@ class BitiaApp(object):
                 ', '.join(log_levels)))
 
     def check_configuration_timeseries_sections(self):
-        for ts in self.timeseries_group:
-            for item in ts:
-                if item not in ('name', 'base_url', 'user', 'password', 'id'):
+        for section in self.config:
+            if section == 'General':
+                continue
+            section_options = self.config_file_options['other']
+            for item in self.config[section]:
+                if item not in section_options:
                     raise InvalidOptionError(
                         'Invalid option {} in section [{}]'
-                        .format(item, ts['name']))
-                if ('base_url' not in ts) or ('id' not in ts):
-                    raise NoOptionError(
-                        'Section [{}] is missing base_url or id'
-                        .format(ts['name']))
+                        .format(item, section))
+            for option in section_options:
+                if (section_options[option] is None) and (
+                        option not in self.config[section]):
+                    raise NoOptionError(option, section)
 
     def check_configuration_method(self):
         # Check method

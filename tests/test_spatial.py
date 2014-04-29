@@ -3,6 +3,8 @@ import json
 import os
 import shutil
 from six import StringIO
+from six.moves import configparser
+import sys
 import tempfile
 import textwrap
 from unittest import TestCase, skipUnless
@@ -12,7 +14,7 @@ from osgeo import ogr, gdal
 
 from pthelma import enhydris_api
 from pthelma.spatial import idw, integrate, TimeseriesCache, \
-    create_ogr_layer_from_stations, h_integrate
+    create_ogr_layer_from_stations, h_integrate, BitiaApp
 from pthelma.timeseries import Timeseries
 
 
@@ -381,3 +383,122 @@ class HIntegrateTestCase(TestCase):
                                     [1.3828, 1.6671, 1.7336, 1.7662],
                                     [0.5400, 2.4000, 1.7954, 1.7504]])
         np.testing.assert_almost_equal(result, expected_result, decimal=4)
+
+
+class BitiaAppTestCase(TestCase):
+
+    def __init__(self, *args, **kwargs):
+        super(BitiaAppTestCase, self).__init__(*args, **kwargs)
+
+        # Python 2.7 compatibility
+        try:
+            self.assertRaisesRegex
+        except AttributeError:
+            self.assertRaisesRegex = self.assertRaisesRegexp
+
+    def setUp(self):
+        self.tempdir = tempfile.mkdtemp()
+        self.cache_dir = os.path.join(self.tempdir, 'cache')
+        self.output_dir = os.path.join(self.tempdir, 'output')
+        self.config_file = os.path.join(self.tempdir, 'bitia.conf')
+        self.mask_file = os.path.join(self.tempdir, 'mask.tif')
+        self.saved_argv = sys.argv
+        sys.argv = ['bitia', '--traceback', self.config_file]
+
+    def tearDown(self):
+        shutil.rmtree(self.tempdir)
+        sys.argv = self.saved_argv
+
+    def test_correct_configuration(self):
+        with open(os.path.join(self.tempdir, 'bitia.conf'), 'w') as f:
+            f.write(textwrap.dedent('''\
+                [General]
+                mask = {0.mask_file}
+                cache_dir = {0.cache_dir}
+                output_dir = {0.output_dir}
+                filename_prefix = rainfall
+                files_to_keep = 24
+                method = idw
+
+                [ntua]
+                base_url = wrongproto://openmeteo.org/
+                id = 6539
+
+                [nedontas]
+                base_url = wrongproto://openmeteo.org/
+                id = 9356
+
+                [arta]
+                base_url = wrongproto://openmeteo.org/
+                id = 9357
+                ''').format(self))
+        application = BitiaApp()
+        self.assertRaisesRegex(IOError, 'wrongproto', application.run)
+
+    def test_wrong_configuration1(self):
+        with open(os.path.join(self.tempdir, 'bitia.conf'), 'w') as f:
+            f.write(textwrap.dedent('''\
+                [General]
+                mask = {0.mask_file}
+                cache_dir = {0.cache_dir}
+                output_dir = {0.output_dir}
+                filename_prefix = rainfall
+                method = idw
+                ''').format(self))
+        application = BitiaApp()
+        self.assertRaisesRegex(configparser.Error, 'files_to_keep',
+                               application.run)
+
+    def test_wrong_configuration2(self):
+        with open(os.path.join(self.tempdir, 'bitia.conf'), 'w') as f:
+            f.write(textwrap.dedent('''\
+                [General]
+                mask = {0.mask_file}
+                cache_dir = {0.cache_dir}
+                output_dir = {0.output_dir}
+                filename_prefix = rainfall
+                files_to_keep = 24
+                method = idw
+                nonexistent_option = irrelevant
+                ''').format(self))
+        application = BitiaApp()
+        self.assertRaisesRegex(configparser.Error, 'nonexistent_option',
+                               application.run)
+
+    def test_wrong_configuration3(self):
+        with open(os.path.join(self.tempdir, 'bitia.conf'), 'w') as f:
+            f.write(textwrap.dedent('''\
+                [General]
+                mask = {0.mask_file}
+                cache_dir = {0.cache_dir}
+                output_dir = {0.output_dir}
+                filename_prefix = rainfall
+                files_to_keep = 24
+                method = idw
+
+                [ntua]
+                id = 9876
+                ''').format(self))
+        application = BitiaApp()
+        self.assertRaisesRegex(configparser.Error, 'base_url',
+                               application.run)
+
+    def test_wrong_configuration4(self):
+        with open(os.path.join(self.tempdir, 'bitia.conf'), 'w') as f:
+            f.write(textwrap.dedent('''\
+                [General]
+                mask = {0.mask_file}
+                cache_dir = {0.cache_dir}
+                output_dir = {0.output_dir}
+                filename_prefix = rainfall
+                files_to_keep = 24
+                method = idw
+
+                [ntua]
+                base_url = https://openmeteo.org/
+                id = 9876
+                nonexistent_option = irrelevant
+                ''').format(self))
+        application = BitiaApp()
+        self.assertRaisesRegex(configparser.Error, 'nonexistent_option',
+                               application.run)
