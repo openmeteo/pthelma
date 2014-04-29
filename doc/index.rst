@@ -8,6 +8,7 @@ User documentation:
 
    install
    loggertodb
+   bitia
 
 Developer documentation:
 

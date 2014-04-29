@@ -108,3 +108,11 @@
 
    All time series in *group* must have *date* in the cache. If not,
    the function raises :exc:`IntegrationDateMissingError`.
+
+.. class:: BitiaApp
+
+   This class contains the :doc:`bitia` command-line application. The
+   :file:`bitia` executable does little other than this::
+
+      application = BitiaApp()
+      application.run()

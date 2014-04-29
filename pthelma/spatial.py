@@ -225,7 +225,7 @@ class WrongValueError(configparser.Error):
 class BitiaApp(object):
 
     def read_command_line(self):
-        parser = ArgumentParser(description='Perform spatial interpolation')
+        parser = ArgumentParser(description='Perform spatial integration')
         parser.add_argument('config_file', help='Configuration file')
         parser.add_argument('--traceback', action='store_true',
                             help='Display traceback on error')
