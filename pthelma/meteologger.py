@@ -116,7 +116,7 @@ class Datafile(object):
     def update_database(self):
         self.logger.info('Processing datafile %s' % (self.filename))
         self.last_timeseries_end_date = None
-        self.fileobject = open(self.filename, 'rb')
+        self.fileobject = open(self.filename, 'r')
         try:
             self.seq = 0  # sequence number of timeseries
             for self.ts in self.datafile_fields:
@@ -192,7 +192,7 @@ class Datafile(object):
         prev_date = ''
         while True:
             try:
-                line = xr.next().decode('ascii')
+                line = next(xr)
             except StopIteration:
                 break
             self.logger.debug(line)
