@@ -70,6 +70,8 @@ dickinson.ts_max.restype = c_double
 dickinson.ts_average.restype = c_double
 dickinson.ts_sum.restype = c_double
 dickinson.ts_write.restype = POINTER(c_char)
+dickinson.ts_get_next.restype = POINTER(T_REC)
+dickinson.ts_get_prev.restype = POINTER(T_REC)
 
 re_compiled = re.compile(r'''^(\d{4})-(\d{1,2})-(\d{1,2})
                          (?: [ tT] (\d{1,2}):(\d{1,2}) )?''',
@@ -407,6 +409,21 @@ class Timeseries(dict):
         flags = arec.flags
         flags = flags.split()
         return _Tsvalue(value, flags)
+
+    def delete_items(self, date1, date2):
+        bd = self.bounding_dates()
+        if not bd:
+            return
+        if not date1:
+            date1 = bd[0]
+        if not date2:
+            date2 = bd[1]
+        timestamp_c1 = c_longlong(_datetime_to_time_t(date1))
+        timestamp_c2 = c_longlong(_datetime_to_time_t(date2))
+        p1 = dickinson.ts_get_next(self.ts_handle, timestamp_c1)
+        p2 = dickinson.ts_get_prev(self.ts_handle, timestamp_c2)
+        if p1 and p2:
+            dickinson.ts_delete_records(self.ts_handle, p1, p2)
 
     def get(self, key, default=None):
         if self.__contains__(key):

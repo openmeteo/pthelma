@@ -337,6 +337,11 @@ text in the ts_core directory in the repository.
       Return the start and end dates as a tuple of
       :class:`datetime.datetime` objects.
 
+   .. method:: Timeseries.delete_items(date1, date2)
+
+      Deletes the items from *date1* to *date2* inclusive (it is not needed for
+      items with exactly these dates to exist).
+
    .. method:: Timeseries.items([pos=None])
 
       Same as inherited but returns the items in order. In other

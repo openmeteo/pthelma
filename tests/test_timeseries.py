@@ -999,6 +999,45 @@ class _Test_Timeseries_allmiss_aggregate(TestCase):
         self.assertEqual(out.getvalue(), aggregated_hourly_allmiss)
 
 
+class _Test_Timeseries_delete_items(TestCase):
+
+    def setUp(self):
+        self.ts = Timeseries()
+        self.ts.read(StringIO(big_test_timeseries))
+
+    def test_delete_all_but_first_and_last(self):
+        self.ts.delete_items(datetime(2003, 7, 18, 19, 52),
+                             datetime(2005, 8, 26, 0, 2))
+        self.assertEquals(len(self.ts), 2)
+        self.assertEquals(self.ts['2003-07-18 18:53'], 93)
+        self.assertTrue(math.isnan(self.ts['2005-08-27 00:02']))
+
+    def test_delete_all_but_first_and_last_fuzzy(self):
+        self.ts.delete_items(datetime(2003, 7, 18, 18, 54),
+                             datetime(2005, 8, 26, 2, 2))
+        self.assertEquals(len(self.ts), 2)
+        self.assertEquals(self.ts['2003-07-18 18:53'], 93)
+        self.assertTrue(math.isnan(self.ts['2005-08-27 00:02']))
+
+    def test_delete_nothing(self):
+        orig_len = len(self.ts)
+        self.ts.delete_items(datetime(2005, 8, 27, 0, 3),
+                             datetime(2005, 8, 29, 0, 3))
+        self.assertEquals(len(self.ts), orig_len)
+
+    def test_delete_to_end(self):
+        self.ts.delete_items(datetime(2003, 7, 18, 19, 52), None)
+        self.assertEquals(len(self.ts), 1)
+        self.assertEquals(self.ts['2003-07-18 18:53'], 93)
+
+    def test_delete_from_start(self):
+        self.ts.delete_items(None, datetime(2005, 8, 26, 0, 1))
+        self.assertEquals(len(self.ts), 2)
+        d1, d2 = self.ts.bounding_dates()
+        self.assertEquals(d1, datetime(2005, 8, 26, 0, 2))
+        self.assertEquals(d2, datetime(2005, 8, 27, 0, 2))
+
+
 events_test_timeseries_1 = textwrap.dedent("""\
                     2008-02-07 09:40,-2.33,
                     2008-02-07 09:50,7.43,
