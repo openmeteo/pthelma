@@ -14,7 +14,7 @@ from osgeo import ogr, gdal
 
 from pthelma import enhydris_api
 from pthelma.spatial import idw, integrate, TimeseriesCache, \
-    create_ogr_layer_from_stations, h_integrate, BitiaApp
+    create_ogr_layer_from_stations, h_integrate, BitiaApp, WrongValueError
 from pthelma.timeseries import Timeseries
 
 
@@ -401,16 +401,14 @@ class BitiaAppTestCase(TestCase):
         self.cache_dir = os.path.join(self.tempdir, 'cache')
         self.output_dir = os.path.join(self.tempdir, 'output')
         self.config_file = os.path.join(self.tempdir, 'bitia.conf')
+        os.mkdir(self.cache_dir)
+        os.mkdir(self.output_dir)
         self.mask_file = os.path.join(self.tempdir, 'mask.tif')
         self.saved_argv = sys.argv
         sys.argv = ['bitia', '--traceback', self.config_file]
 
-    def tearDown(self):
-        shutil.rmtree(self.tempdir)
-        sys.argv = self.saved_argv
-
-    def test_correct_configuration(self):
-        with open(os.path.join(self.tempdir, 'bitia.conf'), 'w') as f:
+        # Prepare a configuration file (some tests override it)
+        with open(self.config_file, 'w') as f:
             f.write(textwrap.dedent('''\
                 [General]
                 mask = {0.mask_file}
@@ -427,12 +425,17 @@ class BitiaAppTestCase(TestCase):
                 [nedontas]
                 base_url = wrongproto://openmeteo.org/
                 id = 9356
-
-                [arta]
-                base_url = wrongproto://openmeteo.org/
-                id = 9357
                 ''').format(self))
+
+    def tearDown(self):
+        shutil.rmtree(self.tempdir)
+        sys.argv = self.saved_argv
+
+    def test_correct_configuration(self):
         application = BitiaApp()
+        # The configuration file is correct, so no configuration error is
+        # raised; instead, an error occurs later, when bitia attempts to
+        # connect to Enhydris
         self.assertRaisesRegex(IOError, 'wrongproto', application.run)
 
     def test_wrong_configuration1(self):
@@ -502,3 +505,177 @@ class BitiaAppTestCase(TestCase):
         application = BitiaApp()
         self.assertRaisesRegex(configparser.Error, 'nonexistent_option',
                                application.run)
+
+    def test_get_last_dates(self):
+        filename = os.path.join(self.cache_dir, 'timeseries.hts')
+        with open(filename, 'w') as f:
+            f.write(textwrap.dedent('''\
+                2014-04-30 11:00,18.3,
+                2014-04-30 12:00,19.3,
+                2014-04-30 13:00,20.4,
+                2014-04-30 14:00,21.4,
+                '''))
+        application = BitiaApp()
+        with open(filename) as f:
+            self.assertEquals(application.get_last_dates(f, 2, filename),
+                              [datetime(2014, 4, 30, 13, 0),
+                               datetime(2014, 4, 30, 14, 0)])
+            f.seek(0)
+            self.assertEquals(application.get_last_dates(f, 20, filename),
+                              [datetime(2014, 4, 30, 11, 0),
+                               datetime(2014, 4, 30, 12, 0),
+                               datetime(2014, 4, 30, 13, 0),
+                               datetime(2014, 4, 30, 14, 0)])
+
+    def test_dates_to_calculate(self):
+        application = BitiaApp()
+        application.read_command_line()
+        application.read_configuration()
+        cache = TimeseriesCache(self.cache_dir, application.timeseries_group)
+        application.cache = cache
+        g = application.timeseries_group
+        filename1 = cache.get_filename(g[0]['base_url'], g[0]['id'])
+        filename2 = cache.get_filename(g[1]['base_url'], g[1]['id'])
+        with open(filename1, 'w') as f:
+            f.write(textwrap.dedent('''\
+                2014-04-30 11:00,18.3,
+                2014-04-30 13:00,20.4,
+                2014-04-30 14:00,21.4,
+                2014-04-30 15:00,22.4,
+                '''))
+        with open(filename2, 'w') as f:
+            f.write(textwrap.dedent('''\
+                2014-04-30 11:00,18.3,
+                2014-04-30 12:00,19.3,
+                2014-04-30 13:00,20.4,
+                2014-04-30 14:00,21.4,
+                '''))
+
+        # Check for files_to_keep=24
+        dates = []
+        for d in application.dates_to_calculate:
+            dates.append(d)
+        self.assertEquals(dates, [datetime(2014, 4, 30, 11, 0),
+                                  datetime(2014, 4, 30, 12, 0),
+                                  datetime(2014, 4, 30, 13, 0),
+                                  datetime(2014, 4, 30, 14, 0),
+                                  datetime(2014, 4, 30, 15, 0)])
+
+        # Check for files_to_keep=2
+        application.config['General']['files_to_keep'] = 2
+        dates = []
+        for d in application.dates_to_calculate:
+            dates.append(d)
+        self.assertEquals(dates, [datetime(2014, 4, 30, 14, 0),
+                                  datetime(2014, 4, 30, 15, 0)])
+
+        # Check for files_to_keep=4
+        application.config['General']['files_to_keep'] = 4
+        dates = []
+        for d in application.dates_to_calculate:
+            dates.append(d)
+        self.assertEquals(dates, [datetime(2014, 4, 30, 12, 0),
+                                  datetime(2014, 4, 30, 13, 0),
+                                  datetime(2014, 4, 30, 14, 0),
+                                  datetime(2014, 4, 30, 15, 0)])
+
+    def test_date_fmt(self):
+        application = BitiaApp()
+        application.read_command_line()
+        application.read_configuration()
+        cache = TimeseriesCache(self.cache_dir, application.timeseries_group)
+        application.cache = cache
+        g = application.timeseries_group
+        filename1 = cache.get_filename(g[0]['base_url'], g[0]['id']) + '_step'
+        filename2 = cache.get_filename(g[1]['base_url'], g[1]['id']) + '_step'
+
+        # Ten-minute
+        with open(filename1, 'w') as f:
+            f.write('1')
+        with open(filename2, 'w') as f:
+            f.write('1')
+        self.assertEquals(application.date_fmt, '%Y-%m-%d-%H-%M')
+
+        # Hourly
+        with open(filename1, 'w') as f:
+            f.write('2')
+        with open(filename2, 'w') as f:
+            f.write('2')
+        self.assertEquals(application.date_fmt, '%Y-%m-%d-%H-%M')
+
+        # Daily
+        with open(filename1, 'w') as f:
+            f.write('3')
+        with open(filename2, 'w') as f:
+            f.write('3')
+        self.assertEquals(application.date_fmt, '%Y-%m-%d')
+
+        # Monthly
+        with open(filename1, 'w') as f:
+            f.write('4')
+        with open(filename2, 'w') as f:
+            f.write('4')
+        self.assertEquals(application.date_fmt, '%Y-%m')
+
+        # Annual
+        with open(filename1, 'w') as f:
+            f.write('5')
+        with open(filename2, 'w') as f:
+            f.write('5')
+        self.assertEquals(application.date_fmt, '%Y')
+
+        # Five-minute
+        with open(filename1, 'w') as f:
+            f.write('6')
+        with open(filename2, 'w') as f:
+            f.write('6')
+        self.assertEquals(application.date_fmt, '%Y-%m-%d-%H-%M')
+
+        # Fifteen-minute
+        with open(filename1, 'w') as f:
+            f.write('7')
+        with open(filename2, 'w') as f:
+            f.write('7')
+        self.assertEquals(application.date_fmt, '%Y-%m-%d-%H-%M')
+
+        # Inconsistent
+        with open(filename1, 'w') as f:
+            f.write('1')
+        with open(filename2, 'w') as f:
+            f.write('2')
+        self.assertRaises(WrongValueError, lambda: application.date_fmt)
+
+    def test_delete_obsolete_files(self):
+        application = BitiaApp()
+        application.read_command_line()
+        application.read_configuration()
+
+        # Create three files
+        prefix = application.config['General']['filename_prefix']
+        filename1 = os.path.join(self.output_dir, '{}-1.tif'.format(prefix))
+        filename2 = os.path.join(self.output_dir, '{}-2.tif'.format(prefix))
+        filename3 = os.path.join(self.output_dir, '{}-3.tif'.format(prefix))
+        with open(filename1, 'w'):
+            pass
+        with open(filename2, 'w'):
+            pass
+        with open(filename3, 'w'):
+            pass
+
+        # Just to make sure we didn't screw up above, check
+        self.assertTrue(os.path.exists(filename1))
+        self.assertTrue(os.path.exists(filename2))
+        self.assertTrue(os.path.exists(filename3))
+
+        # Execute for files_to_keep = 2 and check
+        application.config['General']['files_to_keep'] = 2
+        application.delete_obsolete_files()
+        self.assertFalse(os.path.exists(filename1))
+        self.assertTrue(os.path.exists(filename2))
+        self.assertTrue(os.path.exists(filename3))
+
+        # Re-execute; nothing should have changed
+        application.delete_obsolete_files()
+        self.assertFalse(os.path.exists(filename1))
+        self.assertTrue(os.path.exists(filename2))
+        self.assertTrue(os.path.exists(filename3))

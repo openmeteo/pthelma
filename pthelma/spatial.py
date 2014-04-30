@@ -5,6 +5,7 @@ from glob import glob
 import logging
 import os
 import sys
+import traceback
 
 from six import StringIO
 from six.moves import configparser
@@ -14,6 +15,7 @@ from six.moves.urllib.parse import quote_plus
 import numpy as np
 from osgeo import ogr, gdal
 import requests
+from requests.exceptions import HTTPError
 
 from pthelma import enhydris_api
 from pthelma.timeseries import Timeseries, datetime_from_iso
@@ -152,7 +154,9 @@ class TimeseriesCache(object):
         url = self.base_url + 'timeseries/d/{}/download/{}/'.format(
             self.timeseries_id, start_date.isoformat())
         r = requests.get(url, cookies=self.session_cookies)
-        r.raise_for_status()
+        if r.status_code != 200:
+            raise HTTPError('Error {} while getting {}'.format(r.status_code,
+                                                               url))
         ts2 = Timeseries()
         ts2.read_file(StringIO(r.text))
         ts1.append(ts2)
@@ -231,6 +235,7 @@ class BitiaApp(object):
                                        'filename_prefix': None,
                                        'files_to_keep':   None,
                                        'method':          None,
+                                       'logfile':         '',
                                        'loglevel':        'WARNING',
                                        'alpha':           '1',
                                        },
@@ -252,7 +257,7 @@ class BitiaApp(object):
         self.logger = logging.getLogger('bitia')
         self.logger.setLevel(
             getattr(logging, self.config['General']['loglevel']))
-        if 'logfile' in self.config['General']:
+        if self.config['General']['logfile']:
             self.logger.addHandler(
                 logging.FileHandler(self.config['General']['logfile']))
         else:
@@ -366,10 +371,10 @@ class BitiaApp(object):
         this is the latest list of dates such that:
         * At least one of the time series has data
         * The length of the list is the 'files_to_keep' configuration option
-          (maybe less if the time series don't have enough data yet.
+          (maybe less if the time series don't have enough data yet).
         On entry self.cache must be an updated TimeseriesCache object.
         """
-        n = self.config['General']['files_to_keep']
+        n = int(self.config['General']['files_to_keep'])
         dates = set()
         for item in self.timeseries_group:
             filename = self.cache.get_filename(item['base_url'], item['id'])
@@ -410,18 +415,16 @@ class BitiaApp(object):
         Delete all tif files produced in the past except the last N,
         where N is the 'files_to_keep' configuration option.
         """
-        n = self.config['General']['files_to_keep']
+        n = int(self.config['General']['files_to_keep'])
         output_dir = self.config['General']['output_dir']
         filename_prefix = self.config['General']['filename_prefix']
         pattern = os.path.join(output_dir, '{}-*.tif'.format(filename_prefix))
         files = glob(pattern)
         files.sort()
-        for filename in files[1:-n]:
+        for filename in files[:-n]:
             os.remove(filename)
 
     def execute(self):
-        self.logger.info(
-            'Starting bitia, {}'.format(datetime.today().isoformat()))
         cache_dir = self.config['General']['cache_dir']
         self.cache = TimeseriesCache(cache_dir, self.timeseries_group)
         self.cache.update()
@@ -450,12 +453,17 @@ class BitiaApp(object):
             self.read_command_line()
             self.read_configuration()
             self.setup_logger()
+            self.logger.info(
+                'Starting bitia, {}'.format(datetime.today().isoformat()))
             self.execute()
         except Exception as e:
             msg = str(e)
             sys.stderr.write(msg + '\n')
             if self.logger:
                 self.logger.error(msg)
+                self.logger.debug(traceback.format_exc())
+                self.logger.info(
+                    'Finished bitia, {}'.format(datetime.today().isoformat()))
             if self.args and self.args.traceback:
                 raise
             sys.exit(1)
