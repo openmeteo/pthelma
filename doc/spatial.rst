@@ -39,9 +39,11 @@
 
    *data_layer* is an :class:`ogr.Layer` object containing one or more
    points with values (all data_layer features must be points and must
-   also have a value property).  *point* is an :class:`ogr.Point`
-   object.  This function applies the IDW method to calculate the
-   value of *point* given the values of the points of *data_layer*.
+   also have a *value* attribute, which may, however, have the value
+   :const:`NaN`).  *point* is an :class:`ogr.Point` object.  This
+   function applies the IDW method to calculate the value of *point*
+   given the values of the points of *data_layer*. Points with a value
+   of :const:`NaN` are not taken into account in the calculations.
 
    Distances are raised to power -*alpha*; this means that for *alpha*
    > 1, the so-called distance-decay effect will be more than
@@ -55,9 +57,10 @@
    gridpoints of the mask have value zero or non-zero. *data_layer* is
    an :class:`ogr.Layer` object containing one or more points with
    values (all *data_layer* features must be points and must also have
-   a *value* attribute). *target_band* is a band on which the result
-   will be written; it must have the same GeoTransform as *mask*.
-   *funct* is a python function whose first two arguments are an
+   a *value* attribute, which may, however, have the value
+   :const:`NaN`). *target_band* is a band on which the result will be
+   written; it must have the same GeoTransform as *mask*.  *funct* is
+   a python function whose first two arguments are an
    :class:`ogr.Point` and *data_layer*, and *kwargs* is a dictionary
    with keyword arguments to be given to *funct*.
 
@@ -106,8 +109,8 @@
    without doing anything. *funct* and *kwargs* are passed to
    :func:`integrate()`.
 
-   All time series in *group* must have *date* in the cache. If not,
-   the function raises :exc:`IntegrationDateMissingError`.
+   If some of the time series in *group* don't have *date* in the
+   cache, they are not taken into account in the integration.
 
 .. class:: BitiaApp
 

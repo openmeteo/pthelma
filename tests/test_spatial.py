@@ -52,11 +52,19 @@ class IdwTestCase(TestCase):
         add_point_to_layer(self.data_layer, 9.5, 7.4, 94.0)
         add_point_to_layer(self.data_layer, 7.1, 4.9, 67.7)
         self.assertAlmostEqual(idw(self.point, self.data_layer),
-                               64.0902,
-                               places=4)
+                               64.090, places=3)
         self.assertAlmostEqual(idw(self.point, self.data_layer, alpha=2.0),
-                               64.1876,
-                               places=4)
+                               64.188, places=3)
+
+    def test_idw_point_with_nan(self):
+        add_point_to_layer(self.data_layer, 6.4, 7.8, 33.0)
+        add_point_to_layer(self.data_layer, 9.5, 7.4, 94.0)
+        add_point_to_layer(self.data_layer, 7.1, 4.9, 67.7)
+        add_point_to_layer(self.data_layer, 7.2, 5.4, float('nan'))
+        self.assertAlmostEqual(idw(self.point, self.data_layer),
+                               64.090, places=3)
+        self.assertAlmostEqual(idw(self.point, self.data_layer, alpha=2.0),
+                               64.188, places=3)
 
 
 class IntegrateTestCase(TestCase):
@@ -72,7 +80,7 @@ class IntegrateTestCase(TestCase):
         self.dataset.GetRasterBand(1).WriteArray(self.mask)
 
         # Prepare the result band
-        self.dataset.AddBand(gdal.GDT_Float64)
+        self.dataset.AddBand(gdal.GDT_Float32)
         self.target_band = self.dataset.GetRasterBand(self.dataset.RasterCount)
 
         # Our grid represents a 70x150m area, lower-left co-ordinates (0, 0).
@@ -99,9 +107,9 @@ class IntegrateTestCase(TestCase):
         # (^ is bitwise xor in Python)
         self.assertTrue((np.isnan(result) ^ (self.mask != 0)).all())
 
-        self.assertAlmostEqual(result[3, 3],  62.9711, places=4)
-        self.assertAlmostEqual(result[6, 14], 34.8381, places=4)
-        self.assertAlmostEqual(result[4, 13], 30.7365, places=4)
+        self.assertAlmostEqual(result[3, 3],  62.971, places=3)
+        self.assertAlmostEqual(result[6, 14], 34.838, places=3)
+        self.assertAlmostEqual(result[4, 13], 30.737, places=3)
 
 
 @skipUnless(os.getenv('PTHELMA_TEST_ENHYDRIS_API'),
@@ -334,6 +342,18 @@ class HIntegrateTestCase(TestCase):
                                      2014-04-22 13:10,7.63,
                                      """),
              'point': 'POINT (42000.00 14000.00)',
+             },
+            {'base_url': 'http://irrelevant.gr/',
+             'id': 1237,
+             'user': '',
+             'password': '',
+             # This station is missing the date required,
+             # so it should not be taken into account
+             'data': textwrap.dedent("""\
+                                     2014-04-22 12:50,9.70,
+                                     2014-04-22 13:10,7.63,
+                                     """),
+             'point': 'POINT (17000.00 17000.00)',
              },
             ]
 

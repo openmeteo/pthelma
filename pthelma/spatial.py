@@ -3,6 +3,7 @@ from copy import copy
 from datetime import datetime, timedelta
 from glob import glob
 import logging
+from math import isnan
 import os
 import sys
 import traceback
@@ -24,7 +25,7 @@ from pthelma.xreverse import xreverse
 
 def idw(point, data_layer, alpha=1):
     data_layer.ResetReading()
-    features = [f for f in data_layer]
+    features = [f for f in data_layer if not isnan(f.GetField('value'))]
     distances = np.array([point.Distance(f.GetGeometryRef())
                           for f in features])
     values = np.array([f.GetField('value') for f in features])
@@ -38,7 +39,7 @@ def idw(point, data_layer, alpha=1):
 
 
 def integrate(dataset, data_layer, target_band, funct, kwargs={}):
-    mask = dataset.GetRasterBand(1).ReadAsArray()
+    mask = (dataset.GetRasterBand(1).ReadAsArray() != 0)
 
     # Create an array with the x co-ordinate of each grid point, and
     # one with the y co-ordinate of each grid point
@@ -56,7 +57,7 @@ def integrate(dataset, data_layer, target_band, funct, kwargs={}):
         point.AddPoint(x, y)
         return funct(point, data_layer, **kwargs)
     interpolate = np.vectorize(interpolate_one_point,
-                               otypes=[np.float64, np.float64, np.bool])
+                               otypes=[np.float32, np.float32, np.bool])
 
     # Make the calculation
     target_band.WriteArray(interpolate(xarray, yarray, mask))
@@ -171,10 +172,6 @@ class TimeseriesCache(object):
                 f.write(str(step_id))
 
 
-class IntegrationDateMissingError(Exception):
-    pass
-
-
 def h_integrate(group, mask, stations_layer, cache, date, output_dir,
                 filename_prefix, date_fmt, funct, kwargs):
     # Return immediately if output file already exists
@@ -189,23 +186,18 @@ def h_integrate(group, mask, stations_layer, cache, date, output_dir,
     stations_layer.CreateField(ogr.FieldDefn('value', ogr.OFTReal))
     for station in stations_layer:
         ts_id = station.GetField('timeseries_id')
-        base_url = [t['base_url'] for t in group if t['id'] == ts_id][0]
+        base_url = [x['base_url'] for x in group if x['id'] == ts_id][0]
         cache_filename = cache.get_filename(base_url, ts_id)
         t = Timeseries()
         with open(cache_filename) as f:
             t.read(f)
-        try:
-            station.SetField('value', t[date])
-            stations_layer.SetFeature(station)
-        except KeyError:
-            raise IntegrationDateMissingError(
-                'Timeseries from {} with id={} does not have date {}'
-                .format(base_url, ts_id, date))
+        station.SetField('value', t.get(date, float('NaN')))
+        stations_layer.SetFeature(station)
 
     # Create destination data source
     output = gdal.GetDriverByName('GTiff').Create(
         output_filename, mask.RasterXSize, mask.RasterYSize, 1,
-        gdal.GDT_Float64)
+        gdal.GDT_Float32)
 
     try:
         # Set geotransform and projection in the output data source
@@ -282,6 +274,9 @@ class BitiaApp(object):
                 if value is not None:
                     self.config[section].setdefault(option, value)
 
+        # Check
+        self.check_configuration()
+
         # Convert all sections but 'General' into a list of time series
         self.timeseries_group = []
         for section in self.config:
@@ -289,9 +284,8 @@ class BitiaApp(object):
                 continue
             item = copy(self.config[section])
             item['name'] = section
+            item['id'] = int(item['id'])
             self.timeseries_group.append(item)
-
-        self.check_configuration()
 
     def check_configuration(self):
         # Check compulsory options and invalid options
@@ -432,6 +426,9 @@ class BitiaApp(object):
         stations_layer = create_ogr_layer_from_stations(self.timeseries_group,
                                                         stations, self.cache)
         mask = gdal.Open(self.config['General']['mask'])
+        if mask is None:
+            raise IOError('An error occured when trying to open {}'.format(
+                self.config['General']['mask']))
         if self.config['General']['method'] == 'idw':
             funct = idw
             kwargs = {'alpha': float(self.config['General']['alpha']), }
