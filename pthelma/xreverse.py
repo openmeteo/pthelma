@@ -69,6 +69,8 @@ class xreverse(object):
                     else:
                         self.done = 1
                         return self.buffer + '\n'
+    # Python 2 compatibility
+    next = __next__
 
 
 def dump(rtype, fn):
