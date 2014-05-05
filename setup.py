@@ -86,7 +86,7 @@ kwargs = {
         "pytz",
         "simpletail>=0.1.1",
         "requests>=1,<3",
-        "six>=1.6,<2",
+        "six>=1.5,<2",
         "numpy>=1.6,<2",
         "gdal>=1.9,<2",
     ],
