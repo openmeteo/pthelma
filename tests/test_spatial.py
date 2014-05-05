@@ -537,11 +537,11 @@ class BitiaAppTestCase(TestCase):
                 '''))
         application = BitiaApp()
         with open(filename) as f:
-            self.assertEquals(application.get_last_dates(f, 2, filename),
+            self.assertEquals(application.get_last_dates(filename, 2),
                               [datetime(2014, 4, 30, 13, 0),
                                datetime(2014, 4, 30, 14, 0)])
             f.seek(0)
-            self.assertEquals(application.get_last_dates(f, 20, filename),
+            self.assertEquals(application.get_last_dates(filename, 20),
                               [datetime(2014, 4, 30, 11, 0),
                                datetime(2014, 4, 30, 12, 0),
                                datetime(2014, 4, 30, 13, 0),

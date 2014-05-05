@@ -84,6 +84,7 @@ kwargs = {
     'test_suite': "tests",
     'install_requires': [
         "pytz",
+        "simpletail>=0.1.1",
         "requests>=1,<3",
         "six>=1.6,<2",
         "numpy>=1.6,<2",

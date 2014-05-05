@@ -17,10 +17,10 @@ import numpy as np
 from osgeo import ogr, gdal
 import requests
 from requests.exceptions import HTTPError
+from simpletail import ropen
 
 from pthelma import enhydris_api
 from pthelma.timeseries import Timeseries, datetime_from_iso
-from pthelma.xreverse import xreverse
 
 
 def idw(point, data_layer, alpha=1):
@@ -338,7 +338,7 @@ class BitiaApp(object):
         except ValueError:
             raise WrongValueError('Option "alpha" must be a number')
 
-    def get_last_dates(self, fp, n, filename):
+    def get_last_dates(self, filename, n):
         """
         Given file-like object fp that is a time series in file format or text
         format, it scans it from the bottom and returns the list of the n last
@@ -346,16 +346,17 @@ class BitiaApp(object):
         is used in error messages.
         """
         result = []
-        for i, line in enumerate(xreverse(fp)):
-            if i >= n:
-                break
-            datestring = line.split(',')[0]
-            try:
-                result.insert(0, datetime_from_iso(datestring))
-            except ValueError as e:
-                raise ValueError(e.message +
-                                 ' (file {}, {} lines from the end)'.format(
-                                     filename, i))
+        with ropen(filename) as fp:
+            for i, line in enumerate(fp):
+                if i >= n:
+                    break
+                datestring = line.split(',')[0]
+                try:
+                    result.insert(0, datetime_from_iso(datestring))
+                except ValueError as e:
+                    raise ValueError(e.message +
+                                     ' (file {}, {} lines from the end)'
+                                     .format(filename, i))
         return result
 
     @property
@@ -372,8 +373,7 @@ class BitiaApp(object):
         dates = set()
         for item in self.timeseries_group:
             filename = self.cache.get_filename(item['base_url'], item['id'])
-            with open(filename) as f:
-                dates |= set(self.get_last_dates(f, n, filename))
+            dates |= set(self.get_last_dates(filename, n))
         dates = list(dates)
         dates.sort()
         dates = dates[-n:]

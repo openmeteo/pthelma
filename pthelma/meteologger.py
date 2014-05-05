@@ -27,10 +27,10 @@ from six import StringIO
 
 from pytz import timezone
 import requests
+from simpletail import ropen
 
 from pthelma import enhydris_api
 from pthelma.timeseries import Timeseries, datetime_from_iso, isoformat_nosecs
-from pthelma.xreverse import xreverse
 
 
 class MeteologgerError(Exception):
@@ -116,19 +116,15 @@ class Datafile(object):
     def update_database(self):
         self.logger.info('Processing datafile %s' % (self.filename))
         self.last_timeseries_end_date = None
-        self.fileobject = open(self.filename, 'r')
-        try:
-            self.seq = 0  # sequence number of timeseries
-            for self.ts in self.datafile_fields:
-                self.seq = self.seq + 1
-                if self.ts == 0:
-                    self.logger.info('Omitting position %d' % (self.seq))
-                    continue
-                self.logger.info('Processing timeseries %d at position %d'
-                                 % (self.ts, self.seq))
-                self._update_timeseries()
-        finally:
-            self.fileobject.close()
+        self.seq = 0  # sequence number of timeseries
+        for self.ts in self.datafile_fields:
+            self.seq = self.seq + 1
+            if self.ts == 0:
+                self.logger.info('Omitting position %d' % (self.seq))
+                continue
+            self.logger.info('Processing timeseries %d at position %d'
+                             % (self.ts, self.seq))
+            self._update_timeseries()
 
     def _get_end_date_in_database(self):
         """Return end date of self.ts in database, or 1/1/1 if timeseries is
@@ -188,27 +184,23 @@ class Datafile(object):
     def _get_tail(self):
         "Read the part of the datafile after last_timeseries_end_date"
         self.tail = []
-        xr = xreverse(self.fileobject, 2048)
         prev_date = ''
-        while True:
-            try:
-                line = next(xr)
-            except StopIteration:
-                break
-            self.logger.debug(line)
-            if line.strip() and self.subset_identifiers_match(line):
-                date = self.extract_date(line).replace(second=0)
-                date = self._fix_dst(date)
-                if date == prev_date:
-                    w = 'WARNING: Omitting line with repeated date ' + str(
-                        date)
-                    self.logger.warning(w)
-                    continue
-                prev_date = date
-                self.logger.debug('Date: %s' % (date.isoformat()))
-                if date <= self.last_timeseries_end_date:
-                    break
-                self.tail.append({'date': date, 'line': line})
+        with ropen(self.filename) as xr:
+            for line in xr:
+                self.logger.debug(line)
+                if line.strip() and self.subset_identifiers_match(line):
+                    date = self.extract_date(line).replace(second=0)
+                    date = self._fix_dst(date)
+                    if date == prev_date:
+                        w = 'WARNING: Omitting line with repeated date ' + str(
+                            date)
+                        self.logger.warning(w)
+                        continue
+                    prev_date = date
+                    self.logger.debug('Date: %s' % (date.isoformat()))
+                    if date <= self.last_timeseries_end_date:
+                        break
+                    self.tail.append({'date': date, 'line': line})
         self.tail.reverse()
 
     def _fix_dst(self, adatetime, now=None):
