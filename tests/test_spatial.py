@@ -173,20 +173,21 @@ class CreateOgrLayerFromStationsTestCase(TestCase):
                  {'base_url': self.parms['base_url'],
                   'user': self.parms['user'],
                   'id': self.timeseries2_id}]
-        layer = create_ogr_layer_from_stations(group, data_source,
+        layer = create_ogr_layer_from_stations(group, 2100, data_source,
                                                TimeseriesCache(self.tempdir,
                                                                []))
         self.assertTrue(layer.GetFeatureCount(), 2)
-        ref = [{'x': 23.78743, 'y': 37.97385,
+        # The co-ordinates below are converted from WGS84 to Greek Grid/GGRS87
+        ref = [{'x': 481180.63, 'y': 4202647.01,  # 23.78743, 37.97385
                 'timeseries_id': self.timeseries1_id},
-               {'x': 24.56789, 'y': 38.76543,
+               {'x': 549187.44, 'y': 4290612.25,  # 24.56789, 38.76543
                 'timeseries_id': self.timeseries2_id},
                ]
         for feature, r in zip(layer, ref):
             self.assertEqual(feature.GetField('timeseries_id'),
                              r['timeseries_id'])
-            self.assertAlmostEqual(feature.GetGeometryRef().GetX(), r['x'], 5)
-            self.assertAlmostEqual(feature.GetGeometryRef().GetY(), r['y'], 5)
+            self.assertAlmostEqual(feature.GetGeometryRef().GetX(), r['x'], 2)
+            self.assertAlmostEqual(feature.GetGeometryRef().GetY(), r['y'], 2)
 
 
 @skipUnless(os.getenv('PTHELMA_TEST_ENHYDRIS_API'),
@@ -319,7 +320,7 @@ class HIntegrateTestCase(TestCase):
                                      2014-04-22 13:00,0.54,
                                      2014-04-22 13:10,6.93,
                                      """),
-             'point': 'POINT (5000.00 5000.00)',
+             'point': 'POINT (19.55729 0.04733)',  # GGRS87=5000.00 5000.00
              },
             {'base_url': 'http://irrelevant.gr/',
              'id': 1235,
@@ -330,7 +331,7 @@ class HIntegrateTestCase(TestCase):
                                      2014-04-22 13:00,2.40,
                                      2014-04-22 13:10,9.16,
                                      """),
-             'point': 'POINT (15000.00 5000.00)',
+             'point': 'POINT (19.64689 0.04734)',  # GGRS87=15000.00 5000.00
              },
             {'base_url': 'http://irrelevant.gr/',
              'id': 1236,
@@ -341,7 +342,7 @@ class HIntegrateTestCase(TestCase):
                                      2014-04-22 13:00,1.84,
                                      2014-04-22 13:10,7.63,
                                      """),
-             'point': 'POINT (42000.00 14000.00)',
+             'point': 'POINT (19.88886 0.12857)',  # GGSRS87=42000.00 14000.00
              },
             {'base_url': 'http://irrelevant.gr/',
              'id': 1237,
@@ -353,7 +354,7 @@ class HIntegrateTestCase(TestCase):
                                      2014-04-22 12:50,9.70,
                                      2014-04-22 13:10,7.63,
                                      """),
-             'point': 'POINT (17000.00 17000.00)',
+             'point': 'POINT (19.66480 0.15560)',  # GGRS87=17000.00 17000.00
              },
             ]
 
@@ -385,7 +386,7 @@ class HIntegrateTestCase(TestCase):
         self.create_mask()
         self.stations = ogr.GetDriverByName('memory').CreateDataSource('tmp')
         self.stations_layer = create_ogr_layer_from_stations(
-            self.data, self.stations, self.cache)
+            self.data, 2100, self.stations, self.cache)
 
     def tearDown(self):
         shutil.rmtree(self.tempdir)
@@ -432,6 +433,7 @@ class BitiaAppTestCase(TestCase):
             f.write(textwrap.dedent('''\
                 [General]
                 mask = {0.mask_file}
+                epsg = 2100
                 cache_dir = {0.cache_dir}
                 output_dir = {0.output_dir}
                 filename_prefix = rainfall
@@ -463,6 +465,7 @@ class BitiaAppTestCase(TestCase):
             f.write(textwrap.dedent('''\
                 [General]
                 mask = {0.mask_file}
+                epsg = 2100
                 cache_dir = {0.cache_dir}
                 output_dir = {0.output_dir}
                 filename_prefix = rainfall
@@ -477,6 +480,7 @@ class BitiaAppTestCase(TestCase):
             f.write(textwrap.dedent('''\
                 [General]
                 mask = {0.mask_file}
+                epsg = 2100
                 cache_dir = {0.cache_dir}
                 output_dir = {0.output_dir}
                 filename_prefix = rainfall
@@ -493,6 +497,7 @@ class BitiaAppTestCase(TestCase):
             f.write(textwrap.dedent('''\
                 [General]
                 mask = {0.mask_file}
+                epsg = 2100
                 cache_dir = {0.cache_dir}
                 output_dir = {0.output_dir}
                 filename_prefix = rainfall
@@ -511,6 +516,7 @@ class BitiaAppTestCase(TestCase):
             f.write(textwrap.dedent('''\
                 [General]
                 mask = {0.mask_file}
+                epsg = 2100
                 cache_dir = {0.cache_dir}
                 output_dir = {0.output_dir}
                 filename_prefix = rainfall
@@ -524,6 +530,26 @@ class BitiaAppTestCase(TestCase):
                 ''').format(self))
         application = BitiaApp()
         self.assertRaisesRegex(configparser.Error, 'nonexistent_option',
+                               application.run)
+
+    def test_wrong_configuration_epsg(self):
+        with open(os.path.join(self.tempdir, 'bitia.conf'), 'w') as f:
+            f.write(textwrap.dedent('''\
+                [General]
+                mask = {0.mask_file}
+                epsg = 81122
+                cache_dir = {0.cache_dir}
+                output_dir = {0.output_dir}
+                filename_prefix = rainfall
+                files_to_keep = 24
+                method = idw
+
+                [ntua]
+                base_url = https://openmeteo.org/
+                id = 9876
+                ''').format(self))
+        application = BitiaApp()
+        self.assertRaisesRegex(WrongValueError, 'epsg=81122',
                                application.run)
 
     def test_get_last_dates(self):

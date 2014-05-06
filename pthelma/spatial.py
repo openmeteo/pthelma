@@ -14,7 +14,7 @@ from six.moves.configparser import RawConfigParser, NoOptionError
 from six.moves.urllib.parse import quote_plus
 
 import numpy as np
-from osgeo import ogr, gdal
+from osgeo import ogr, osr, gdal
 import requests
 from requests.exceptions import HTTPError
 from simpletail import ropen
@@ -63,8 +63,15 @@ def integrate(dataset, data_layer, target_band, funct, kwargs={}):
     target_band.WriteArray(interpolate(xarray, yarray, mask))
 
 
-def create_ogr_layer_from_stations(group, data_source, cache):
-    layer = data_source.CreateLayer('stations')
+def create_ogr_layer_from_stations(group, epsg, data_source, cache):
+    # Prepare the co-ordinate transformation from WGS84 to epsg
+    source_sr = osr.SpatialReference()
+    source_sr.ImportFromEPSG(4326)
+    target_sr = osr.SpatialReference()
+    target_sr.ImportFromEPSG(epsg)
+    transform = osr.CoordinateTransformation(source_sr, target_sr)
+
+    layer = data_source.CreateLayer('stations', target_sr)
     layer.CreateField(ogr.FieldDefn('timeseries_id', ogr.OFTInteger))
     for item in group:
         # Get the point from the cache, or fetch it anew on cache miss
@@ -86,6 +93,7 @@ def create_ogr_layer_from_stations(group, data_source, cache):
 
         # Create feature and put it on the layer
         point = ogr.CreateGeometryFromWkt(pointwkt)
+        point.Transform(transform)
         f = ogr.Feature(layer.GetLayerDefn())
         f.SetGeometry(point)
         f.SetField('timeseries_id', item['id'])
@@ -222,6 +230,7 @@ class WrongValueError(configparser.Error):
 class BitiaApp(object):
                           # Section     Option            Default
     config_file_options = {'General': {'mask':            None,
+                                       'epsg':            None,
                                        'cache_dir':       None,
                                        'output_dir':      None,
                                        'filename_prefix': None,
@@ -306,6 +315,7 @@ class BitiaApp(object):
         self.check_configuration_log_levels()
         self.check_configuration_timeseries_sections()
         self.check_configuration_method()
+        self.check_configuration_epsg()
 
     def check_configuration_log_levels(self):
         log_levels = ['ERROR', 'WARNING', 'INFO', 'DEBUG']
@@ -338,6 +348,16 @@ class BitiaApp(object):
         except ValueError:
             raise WrongValueError('Option "alpha" must be a number')
 
+    def check_configuration_epsg(self):
+        try:
+            epsg = int(self.config['General']['epsg'])
+        except ValueError:
+            raise WrongValueError('Option "epsg" must be an integer')
+        srs = osr.SpatialReference()
+        result = srs.ImportFromEPSG(epsg)
+        if result:
+            raise WrongValueError(
+                'An error occurred when trying to use epsg={}'.format(epsg))
     def get_last_dates(self, filename, n):
         """
         Given file-like object fp that is a time series in file format or text
@@ -420,11 +440,12 @@ class BitiaApp(object):
 
     def execute(self):
         cache_dir = self.config['General']['cache_dir']
+        epsg = int(self.config['General']['epsg'])
         self.cache = TimeseriesCache(cache_dir, self.timeseries_group)
         self.cache.update()
         stations = ogr.GetDriverByName('memory').CreateDataSource('stations')
-        stations_layer = create_ogr_layer_from_stations(self.timeseries_group,
-                                                        stations, self.cache)
+        stations_layer = create_ogr_layer_from_stations(
+            self.timeseries_group, epsg, stations, self.cache)
         mask = gdal.Open(self.config['General']['mask'])
         if mask is None:
             raise IOError('An error occured when trying to open {}'.format(

@@ -67,6 +67,7 @@ explanatory comments that follow it:
     loglevel = INFO
     logfile = C:\Somewhere\bitia.log
     mask = C:\Somewhere\mask.tif
+    epsg = 2100
     cache_dir = C:\Somewhere\BitiaCache
     output_dir = C:\Somewhere\BitiaOutput
     filename_prefix = rainfall
@@ -90,9 +91,10 @@ explanatory comments that follow it:
 
 With the above configuration file, ``bitia`` will log information in
 the file specified by :confval:`logfile`.  :confval:`mask` defines the
-study area. ``bitia`` downloads time series and some other stuff from
-Enhydris, and caches it in files in :confval:`cache_dir`.  Its output
-is GeoTIFF files in :confval:`output_dir`, prefixed with
+study area, whose co-ordinates are in the reference system specified
+by :confval:`epsg`.  ``bitia`` downloads time series and some other
+stuff from Enhydris, and caches it in files in :confval:`cache_dir`.
+Its output is GeoTIFF files in :confval:`output_dir`, prefixed with
 :confval:`filename_prefix`. In this example, the output file will be
 named something like
 :file:`C:\\Somewhere\\BitiaOutput\\rainfall-2014-04-29-15-00.tif`.
@@ -132,6 +134,12 @@ General parameters
    A GeoTIFF file defining the study area. It must contain a single
    band, whose nonzero cells comprise the area. ``bitia`` will
    interpolate a value in each of these cells.
+
+.. confval:: epsg
+
+   An integer specifying the co-ordinate reference system (CRS) used
+   by :confval:`mask`. ``bitia`` will transform the co-ordinates of
+   the stations to that CRS before performing the integration.
 
 .. confval:: cache_dir
 
