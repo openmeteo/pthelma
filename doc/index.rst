@@ -15,14 +15,16 @@ Developer documentation:
 .. toctree::
    :maxdepth: 1
 
-   timeseries
-   tsprocess
-   meteologger
+   cliapp
    enhydris_api
+   meteologger
    spatial
-   meteocalcs
+   timeseries
+
    cplot
    curves
+   meteocalcs
+   tsprocess
 
 Miscellaneous:
 

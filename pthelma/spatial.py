@@ -1,16 +1,10 @@
-from argparse import ArgumentParser
 from copy import copy
 from datetime import datetime, timedelta
 from glob import glob
-import logging
 from math import isnan
 import os
-import sys
-import traceback
 
 from six import StringIO
-from six.moves import configparser
-from six.moves.configparser import RawConfigParser, NoOptionError
 from six.moves.urllib.parse import quote_plus
 
 import numpy as np
@@ -20,6 +14,7 @@ from requests.exceptions import HTTPError
 from simpletail import ropen
 
 from pthelma import enhydris_api
+from pthelma.cliapp import CliApp, WrongValueError
 from pthelma.timeseries import Timeseries, datetime_from_iso
 
 
@@ -219,16 +214,10 @@ def h_integrate(group, mask, stations_layer, cache, date, output_dir,
         output = None
 
 
-class InvalidOptionError(configparser.Error):
-    pass
-
-
-class WrongValueError(configparser.Error):
-    pass
-
-
-class BitiaApp(object):
-                          # Section     Option            Default
+class BitiaApp(CliApp):
+    name = 'bitia'
+    description = 'Perform spatial integration'
+                        # Section          Option            Default
     config_file_options = {'General': {'mask':            None,
                                        'epsg':            None,
                                        'cache_dir':       None,
@@ -236,55 +225,17 @@ class BitiaApp(object):
                                        'filename_prefix': None,
                                        'files_to_keep':   None,
                                        'method':          None,
-                                       'logfile':         '',
-                                       'loglevel':        'WARNING',
                                        'alpha':           '1',
                                        },
                            'other':   {'base_url':        None,
                                        'id':              None,
                                        'user':            '',
                                        'password':        '',
-                                       }
+                                       },
                            }
 
-    def read_command_line(self):
-        parser = ArgumentParser(description='Perform spatial integration')
-        parser.add_argument('config_file', help='Configuration file')
-        parser.add_argument('--traceback', action='store_true',
-                            help='Display traceback on error')
-        self.args = parser.parse_args()
-
-    def setup_logger(self):
-        self.logger = logging.getLogger('bitia')
-        self.logger.setLevel(
-            getattr(logging, self.config['General']['loglevel']))
-        if self.config['General']['logfile']:
-            self.logger.addHandler(
-                logging.FileHandler(self.config['General']['logfile']))
-        else:
-            self.logger.addHandler(logging.StreamHandler())
-
     def read_configuration(self):
-        # Read config
-        cp = RawConfigParser()
-        cp.read((self.args.config_file,))
-
-        # Convert config to dictionary (for Python 2.7 compatibility)
-        self.config = {}
-        for section in cp.sections():
-            self.config[section] = dict(cp.items(section))
-
-        # Set defaults
-        for section in self.config:
-            section_options_key = section if section == 'General' else 'other'
-            section_options = self.config_file_options[section_options_key]
-            for option in section_options:
-                value = section_options[option]
-                if value is not None:
-                    self.config[section].setdefault(option, value)
-
-        # Check
-        self.check_configuration()
+        super(BitiaApp, self).read_configuration()
 
         # Convert all sections but 'General' into a list of time series
         self.timeseries_group = []
@@ -297,46 +248,9 @@ class BitiaApp(object):
             self.timeseries_group.append(item)
 
     def check_configuration(self):
-        # Check compulsory options and invalid options
-        for section in self.config:
-            if section != 'General':
-                continue
-            section_options = self.config_file_options[section]
-            for option in section_options:
-                if (section_options[option] is None) and (
-                        option not in self.config[section]):
-                    raise NoOptionError(option, section)
-            for option in self.config[section]:
-                if option not in section_options:
-                    raise InvalidOptionError(
-                        'Invalid option {} in section [{}]'
-                        .format(option, section))
-
-        self.check_configuration_log_levels()
-        self.check_configuration_timeseries_sections()
+        super(BitiaApp, self).check_configuration()
         self.check_configuration_method()
         self.check_configuration_epsg()
-
-    def check_configuration_log_levels(self):
-        log_levels = ['ERROR', 'WARNING', 'INFO', 'DEBUG']
-        if self.config['General']['loglevel'] not in log_levels:
-            raise WrongValueError('loglevel must be one of {}'.format(
-                ', '.join(log_levels)))
-
-    def check_configuration_timeseries_sections(self):
-        for section in self.config:
-            if section == 'General':
-                continue
-            section_options = self.config_file_options['other']
-            for item in self.config[section]:
-                if item not in section_options:
-                    raise InvalidOptionError(
-                        'Invalid option {} in section [{}]'
-                        .format(item, section))
-            for option in section_options:
-                if (section_options[option] is None) and (
-                        option not in self.config[section]):
-                    raise NoOptionError(option, section)
 
     def check_configuration_method(self):
         # Check method
@@ -358,6 +272,7 @@ class BitiaApp(object):
         if result:
             raise WrongValueError(
                 'An error occurred when trying to use epsg={}'.format(epsg))
+
     def get_last_dates(self, filename, n):
         """
         Given file-like object fp that is a time series in file format or text
@@ -463,25 +378,3 @@ class BitiaApp(object):
                         self.config['General']['filename_prefix'],
                         date_fmt, funct, kwargs)
         self.delete_obsolete_files()
-
-    def run(self):
-        self.args = None
-        self.logger = None
-        try:
-            self.read_command_line()
-            self.read_configuration()
-            self.setup_logger()
-            self.logger.info(
-                'Starting bitia, {}'.format(datetime.today().isoformat()))
-            self.execute()
-        except Exception as e:
-            msg = str(e)
-            sys.stderr.write(msg + '\n')
-            if self.logger:
-                self.logger.error(msg)
-                self.logger.debug(traceback.format_exc())
-                self.logger.info(
-                    'Finished bitia, {}'.format(datetime.today().isoformat()))
-            if self.args and self.args.traceback:
-                raise
-            sys.exit(1)
