@@ -25,15 +25,15 @@ class CliApp(object):
                                             },
                                 }
     config_file_options = {}
-    arguments = {}
+    cmdline_arguments = {}
 
     def read_command_line(self):
         parser = ArgumentParser(description=self.description)
         parser.add_argument('config_file', help='Configuration file')
         parser.add_argument('--traceback', action='store_true',
                             help='Display traceback on error')
-        for arg in self.arguments:
-            parser.add_argument(arg, **(self.arguments[arg]))
+        for arg in self.cmdline_arguments:
+            parser.add_argument(arg, **(self.cmdline_arguments[arg]))
         self.args = parser.parse_args()
 
     def setup_logger(self):
@@ -79,6 +79,8 @@ class CliApp(object):
         for section in self.config:
             optionsname = (section if section in self.config_file_options
                            else 'other')
+            if self.config_file_options[optionsname] == 'nocheck':
+                continue
             section_options = self.config_file_options[optionsname]
             for option in section_options:
                 if (section_options[option] is None) and (
@@ -98,7 +100,7 @@ class CliApp(object):
             raise WrongValueError('loglevel must be one of {}'.format(
                 ', '.join(log_levels)))
 
-    def run(self):
+    def run(self, dry=False):
         self.args = None
         self.logger = None
         try:
@@ -108,7 +110,8 @@ class CliApp(object):
             self.logger.info(
                 'Starting {}, {}'.format(self.name,
                                          datetime.today().isoformat()))
-            self.execute()
+            if not dry:
+                self.execute()
         except Exception as e:
             msg = str(e)
             sys.stderr.write(msg + '\n')

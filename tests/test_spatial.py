@@ -455,13 +455,10 @@ class BitiaAppTestCase(TestCase):
 
     def test_correct_configuration(self):
         application = BitiaApp()
-        # The configuration file is correct, so no configuration error is
-        # raised; instead, an error occurs later, when bitia attempts to
-        # connect to Enhydris
-        self.assertRaisesRegex(IOError, 'wrongproto', application.run)
+        application.run(dry=True)
 
     def test_wrong_configuration1(self):
-        with open(os.path.join(self.tempdir, 'bitia.conf'), 'w') as f:
+        with open(self.config_file, 'w') as f:
             f.write(textwrap.dedent('''\
                 [General]
                 mask = {0.mask_file}
@@ -476,7 +473,7 @@ class BitiaAppTestCase(TestCase):
                                application.run)
 
     def test_wrong_configuration2(self):
-        with open(os.path.join(self.tempdir, 'bitia.conf'), 'w') as f:
+        with open(self.config_file, 'w') as f:
             f.write(textwrap.dedent('''\
                 [General]
                 mask = {0.mask_file}
@@ -493,7 +490,7 @@ class BitiaAppTestCase(TestCase):
                                application.run)
 
     def test_wrong_configuration3(self):
-        with open(os.path.join(self.tempdir, 'bitia.conf'), 'w') as f:
+        with open(self.config_file, 'w') as f:
             f.write(textwrap.dedent('''\
                 [General]
                 mask = {0.mask_file}
@@ -512,7 +509,7 @@ class BitiaAppTestCase(TestCase):
                                application.run)
 
     def test_wrong_configuration4(self):
-        with open(os.path.join(self.tempdir, 'bitia.conf'), 'w') as f:
+        with open(self.config_file, 'w') as f:
             f.write(textwrap.dedent('''\
                 [General]
                 mask = {0.mask_file}
@@ -533,7 +530,7 @@ class BitiaAppTestCase(TestCase):
                                application.run)
 
     def test_wrong_configuration_epsg(self):
-        with open(os.path.join(self.tempdir, 'bitia.conf'), 'w') as f:
+        with open(self.config_file, 'w') as f:
             f.write(textwrap.dedent('''\
                 [General]
                 mask = {0.mask_file}

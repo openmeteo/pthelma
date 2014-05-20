@@ -8,14 +8,20 @@ from datetime import datetime
 import json
 from math import isnan
 import os
+import shutil
+import sys
 import tempfile
+import textwrap
 from unittest import TestCase, skipUnless
+
+from six.moves.configparser import NoOptionError
 
 import pytz
 
 from pthelma import enhydris_api
+from pthelma.cliapp import WrongValueError, InvalidOptionError
 from pthelma.meteologger import Datafile_deltacom, Datafile_simple, \
-    Datafile_wdat5, ConfigurationError
+    Datafile_wdat5, ConfigurationError, LoggertodbApp
 from pthelma.timeseries import Timeseries
 
 
@@ -437,3 +443,73 @@ class TestWdat5(_Test_logger):
         if abs(a - b) <= 0.5 * 10 ** (-places) + tolerance:
             return
         super(TestWdat5, self).assertAlmostEqual(a, b, places=places, msg=msg)
+
+
+class LoggertodbAppTestCase(TestCase):
+
+    def setUp(self):
+        self.tempdir = tempfile.mkdtemp()
+        self.config_file = os.path.join(self.tempdir, 'loggertodb.conf')
+        self.saved_argv = sys.argv
+        sys.argv = ['loggertodb', '--traceback', self.config_file]
+
+    def tearDown(self):
+        sys.argv = self.saved_argv
+        shutil.rmtree(self.tempdir)
+
+    def test_wrong_configuration1(self):
+        app = LoggertodbApp()
+        with open(self.config_file, 'w') as f:
+            f.write(textwrap.dedent('''\
+                [General]
+                user = a_user
+                password = a_password
+                '''))
+        self.assertRaises(NoOptionError, app.run, dry=True)
+
+    def test_wrong_configuration2(self):
+        app = LoggertodbApp()
+        with open(self.config_file, 'w') as f:
+            f.write(textwrap.dedent('''\
+                [General]
+                base_url = a_base_url
+                user = a_user
+                password = a_password
+                nonexistent_option = an_option
+                '''))
+        self.assertRaises(InvalidOptionError, app.run, dry=True)
+
+    def test_wrong_configuration3(self):
+        app = LoggertodbApp()
+        with open(self.config_file, 'w') as f:
+            f.write(textwrap.dedent('''\
+                [General]
+                base_url = a_base_url
+                user = a_user
+                password = a_password
+                loglevel = NONEXISTENT_LOG_LEVEL
+                '''))
+        self.assertRaises(WrongValueError, app.run, dry=True)
+
+    def test_correct_configuration1(self):
+        app = LoggertodbApp()
+        with open(self.config_file, 'w') as f:
+            f.write(textwrap.dedent('''\
+                [General]
+                base_url = a_base_url
+                user = a_user
+                password = a_password
+                '''))
+        app.run(dry=True)
+
+    def test_correct_configuration2(self):
+        app = LoggertodbApp()
+        with open(self.config_file, 'w') as f:
+            f.write(textwrap.dedent('''\
+                [General]
+                base_url = a_base_url
+                user = a_user
+                password = a_password
+                loglevel = ERROR
+                '''))
+        app.run(dry=True)

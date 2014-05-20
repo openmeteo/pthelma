@@ -17,7 +17,8 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 """
 
-from pthelma.loggertodb import execute
+from pthelma.meteologger import LoggertodbApp
 
 if __name__ == "__main__":
-    execute()
+    application = LoggertodbApp()
+    application.run()

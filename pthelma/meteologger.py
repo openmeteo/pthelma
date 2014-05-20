@@ -22,6 +22,8 @@ from glob import glob
 import math
 import os
 import struct
+import sys
+import traceback
 
 from six import StringIO
 
@@ -30,6 +32,7 @@ import requests
 from simpletail import ropen
 
 from pthelma import enhydris_api
+from pthelma.cliapp import CliApp
 from pthelma.timeseries import Timeseries, datetime_from_iso, isoformat_nosecs
 
 
@@ -620,3 +623,39 @@ class Datafile_wdat5(Datafile):
     def extract_value_and_flags(self, line, seq):
         result = line.split()[seq - 1].strip()
         return result
+
+
+class LoggertodbApp(CliApp):
+    name = 'loggertodb'
+    description = 'Insert meteorological logger data to Enhydris'
+    config_file_options = {'General': {'base_url': None,
+                                       'user':     None,
+                                       'password': None,
+                                       },
+                           'other':   'nocheck',
+                           }
+
+    def read_configuration(self):
+        super(LoggertodbApp, self).read_configuration()
+        if not self.config['General']['base_url'].endswith('/'):
+            self.config['General']['base_url'] += '/'
+
+    def execute(self):
+        cookies = enhydris_api.login(self.config.base_url,
+                                     self.config.username,
+                                     self.config.password)
+        for section in self.config:
+            if section == 'General':
+                continue
+            datafileclass = eval('Datafile_{}'.format(
+                self.config[section]['datafile_format']))
+            adatafile = datafileclass(self.config.base_url, cookies,
+                                      self.config[section], self.logger)
+            try:
+                adatafile.update_database()
+            except MeteologgerError as e:
+                msg = 'Error while processing item {0}: {1}'.format(section,
+                                                                    str(e))
+                sys.stderr.write(msg + '\n')
+                self.logger.error(msg)
+                self.logger.debug(traceback.format_exc())

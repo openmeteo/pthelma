@@ -68,7 +68,7 @@
           def check_configuration(self):
               super(MyApp, self).check_configuration()
               self.check_more_things()
-              
+
 
       if __name__ == '__main__':
           myapp = MyApp()
@@ -91,54 +91,64 @@
       :attr:`config_file_options`.
 
       :class:`CliApp` already contains some base configuration file
-      options in section "General": logfile (default empty string,
-      meaning log to standard output), and loglevel (default warning).
-      In order to log messages to the logging system, use
-      `self.logger`, which is a :class:`logging.Logger` object.
+      options in section *General*: :confval:`logfile` (default empty
+      string, meaning log to standard output), and :confval:`loglevel`
+      (default warning).  In order to log messages to the logging
+      system, use `self.logger`, which is a :class:`logging.Logger`
+      object.
 
-  .. attribute:: cmdline_arguments
+      In the :attr:`config_file_options` dictionary, a key's value can
+      be the string :const:`'nocheck'` instead of a dictionary; this
+      signals to not check the contents of that section for validity.
 
-     A dictionary the keys of which are command line arguments and the
-     values are a dictionary of arguments to provide to
-     :meth:`argparse.ArgumentParser.add_argument`.
+   .. attribute:: cmdline_arguments
 
-  .. attribute:: config
+      A dictionary the keys of which are command line arguments and the
+      values are a dictionary of arguments to provide to
+      :meth:`argparse.ArgumentParser.add_argument`.
 
-     At the start of execution, we read the configuration file (which
-     is in INI format), and we store the results in :attr:`config`,
-     which is a dictionary similar to Python 3's
-     :class:`configparser.ConfigParser`. This attribute is meant to be
-     read-only.
+   .. attribute:: config
 
-  .. method:: read_configuration()
+      At the start of execution, we read the configuration file (which
+      is in INI format), and we store the results in :attr:`config`,
+      which is a dictionary similar to Python 3's
+      :class:`configparser.ConfigParser`. This attribute is meant to be
+      read-only.
 
-     Usually you won't need to override this method; however, if you
-     want to transfer data from :attr:`config` to a data structure
-     that is more convenient, you would do so here, after calling the
-     inherited method.
+   .. method:: read_configuration()
 
-  .. method:: check_configuration()
+      Usually you won't need to override this method; however, if you
+      want to transfer data from :attr:`config` to a data structure
+      that is more convenient, you would do so here, after calling the
+      inherited method.
 
-     Override this method; call the inherited (which checks for the
-     existence of compulsory options and everything else it can
-     check), then make checks to see if the values of the options
-     specified are appropriate; raise :exc:`WrongValueError` when not.
+   .. method:: check_configuration()
 
-  .. method:: execute()
+      Override this method; call the inherited (which checks for the
+      existence of compulsory options and everything else it can
+      check), then make checks to see if the values of the options
+      specified are appropriate; raise :exc:`WrongValueError` when not.
 
-     You must specify this method. This does all the work. It is
-     called after the command line and configuration file are read and
-     checked and after the logging system is setup and an
-     informational message for program start is logged.
+   .. method:: execute()
 
-  .. method:: run()
+      You must specify this method. This does all the work. It is
+      called after the command line and configuration file are read and
+      checked and after the logging system is setup and an
+      informational message for program start is logged.
 
-     You should not redefine this method, but call it in your main
-     program.
+   .. method:: run(dry=False)
+
+      You should not redefine this method, but call it in your main
+      program.
+
+      If the optional *dry* argument is :const:`True`, then
+      :meth:`run()` does not run :meth:`execute()`; it only does
+      everything else. (This is mainly useful in unit tests, to see if
+      configuration reading and checking works properly).
 
 .. exception:: InvalidOptionError
                WrongValueError
-   
+
    These two exceptions derive from :class:`configparser.Error`.
    :exc:`InvalidOptionError` is raised whenever the configuration file
    contains an invalid option, and :exc:`WrongValueError` whenever an
