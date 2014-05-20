@@ -94,6 +94,18 @@ def isoformat_nosecs(adatetime, sep='T'):
     return adatetime.isoformat(sep)[:16]
 
 
+def add_months_to_datetime(adatetime, months):
+    m, y = adatetime.month, adatetime.year
+    m += months
+    while m > 12:
+        m -= 12
+        y += 1
+    while m < 1:
+        m += 12
+        y -= 1
+    return adatetime.replace(year=y, month=m)
+
+
 _DT_BASE = datetime(1970, 1, 1, 0, 0)
 _SECONDS_PER_DAY = 86400
 if 'long' in [c.__name__ for c in six.integer_types]:

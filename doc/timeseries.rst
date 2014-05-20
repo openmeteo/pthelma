@@ -15,6 +15,11 @@ which represents a time step.
 Helper functions
 ----------------
 
+.. function:: add_months_to_datetime(adatetime, months)
+
+   Return a :class:`datetime` object which is *adatetime* plus
+   *months*, where *months* is an integer (it can be negative).
+
 .. function:: datetime_from_iso(isostring)
 
    Return a :class:`datetime` object created from a string in ISO 8601

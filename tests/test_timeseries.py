@@ -34,7 +34,7 @@ from six import u, StringIO
 
 from pthelma.timeseries import TimeStep, strip_trailing_zeros, \
     datetime_from_iso, isoformat_nosecs, Timeseries, IntervalType, \
-    identify_events
+    identify_events, add_months_to_datetime
 
 
 big_test_timeseries = textwrap.dedent("""\
@@ -1166,3 +1166,26 @@ class _Test_Timeseries_identify_events(TestCase):
         self.assertEqual(events[1][1], datetime(2008, 2, 7, 12, 20))
         self.assertEqual(events[2][0], datetime(2008, 2, 7, 13, 10))
         self.assertEqual(events[2][1], datetime(2008, 2, 7, 13, 10))
+
+
+class AddMonthsToDatetimeTestCase(TestCase):
+
+    def test_add_months(self):
+        dt = datetime(2008, 2, 7, 13, 10)
+        self.assertEquals(add_months_to_datetime(dt, 0), dt)
+        self.assertEquals(add_months_to_datetime(dt, 10),
+                          datetime(2008, 12, 7, 13, 10))
+        self.assertEquals(add_months_to_datetime(dt, 11),
+                          datetime(2009,  1, 7, 13, 10))
+        self.assertEquals(add_months_to_datetime(dt, 22),
+                          datetime(2009, 12, 7, 13, 10))
+        self.assertEquals(add_months_to_datetime(dt, 23),
+                          datetime(2010,  1, 7, 13, 10))
+        self.assertEquals(add_months_to_datetime(dt, -1),
+                          datetime(2008,  1, 7, 13, 10))
+        self.assertEquals(add_months_to_datetime(dt, -2),
+                          datetime(2007, 12, 7, 13, 10))
+        self.assertEquals(add_months_to_datetime(dt, -13),
+                          datetime(2007,  1, 7, 13, 10))
+        self.assertEquals(add_months_to_datetime(dt, -14),
+                          datetime(2006, 12, 7, 13, 10))
