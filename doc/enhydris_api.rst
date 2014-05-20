@@ -73,6 +73,13 @@ Enhydris API.
    from :func:`.login`; *timeseries* is a
    :class:`~timeseries.Timeseries` object that has :attr:`id` defined.
 
+.. function:: get_ts_end_date(base_url, session_cookies, ts_id)
+
+   Returns a :class:`~datetime.datetime` object which is the last
+   timestamp of the time series. If the time series is empty, it
+   returns a :class:`~datetime.datetime` object that corresponds to 1
+   January 0001 00:00.
+
 .. function:: urljoin(*args)
 
    This is a helper function intended to be used mostly internally. It

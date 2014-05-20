@@ -1,6 +1,9 @@
+from datetime import datetime
 from six import StringIO
 
 import requests
+
+from pthelma.timeseries import datetime_from_iso
 
 
 def urljoin(*args):
@@ -87,3 +90,17 @@ def post_tsdata(base_url, session_cookies, timeseries):
         cookies=session_cookies)
     r.raise_for_status()
     return r.text
+
+
+def get_ts_end_date(base_url, session_cookies, ts_id):
+    r = requests.get('{}timeseries/d/{}/bottom/'.format(base_url, ts_id),
+                     cookies=session_cookies)
+    r.raise_for_status()
+    lines = r.text.splitlines()
+    lines.reverse()
+    for line in [x.strip() for x in lines]:
+        if not line:
+            continue
+        datestring = line.split(',')[0]
+        return datetime_from_iso(datestring)
+    return datetime(1, 1, 1)

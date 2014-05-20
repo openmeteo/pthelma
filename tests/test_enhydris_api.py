@@ -128,3 +128,46 @@ class PostTsDataTestCase(TestCase):
         r.raise_for_status()
         self.assertEqual(get_after_blank_line(r.text),
                          self.test_timeseries)
+
+
+@skipUnless(os.getenv('PTHELMA_TEST_ENHYDRIS_API'),
+            'set PTHELMA_TEST_ENHYDRIS_API')
+class GetTsEndDateTestCase(TestCase):
+    test_timeseries = textwrap.dedent("""\
+                                      2014-01-01 08:00,11,
+                                      2014-01-02 08:00,12,
+                                      2014-01-03 08:00,13,
+                                      2014-01-04 08:00,14,
+                                      2014-01-05 08:00,15,
+                                      """)
+
+    def test_get_ts_end_date(self):
+        v = json.loads(os.getenv('PTHELMA_TEST_ENHYDRIS_API'))
+        cookies = enhydris_api.login(v['base_url'], v['user'], v['password'])
+
+        # Create a time series in the database
+        j = {
+            'gentity': v['station_id'],
+            'variable': v['variable_id'],
+            'unit_of_measurement': v['unit_of_measurement_id'],
+            'time_zone': v['time_zone_id'],
+        }
+        ts_id = enhydris_api.post_model(v['base_url'], cookies, 'Timeseries',
+                                        j)
+
+        # Get its last date while it has no data
+        date = enhydris_api.get_ts_end_date(v['base_url'], cookies, ts_id)
+        self.assertEqual(date.isoformat(), '0001-01-01T00:00:00')
+
+        # Now upload some data
+        ts = Timeseries(ts_id)
+        ts.read(StringIO(self.test_timeseries))
+        enhydris_api.post_tsdata(v['base_url'], cookies, ts)
+
+        # Get its last date
+        date = enhydris_api.get_ts_end_date(v['base_url'], cookies, ts_id)
+        self.assertEqual(date.isoformat(), '2014-01-05T08:00:00')
+
+        # Get the last date of a nonexistent time series
+        self.assertRaises(requests.HTTPError, enhydris_api.get_ts_end_date,
+                          v['base_url'], cookies, ts_id + 1)

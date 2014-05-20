@@ -28,7 +28,6 @@ import traceback
 from six import StringIO
 
 from pytz import timezone
-import requests
 from simpletail import ropen
 
 from pthelma import enhydris_api
@@ -129,22 +128,6 @@ class Datafile(object):
                              % (self.ts, self.seq))
             self._update_timeseries()
 
-    def _get_end_date_in_database(self):
-        """Return end date of self.ts in database, or 1/1/1 if timeseries is
-           empty
-        """
-        t = Timeseries()
-        r = requests.get('{}timeseries/d/{}/bottom/'.format(self.base_url,
-                                                            self.ts),
-                         cookies=self.cookies)
-        t.read(StringIO(r.text))
-        bounding_dates = t.bounding_dates()
-        end_date = bounding_dates[1] if bounding_dates else None
-        self.logger.info('Last date in database: %s' % (str(end_date)))
-        if not end_date:
-            end_date = datetime(1, 1, 1)
-        return end_date
-
     def _get_records_to_append(self, end_date_in_database):
         if (not self.last_timeseries_end_date) or (
                 end_date_in_database != self.last_timeseries_end_date):
@@ -167,7 +150,8 @@ class Datafile(object):
         return ts
 
     def _update_timeseries(self):
-        end_date_in_database = self._get_end_date_in_database()
+        end_date_in_database = enhydris_api.get_ts_end_date(
+            self.base_url, self.cookies, self.ts)
         ts_to_append = self._get_records_to_append(end_date_in_database)
         self.logger.info('Appending %d records' % (len(ts_to_append)))
         if len(ts_to_append):
