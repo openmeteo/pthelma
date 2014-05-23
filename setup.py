@@ -72,6 +72,19 @@ except VersionError as e:
     sys.exit(1)
 
 
+installation_requirements = ["pytz",
+                             "simpletail>=0.1.1",
+                             "requests>=1,<3",
+                             "six>=1.6,<2",
+			     ]
+if sys.platform != 'win32':
+    installation_requirements.extend(["numpy>=1.5,<2",
+                                      "gdal>=1.9,<2",
+				      ])
+else:
+    installation_requirements.extend(["pyodbc>=3,<4",
+				      ])
+
 kwargs = {
     'name': "pthelma",
     'version': "dev",
@@ -82,14 +95,7 @@ kwargs = {
     'packages': find_packages(),
     'scripts': ['bin/loggertodb'],
     'test_suite': "tests",
-    'install_requires': [
-        "pytz",
-        "simpletail>=0.1.1",
-        "requests>=1,<3",
-        "six>=1.5,<2",
-        "numpy>=1.6,<2",
-        "gdal>=1.9,<2",
-    ],
+    'install_requires': installation_requirements,
 }
 
 try:
@@ -114,7 +120,7 @@ try:
                                   vcredist_filename])]
 
     # Specify program executable
-    kwargs['console'] = ['bin/loggertodb']
+    kwargs['console'] = ['bin/loggertodb', 'bin/bitia']
 except ImportError:
     pass
 

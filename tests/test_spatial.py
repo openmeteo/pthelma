@@ -7,14 +7,20 @@ from six.moves import configparser
 import sys
 import tempfile
 import textwrap
-from unittest import TestCase, skipUnless
+from unittest import TestCase, skipIf, skipUnless
 
-import numpy as np
-from osgeo import ogr, gdal
+if sys.platform != 'win32':
+    import numpy as np
+    from osgeo import ogr, gdal
+    from pthelma.spatial import idw, integrate, TimeseriesCache, \
+        create_ogr_layer_from_stations, h_integrate, BitiaApp, WrongValueError
+    skip_osgeo = False
+    skip_osgeo_message = ''
+else:
+    skip_osgeo = True
+    skip_osgeo_message = 'Not available on Windows'
 
 from pthelma import enhydris_api
-from pthelma.spatial import idw, integrate, TimeseriesCache, \
-    create_ogr_layer_from_stations, h_integrate, BitiaApp, WrongValueError
 from pthelma.timeseries import Timeseries
 
 
@@ -27,6 +33,7 @@ def add_point_to_layer(layer, x, y, value):
     layer.CreateFeature(f)
 
 
+@skipIf(skip_osgeo, skip_osgeo_message)
 class IdwTestCase(TestCase):
 
     def setUp(self):
@@ -67,6 +74,7 @@ class IdwTestCase(TestCase):
                                64.188, places=3)
 
 
+@skipIf(skip_osgeo, skip_osgeo_message)
 class IntegrateTestCase(TestCase):
 
     def setUp(self):
@@ -112,6 +120,7 @@ class IntegrateTestCase(TestCase):
         self.assertAlmostEqual(result[4, 13], 30.737, places=3)
 
 
+@skipIf(skip_osgeo, skip_osgeo_message)
 @skipUnless(os.getenv('PTHELMA_TEST_ENHYDRIS_API'),
             'set PTHELMA_TEST_ENHYDRIS_API')
 class CreateOgrLayerFromStationsTestCase(TestCase):
@@ -190,6 +199,7 @@ class CreateOgrLayerFromStationsTestCase(TestCase):
             self.assertAlmostEqual(feature.GetGeometryRef().GetY(), r['y'], 2)
 
 
+@skipIf(skip_osgeo, skip_osgeo_message)
 @skipUnless(os.getenv('PTHELMA_TEST_ENHYDRIS_API'),
             'set PTHELMA_TEST_ENHYDRIS_API')
 class TimeseriesCacheTestCase(TestCase):
@@ -297,6 +307,7 @@ class TimeseriesCacheTestCase(TestCase):
             self.assertEqual(f.read().replace('\r', ''), self.test_timeseries2)
 
 
+@skipIf(skip_osgeo, skip_osgeo_message)
 class HIntegrateTestCase(TestCase):
     """
     We will test on a 4x3 raster:
@@ -406,6 +417,7 @@ class HIntegrateTestCase(TestCase):
         np.testing.assert_almost_equal(result, expected_result, decimal=4)
 
 
+@skipIf(skip_osgeo, skip_osgeo_message)
 class BitiaAppTestCase(TestCase):
 
     def __init__(self, *args, **kwargs):

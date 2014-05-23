@@ -12,8 +12,9 @@ import shutil
 import sys
 import tempfile
 import textwrap
-from unittest import TestCase, skipUnless
+from unittest import TestCase, skipIf, skipUnless
 
+from six import StringIO
 from six.moves.configparser import NoOptionError
 
 import pytz
@@ -21,7 +22,7 @@ import pytz
 from pthelma import enhydris_api
 from pthelma.cliapp import WrongValueError, InvalidOptionError
 from pthelma.meteologger import Datafile_deltacom, Datafile_simple, \
-    Datafile_wdat5, ConfigurationError, LoggertodbApp
+    Datafile_wdat5, Datafile_msaccess, ConfigurationError, LoggertodbApp
 from pthelma.timeseries import Timeseries
 
 
@@ -443,6 +444,166 @@ class TestWdat5(_Test_logger):
         if abs(a - b) <= 0.5 * 10 ** (-places) + tolerance:
             return
         super(TestWdat5, self).assertAlmostEqual(a, b, places=places, msg=msg)
+
+
+skip_test_msaccess = True
+skip_test_msaccess_message = ''
+if sys.platform != 'win32':
+    skip_test_msaccess_message = 'Windows only'
+elif not os.getenv('PTHELMA_TEST_ENHYDRIS_API'):
+    skip_test_msaccess_message = 'set PTHELMA_TEST_ENHYDRIS_API'
+else:
+    try:
+        import pyodbc
+        skip_test_msaccess = False
+    except ImportError:
+        skip_test_msaccess_message = 'Install pyodbc'
+
+
+@skipIf(skip_test_msaccess, skip_test_msaccess_message)
+class TestMsaccess(TestCase):
+    class_being_tested = Datafile_msaccess
+    ref_ts1 = Timeseries(0)
+    ref_ts1.read(StringIO(textwrap.dedent('''\
+                                          2014-03-30 10:55,12.8,
+                                          2014-03-30 10:56,12.8,
+                                          2014-03-30 10:57,12.9,
+                                          2014-03-30 23:12,12.9,
+                                          2014-03-30 23:42,12.9,
+                                          2014-03-31 00:12,11.9,
+                                          2014-03-31 00:27,11.7,
+                                          2014-03-31 00:42,11.7,
+                                          2014-03-31 01:27,10.9,
+                                          2014-03-31 15:11,21,
+                                          2014-03-31 19:26,16.4,
+                                          2014-03-31 20:11,14.6,
+                                          2014-03-31 20:26,14.3,
+                                          2014-03-31 20:41,13.9,
+                                          2014-04-01 14:41,20.8,
+                                          2014-04-01 15:41,21,
+                                          2014-04-01 15:56,21.3,
+                                          ''')))
+    ref_ts2 = Timeseries(0)
+    ref_ts2.read(StringIO(textwrap.dedent('''\
+                                          2014-03-30 10:55,99.9,
+                                          2014-03-30 10:56,99.8,
+                                          2014-03-30 10:57,99.9,
+                                          2014-03-30 23:12,99.9,
+                                          2014-03-30 23:42,99.9,
+                                          2014-03-31 00:12,99.8,
+                                          2014-03-31 00:27,99.8,
+                                          2014-03-31 00:42,99.9,
+                                          2014-03-31 01:27,99.8,
+                                          2014-03-31 15:11,52.3,
+                                          2014-03-31 19:26,80.8,
+                                          2014-03-31 20:11,87.7,
+                                          2014-03-31 20:26,91,
+                                          2014-03-31 20:41,93.6,
+                                          2014-04-01 14:41,78,
+                                          2014-04-01 15:41,73.8,
+                                          2014-04-01 15:56,66.1,
+                                          ''')))
+    file1 = 'msaccess1.mdb'
+    file2 = 'msaccess2.mdb'
+    datafiledict = {'table': 'Clima',
+		    'date_sql': "Date + ' ' + Time",
+		    'data_columns': 'T out,H out',
+		    'date_format': '%d/%m/%Y %H:%M:%S',
+		    'decimal_separator': ',',
+		    }
+
+    def setUp(self):
+        get_server_from_env(self.__dict__)
+
+        if not self.class_being_tested or not self.base_url:
+            return
+
+        # Login
+        self.cookies = enhydris_api.login(self.base_url,
+                                          self.user,
+                                          self.password)
+
+        # Create two timeseries
+        self.timeseries_id1 = create_timeseries(self.cookies, self.__dict__)
+        self.timeseries_id2 = create_timeseries(self.cookies, self.__dict__)
+        self.datafile_fields = "{0},{1}".format(self.timeseries_id1,
+                                                self.timeseries_id2)
+        self.ts1 = Timeseries(self.timeseries_id1)
+        self.ts2 = Timeseries(self.timeseries_id2)
+
+    def tearDown(self):
+        if not self.class_being_tested or not self.base_url:
+            return
+        enhydris_api.delete_model(self.base_url, self.cookies,
+                                  'Timeseries', self.timeseries_id2)
+        enhydris_api.delete_model(self.base_url, self.cookies,
+                                  'Timeseries', self.timeseries_id1)
+
+    def check_config_test(self):
+        self.assertRaises(ConfigurationError, self.class_being_tested,
+                          self.base_url, self.cookies, {})
+        self.assertRaises(ConfigurationError, self.class_being_tested,
+                          self.base_url, self.cookies,
+                          {'filename': 'hello', 'datafile_fields': '0',
+                           'datafile_format': 'msaccess',
+			   'table': 'atable',
+			   'date_sql': 'somecolumn',
+			   'data_columns': 'acolumn1,acolumn2',
+                           'nonexistent_config_option': True})
+        # Call it correctly and expect it doesn't raise anything
+        self.class_being_tested(self.base_url, self.cookies,
+                                {'filename': 'hello', 'datafile_fields': '0',
+                                 'datafile_format': 'msaccess',
+			         'table': 'atable',
+				 'date_sql': 'somecolumn',
+			         'data_columns': 'acolumn1,acolumn2',
+				 })
+
+    def upload_test(self):
+        d = {'filename': full_testdata_filename(self.file1),
+             'datafile_fields': self.datafile_fields,
+             'datafile_format': 'msaccess',
+	     'table': 'Clima'}
+        d.update(self.datafiledict)
+        df = self.class_being_tested(self.base_url, self.cookies, d)
+        df.update_database()
+        enhydris_api.read_tsdata(self.base_url, self.cookies, self.ts1)
+        enhydris_api.read_tsdata(self.base_url, self.cookies, self.ts2)
+        self.assertEqual(len(self.ts1), 10)
+        self.assertEqual(len(self.ts2), 10)
+        (items1, items2, ritems1, ritems2) = [
+            x.items() for x in (self.ts1, self.ts2,
+                                self.ref_ts1, self.ref_ts2)]
+        for i in range(0, 10):
+            self.assertEqual(items1[i][0], ritems1[i][0])
+            self.assertAlmostEqual(items1[i][1], ritems1[i][1], 4)
+            self.assertEqual(items1[i][1].flags, ritems1[i][1].flags)
+            self.assertEqual(items2[i][0], ritems2[i][0])
+            self.assertAlmostEqual(items2[i][1], ritems2[i][1], 4)
+            self.assertEqual(items2[i][1].flags, ritems2[i][1].flags)
+        d['filename'] = full_testdata_filename(self.file2)
+        df = self.class_being_tested(self.base_url, self.cookies, d)
+        df.update_database()
+        enhydris_api.read_tsdata(self.base_url, self.cookies, self.ts1)
+        enhydris_api.read_tsdata(self.base_url, self.cookies, self.ts2)
+        self.assertEqual(len(self.ts1), 17)
+        self.assertEqual(len(self.ts2), 17)
+        (items1, items2, ritems1, ritems2) = [
+            x.items() for x in (self.ts1, self.ts2,
+                                self.ref_ts1, self.ref_ts2)]
+        for i in range(0, 17):
+            self.assertEqual(items1[i][0], ritems1[i][0])
+            self.assertAlmostEqual(items1[i][1], ritems1[i][1], 4)
+            self.assertEqual(items1[i][1].flags, ritems1[i][1].flags)
+            self.assertEqual(items2[i][0], ritems2[i][0])
+            self.assertAlmostEqual(items2[i][1], ritems2[i][1], 4)
+            self.assertEqual(items2[i][1].flags, ritems2[i][1].flags)
+
+    def runTest(self):
+        if not self.class_being_tested or not self.base_url:
+            return
+        self.check_config_test()
+        self.upload_test()
 
 
 class LoggertodbAppTestCase(TestCase):

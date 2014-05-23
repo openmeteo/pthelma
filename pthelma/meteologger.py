@@ -141,8 +141,10 @@ class Datafile(object):
         ts = Timeseries(self.ts)
         try:
             for line in self.tail:
-                ts[isoformat_nosecs(line['date'])] = \
-                    self.extract_value_and_flags(line['line'], self.seq)
+                v, f = self.extract_value_and_flags(line['line'], self.seq)
+                if self.decimal_separator and (self.decimal_separator != '.'):
+                    v = v.replace(self.decimal_separator, '.')
+                ts[isoformat_nosecs(line['date'])] = (v, f)
         except ValueError as e:
             message = 'parsing error while trying to read values: ' + str(e)
             self.raise_error(line, message)
@@ -606,7 +608,55 @@ class Datafile_wdat5(Datafile):
 
     def extract_value_and_flags(self, line, seq):
         result = line.split()[seq - 1].strip()
-        return result
+        return (result, '')
+
+
+class Datafile_msaccess(Datafile_simple):
+    required_options = Datafile.required_options + [
+        'table', 'date_sql', 'data_columns']
+    optional_options = Datafile.optional_options + ['date_format',
+		                                    'decimal_separator']
+
+    def __init__(self, base_url, cookies, datafiledict, logger=None):
+        super(Datafile_msaccess, self).__init__(base_url, cookies,
+			                        datafiledict, logger)
+        self.table = datafiledict.get('table', '')
+        self.date_sql = datafiledict.get('date_sql', '')
+        self.data_columns = datafiledict.get('data_columns', '').split(',')
+        self.delimiter = ';'
+
+    def _get_tail(self):
+        "Read the part of the datafile after last_timeseries_end_date"
+
+        # Are we in Windows with pyodbc installed?
+        try:
+            import pyodbc
+            if sys.platform != 'win32':
+                raise ImportError('Not in Windows')
+        except ImportError:
+            self.logger.error('msaccess format is only usable in Windows '
+                              'with pyodbc installed')
+            raise
+
+        sql = """SELECT {} + ';' + {} FROM "{}" ORDER BY -id""".format(
+            self.date_sql,
+            " + ';' + ".join(['"{}"'.format(x) for x in self.data_columns]),
+            self.table)
+        self.tail = []
+        connection = pyodbc.connect('DRIVER={};DBQ={}'.format(
+            'Microsoft Access Driver (*.mdb)', self.filename))
+        cursor = connection.cursor()
+        cursor.execute(sql)
+        for row in cursor:  # Iterable cursor is a pyodbc feature
+            line = row[0]  # Our SQL returns a single string
+            self.logger.debug(line)
+            date = self.extract_date(line).replace(second=0)
+            date = self._fix_dst(date)
+            self.logger.debug('Date: %s' % (date.isoformat()))
+            if date <= self.last_timeseries_end_date:
+                break
+            self.tail.append({'date': date, 'line': line})
+        self.tail.reverse()
 
 
 class LoggertodbApp(CliApp):
