@@ -611,15 +611,15 @@ class Datafile_wdat5(Datafile):
         return (result, '')
 
 
-class Datafile_msaccess(Datafile_simple):
+class Datafile_odbc(Datafile_simple):
     required_options = Datafile.required_options + [
         'table', 'date_sql', 'data_columns']
     optional_options = Datafile.optional_options + ['date_format',
                                                     'decimal_separator']
 
     def __init__(self, base_url, cookies, datafiledict, logger=None):
-        super(Datafile_msaccess, self).__init__(base_url, cookies,
-                                                datafiledict, logger)
+        super(Datafile_odbc, self).__init__(base_url, cookies,
+                                            datafiledict, logger)
         self.table = datafiledict.get('table', '')
         self.date_sql = datafiledict.get('date_sql', '')
         self.data_columns = datafiledict.get('data_columns', '').split(',')
@@ -627,24 +627,17 @@ class Datafile_msaccess(Datafile_simple):
 
     def _get_tail(self):
         "Read the part of the datafile after last_timeseries_end_date"
-
-        # Are we in Windows with pyodbc installed?
         try:
             import pyodbc
-            if sys.platform != 'win32':
-                raise ImportError('Not in Windows')
         except ImportError:
-            self.logger.error('msaccess format is only usable in Windows '
-                              'with pyodbc installed')
+            self.logger.error('Install pyodbc to use odbc format')
             raise
-
         sql = """SELECT {} + ';' + {} FROM "{}" ORDER BY -id""".format(
             self.date_sql,
             " + ';' + ".join(['"{}"'.format(x) for x in self.data_columns]),
             self.table)
         self.tail = []
-        connection = pyodbc.connect('DRIVER={};DBQ={}'.format(
-            'Microsoft Access Driver (*.mdb)', self.filename))
+        connection = pyodbc.connect(self.filename)
         cursor = connection.cursor()
         cursor.execute(sql)
         for row in cursor:  # Iterable cursor is a pyodbc feature

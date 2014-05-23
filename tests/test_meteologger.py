@@ -22,7 +22,7 @@ import pytz
 from pthelma import enhydris_api
 from pthelma.cliapp import WrongValueError, InvalidOptionError
 from pthelma.meteologger import Datafile_deltacom, Datafile_simple, \
-    Datafile_wdat5, Datafile_msaccess, ConfigurationError, LoggertodbApp
+    Datafile_wdat5, Datafile_odbc, ConfigurationError, LoggertodbApp
 from pthelma.timeseries import Timeseries
 
 
@@ -446,24 +446,27 @@ class TestWdat5(_Test_logger):
         super(TestWdat5, self).assertAlmostEqual(a, b, places=places, msg=msg)
 
 
-skip_test_msaccess = True
-skip_test_msaccess_message = ''
+skip_test_odbc = True
+skip_test_odbc_message = ''
 if sys.platform != 'win32':
-    skip_test_msaccess_message = 'Windows only'
+    skip_test_odbc_message = 'Windows only'
 elif not os.getenv('PTHELMA_TEST_ENHYDRIS_API'):
-    skip_test_msaccess_message = 'set PTHELMA_TEST_ENHYDRIS_API'
+    skip_test_odbc_message = 'set PTHELMA_TEST_ENHYDRIS_API'
 else:
     try:
         import pyodbc
-        pyodbc  # Does nothing; supresses pylint "not used" warning
-        skip_test_msaccess = False
+        if 'Microsoft Access Driver (*.mdb)' not in pyodbc.drivers():
+            skip_test_odbc_message = \
+                'Install ODBC "Microsoft Access Driver (*.mdb)"'
+        else:
+            skip_test_odbc = False
     except ImportError:
-        skip_test_msaccess_message = 'Install pyodbc'
+        skip_test_odbc_message = 'Install pyodbc'
 
 
-@skipIf(skip_test_msaccess, skip_test_msaccess_message)
-class TestMsaccess(TestCase):
-    class_being_tested = Datafile_msaccess
+@skipIf(skip_test_odbc, skip_test_odbc_message)
+class TestOdbc(TestCase):
+    class_being_tested = Datafile_odbc
     ref_ts1 = Timeseries(0)
     ref_ts1.read(StringIO(textwrap.dedent('''\
                                           2014-03-30 10:55,12.8,
@@ -504,8 +507,10 @@ class TestMsaccess(TestCase):
                                           2014-04-01 15:41,73.8,
                                           2014-04-01 15:56,66.1,
                                           ''')))
-    file1 = 'msaccess1.mdb'
-    file2 = 'msaccess2.mdb'
+    file1 = 'DRIVER=Microsoft Access Driver (*.mdb);DBQ={}'.format(
+        full_testdata_filename('msaccess1.mdb'))
+    file2 = 'DRIVER=Microsoft Access Driver (*.mdb);DBQ={}'.format(
+        full_testdata_filename('msaccess2.mdb'))
     datafiledict = {'table': 'Clima',
                     'date_sql': "Date + ' ' + Time",
                     'data_columns': 'T out,H out',
@@ -561,7 +566,7 @@ class TestMsaccess(TestCase):
                                  })
 
     def upload_test(self):
-        d = {'filename': full_testdata_filename(self.file1),
+        d = {'filename': self.file1,
              'datafile_fields': self.datafile_fields,
              'datafile_format': 'msaccess',
              'table': 'Clima'}
@@ -582,7 +587,7 @@ class TestMsaccess(TestCase):
             self.assertEqual(items2[i][0], ritems2[i][0])
             self.assertAlmostEqual(items2[i][1], ritems2[i][1], 4)
             self.assertEqual(items2[i][1].flags, ritems2[i][1].flags)
-        d['filename'] = full_testdata_filename(self.file2)
+        d['filename'] = self.file2
         df = self.class_being_tested(self.base_url, self.cookies, d)
         df.update_database()
         enhydris_api.read_tsdata(self.base_url, self.cookies, self.ts1)

@@ -381,6 +381,27 @@ wdat5
    the parameters can be found in the Davis manuals and in the
    WeatherLink README file.
 
+odbc
+   The sane place for loggers and logger software to store
+   meteorological data is a plain text file. Databases shouldn't be
+   used for that purpose. However, I've come across a system which was
+   using MS Access, so I wrote this. It's only tested on Windows and
+   MS Access, though in theory it should be usable anywhere. In that
+   case, ``filename`` is not actually a file name but an ODBC
+   connection string, such as ``DRIVER=Microsoft Access Driver
+   (*.mdb);DBQ=C:\Somewhere\mydb.mdb``.  ``table`` specifies the
+   database table in which the data is stored; each variable should be
+   in a plain text column, and there should also be an ``id`` column
+   indicating order. ``date_sql`` is an SQL expression that selects
+   the date and time from the table (the resulting date and time
+   format is defined by ``date_format``). ``data_columns`` is a
+   comma-separated list of (text) columns to retrieve from the table;
+   ``datafile_fields`` must have as many entries as ``data_columns``.
+
+   You see that this was a hack made for a specific installation, but
+   if you are unfortunate enough to really need it, we can elaborate
+   it further.
+
 DAYLIGHT SAVING TIME
 ====================
 
