@@ -455,6 +455,7 @@ elif not os.getenv('PTHELMA_TEST_ENHYDRIS_API'):
 else:
     try:
         import pyodbc
+        pyodbc  # Does nothing; supresses pylint "not used" warning
         skip_test_msaccess = False
     except ImportError:
         skip_test_msaccess_message = 'Install pyodbc'
@@ -506,11 +507,11 @@ class TestMsaccess(TestCase):
     file1 = 'msaccess1.mdb'
     file2 = 'msaccess2.mdb'
     datafiledict = {'table': 'Clima',
-		    'date_sql': "Date + ' ' + Time",
-		    'data_columns': 'T out,H out',
-		    'date_format': '%d/%m/%Y %H:%M:%S',
-		    'decimal_separator': ',',
-		    }
+                    'date_sql': "Date + ' ' + Time",
+                    'data_columns': 'T out,H out',
+                    'date_format': '%d/%m/%Y %H:%M:%S',
+                    'decimal_separator': ',',
+                    }
 
     def setUp(self):
         get_server_from_env(self.__dict__)
@@ -546,24 +547,24 @@ class TestMsaccess(TestCase):
                           self.base_url, self.cookies,
                           {'filename': 'hello', 'datafile_fields': '0',
                            'datafile_format': 'msaccess',
-			   'table': 'atable',
-			   'date_sql': 'somecolumn',
-			   'data_columns': 'acolumn1,acolumn2',
+                           'table': 'atable',
+                           'date_sql': 'somecolumn',
+                           'data_columns': 'acolumn1,acolumn2',
                            'nonexistent_config_option': True})
         # Call it correctly and expect it doesn't raise anything
         self.class_being_tested(self.base_url, self.cookies,
                                 {'filename': 'hello', 'datafile_fields': '0',
                                  'datafile_format': 'msaccess',
-			         'table': 'atable',
-				 'date_sql': 'somecolumn',
-			         'data_columns': 'acolumn1,acolumn2',
-				 })
+                                 'table': 'atable',
+                                 'date_sql': 'somecolumn',
+                                 'data_columns': 'acolumn1,acolumn2',
+                                 })
 
     def upload_test(self):
         d = {'filename': full_testdata_filename(self.file1),
              'datafile_fields': self.datafile_fields,
              'datafile_format': 'msaccess',
-	     'table': 'Clima'}
+             'table': 'Clima'}
         d.update(self.datafiledict)
         df = self.class_being_tested(self.base_url, self.cookies, d)
         df.update_database()

@@ -615,11 +615,11 @@ class Datafile_msaccess(Datafile_simple):
     required_options = Datafile.required_options + [
         'table', 'date_sql', 'data_columns']
     optional_options = Datafile.optional_options + ['date_format',
-		                                    'decimal_separator']
+                                                    'decimal_separator']
 
     def __init__(self, base_url, cookies, datafiledict, logger=None):
         super(Datafile_msaccess, self).__init__(base_url, cookies,
-			                        datafiledict, logger)
+                                                datafiledict, logger)
         self.table = datafiledict.get('table', '')
         self.date_sql = datafiledict.get('date_sql', '')
         self.data_columns = datafiledict.get('data_columns', '').split(',')
