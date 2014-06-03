@@ -4,7 +4,6 @@ import atexit
 from ctypes import CDLL, c_char_p
 import os
 import platform
-import pytz
 import shutil
 import sys
 import tempfile
@@ -113,6 +112,7 @@ setup(**kwargs)
 
 if len(sys.argv) >= 2 and sys.argv[1] == 'py2exe':
     # Add pytz zoneinfo to library.zip
+    import pytz
     zoneinfo_dir = os.path.join(os.path.dirname(pytz.__file__), 'zoneinfo')
     with ZipFile(os.path.join('dist', 'library.zip'), 'a') as z:
         add_dir_to_zipfile(z, zoneinfo_dir, os.path.join('pytz', 'zoneinfo'))
