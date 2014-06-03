@@ -1,3 +1,8 @@
+0.7.3 (2014-06-03)
+------------------
+
+- Fixed setup.py that was requiring pytz to be installed
+
 0.7.2 (2014-04-30)
 ------------------
 
