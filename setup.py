@@ -95,6 +95,7 @@ kwargs = {
     'scripts': ['bin/loggertodb'],
     'test_suite': "tests",
     'install_requires': installation_requirements,
+    'options': {'py2exe': {'excludes': ['spatial']}},
 }
 
 try:
