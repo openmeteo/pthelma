@@ -1,9 +1,15 @@
-dev
----
+0.8.0 (2014-06-05)
+------------------
+
+- Python 3 support
 
 - enhydris_api client module
 
-- Fixed a minor DST bug
+- New CLI program bitia for spatial integration
+
+- Added loggertodb msaccess file format
+
+- Some bug fixes
 
 0.7.1 (2014-03-19)
 ------------------
