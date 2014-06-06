@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Loggertodb"
-#define MyAppVersion "0.8.0"
+#define MyAppVersion "0.8.1"
 #define MyAppPublisher "Antonis Christofides"
 #define MyAppURL "http://pthelma.readthedocs.org/"
 #define MyAppExeName "loggertodb.exe"
