@@ -54,7 +54,8 @@ Here's how to release a new micro X.Y.Z version:
 
           git checkout X.Y
 
-    2. Make the required bug fixes and commit them.
+    2. Make the required bug fixes, add them to CHANGES.txt under the
+       (probably new) X.Y.Z heading, and commit them.
 
     3. In setup.py, in the definition of kwargs, change the value of
        version so that it has the value "X.Y.Z" (should be "X.Y.Q"
@@ -62,34 +63,37 @@ Here's how to release a new micro X.Y.Z version:
 
     4. Likewise in loggertodb.iss, in the definition of MyAppVersion.
 
-    5. Update CHANGES.txt.
-
-    6. Commit:
+    5. Commit:
     
           git commit -a -m "Version X.Y.Z"
 
-    7. Create a tag:
+    6. Create a tag:
     
           git tag X.Y.Z
 
-    8. In Windows, run
+    7. In Windows, run
 
           python setup.py py2exe
        
        then open Inno Setup and compile.
 
-    9. Push changes and tag:
+    8. Push changes and tag:
 
           git push
           git push origin X.Y.Z
 
-   10. Create a new release in github.
+    9. Create a new release in github.
 
-   11. Upload Inno Setup's output file, loggertodb-X.Y.Z-setup.exe,
+   10. Upload Inno Setup's output file, loggertodb-X.Y.Z-setup.exe,
        to the github release page.
 
-   12. Upload to pypi:
+   11. Upload to pypi:
     
           ./setup.py sdist upload
 
-   13. Also apply the bug fixes to the master branch.
+   12. Also apply the bug fixes to the master branch. On the release
+       branch:
+       
+          git log [note commits to be applied to master
+          git checkout master
+          git cherry-pick [commits]
