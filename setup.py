@@ -92,7 +92,7 @@ kwargs = {
     'author': "Antonis Christofides",
     'author_email': "anthony@itia.ntua.gr",
     'packages': find_packages(),
-    'scripts': ['bin/loggertodb'],
+    'scripts': ['bin/loggertodb', 'bin/bitia'],
     'test_suite': "tests",
     'install_requires': installation_requirements,
     'options': {'py2exe': {'excludes': ['spatial']}},
@@ -120,7 +120,7 @@ try:
                                   vcredist_filename])]
 
     # Specify program executable
-    kwargs['console'] = ['bin/loggertodb', 'bin/bitia']
+    kwargs['console'] = ['bin/loggertodb']
 except ImportError:
     pass
 
