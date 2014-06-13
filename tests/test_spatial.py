@@ -406,10 +406,10 @@ class HIntegrateTestCase(TestCase):
         h_integrate(group=self.data, mask=self.mask,
                     stations_layer=self.stations_layer,
                     cache=TimeseriesCache(self.tempdir, []),
-                    date=datetime(2014, 4, 22, 13, 0), output_dir=self.tempdir,
-                    filename_prefix='test', date_fmt='%Y-%m-%d-%H-%M',
-                    funct=idw, kwargs={})
-        f = gdal.Open(os.path.join(self.tempdir, 'test-2014-04-22-13-00.tif'))
+                    date=datetime(2014, 4, 22, 13, 0),
+                    filename=os.path.join(self.tempdir, 'test.tif'),
+                    date_fmt='%Y-%m-%d %H:%M', funct=idw, kwargs={})
+        f = gdal.Open(os.path.join(self.tempdir, 'test.tif'))
         result = f.GetRasterBand(1).ReadAsArray()
         expected_result = np.array([[1.5088, 1.6064, np.nan, 1.7237],
                                     [1.3828, 1.6671, 1.7336, 1.7662],
@@ -440,6 +440,44 @@ class BitiaAppTestCase(TestCase):
         self.saved_argv = sys.argv
         sys.argv = ['bitia', '--traceback', self.config_file]
 
+        # Create two stations, each one with a time series
+        self.parms = json.loads(os.getenv('PTHELMA_TEST_ENHYDRIS_API'))
+        self.cookies = enhydris_api.login(self.parms['base_url'],
+                                          self.parms['user'],
+                                          self.parms['password'])
+        self.station1_id = enhydris_api.post_model(
+            self.parms['base_url'], self.cookies, 'Station',
+            {'name': 'station1',
+             'srid': 4326,
+             'point': 'POINT (23.78743 37.97385)',
+             'copyright_holder': 'Joe User',
+             'copyright_years': '2014',
+             'stype': 1,
+             'owner': self.parms['owner_id'],
+             })
+        self.timeseries1_id = enhydris_api.post_model(
+            self.parms['base_url'], self.cookies, 'Timeseries',
+            {'gentity': self.station1_id,
+             'variable': self.parms['variable_id'],
+             'unit_of_measurement': self.parms['unit_of_measurement_id'],
+             'time_zone': self.parms['time_zone_id']})
+        self.station2_id = enhydris_api.post_model(
+            self.parms['base_url'], self.cookies, 'Station',
+            {'name': 'station1',
+             'srid': 4326,
+             'point': 'POINT (24.56789 38.76543)',
+             'copyright_holder': 'Joe User',
+             'copyright_years': '2014',
+             'stype': 1,
+             'owner': self.parms['owner_id'],
+             })
+        self.timeseries2_id = enhydris_api.post_model(
+            self.parms['base_url'], self.cookies, 'Timeseries',
+            {'gentity': self.station2_id,
+             'variable': self.parms['variable_id'],
+             'unit_of_measurement': self.parms['unit_of_measurement_id'],
+             'time_zone': self.parms['time_zone_id']})
+
         # Prepare a configuration file (some tests override it)
         with open(self.config_file, 'w') as f:
             f.write(textwrap.dedent('''\
@@ -449,21 +487,25 @@ class BitiaAppTestCase(TestCase):
                 cache_dir = {0.cache_dir}
                 output_dir = {0.output_dir}
                 filename_prefix = rainfall
-                files_to_keep = 24
+                files_to_produce = 24
                 method = idw
 
                 [ntua]
-                base_url = wrongproto://openmeteo.org/
-                id = 6539
+                base_url = {1}
+                id = {0.timeseries1_id}
 
                 [nedontas]
-                base_url = wrongproto://openmeteo.org/
-                id = 9356
-                ''').format(self))
+                base_url = {1}
+                id = {0.timeseries2_id}
+                ''').format(self, self.parms['base_url']))
 
     def tearDown(self):
         shutil.rmtree(self.tempdir)
         sys.argv = self.saved_argv
+        enhydris_api.delete_model(self.parms['base_url'], self.cookies,
+                                  'Station', self.station1_id)
+        enhydris_api.delete_model(self.parms['base_url'], self.cookies,
+                                  'Station', self.station2_id)
 
     def test_correct_configuration(self):
         application = BitiaApp()
@@ -481,7 +523,7 @@ class BitiaAppTestCase(TestCase):
                 method = idw
                 ''').format(self))
         application = BitiaApp()
-        self.assertRaisesRegex(configparser.Error, 'files_to_keep',
+        self.assertRaisesRegex(configparser.Error, 'files_to_produce',
                                application.run)
 
     def test_wrong_configuration2(self):
@@ -493,7 +535,7 @@ class BitiaAppTestCase(TestCase):
                 cache_dir = {0.cache_dir}
                 output_dir = {0.output_dir}
                 filename_prefix = rainfall
-                files_to_keep = 24
+                files_to_produce = 24
                 method = idw
                 nonexistent_option = irrelevant
                 ''').format(self))
@@ -510,7 +552,7 @@ class BitiaAppTestCase(TestCase):
                 cache_dir = {0.cache_dir}
                 output_dir = {0.output_dir}
                 filename_prefix = rainfall
-                files_to_keep = 24
+                files_to_produce = 24
                 method = idw
 
                 [ntua]
@@ -529,7 +571,7 @@ class BitiaAppTestCase(TestCase):
                 cache_dir = {0.cache_dir}
                 output_dir = {0.output_dir}
                 filename_prefix = rainfall
-                files_to_keep = 24
+                files_to_produce = 24
                 method = idw
 
                 [ntua]
@@ -550,7 +592,7 @@ class BitiaAppTestCase(TestCase):
                 cache_dir = {0.cache_dir}
                 output_dir = {0.output_dir}
                 filename_prefix = rainfall
-                files_to_keep = 24
+                files_to_produce = 24
                 method = idw
 
                 [ntua]
@@ -561,8 +603,14 @@ class BitiaAppTestCase(TestCase):
         self.assertRaisesRegex(WrongValueError, 'epsg=81122',
                                application.run)
 
-    def test_get_last_dates(self):
-        filename = os.path.join(self.cache_dir, 'timeseries.hts')
+    def test_last_date(self):
+        application = BitiaApp()
+        application.read_command_line()
+        application.read_configuration()
+        application.cache = TimeseriesCache(self.cache_dir,
+                                            application.timeseries_group)
+        filename = application.cache.get_filename(self.parms['base_url'],
+                                                  self.timeseries1_id)
         with open(filename, 'w') as f:
             f.write(textwrap.dedent('''\
                 2014-04-30 11:00,18.3,
@@ -570,69 +618,7 @@ class BitiaAppTestCase(TestCase):
                 2014-04-30 13:00,20.4,
                 2014-04-30 14:00,21.4,
                 '''))
-        application = BitiaApp()
-        with open(filename) as f:
-            self.assertEquals(application.get_last_dates(filename, 2),
-                              [datetime(2014, 4, 30, 13, 0),
-                               datetime(2014, 4, 30, 14, 0)])
-            f.seek(0)
-            self.assertEquals(application.get_last_dates(filename, 20),
-                              [datetime(2014, 4, 30, 11, 0),
-                               datetime(2014, 4, 30, 12, 0),
-                               datetime(2014, 4, 30, 13, 0),
-                               datetime(2014, 4, 30, 14, 0)])
-
-    def test_dates_to_calculate(self):
-        application = BitiaApp()
-        application.read_command_line()
-        application.read_configuration()
-        cache = TimeseriesCache(self.cache_dir, application.timeseries_group)
-        application.cache = cache
-        g = application.timeseries_group
-        filename1 = cache.get_filename(g[0]['base_url'], g[0]['id'])
-        filename2 = cache.get_filename(g[1]['base_url'], g[1]['id'])
-        with open(filename1, 'w') as f:
-            f.write(textwrap.dedent('''\
-                2014-04-30 11:00,18.3,
-                2014-04-30 13:00,20.4,
-                2014-04-30 14:00,21.4,
-                2014-04-30 15:00,22.4,
-                '''))
-        with open(filename2, 'w') as f:
-            f.write(textwrap.dedent('''\
-                2014-04-30 11:00,18.3,
-                2014-04-30 12:00,19.3,
-                2014-04-30 13:00,20.4,
-                2014-04-30 14:00,21.4,
-                '''))
-
-        # Check for files_to_keep=24
-        dates = []
-        for d in application.dates_to_calculate:
-            dates.append(d)
-        self.assertEquals(dates, [datetime(2014, 4, 30, 11, 0),
-                                  datetime(2014, 4, 30, 12, 0),
-                                  datetime(2014, 4, 30, 13, 0),
-                                  datetime(2014, 4, 30, 14, 0),
-                                  datetime(2014, 4, 30, 15, 0)])
-
-        # Check for files_to_keep=2
-        application.config['General']['files_to_keep'] = 2
-        dates = []
-        for d in application.dates_to_calculate:
-            dates.append(d)
-        self.assertEquals(dates, [datetime(2014, 4, 30, 14, 0),
-                                  datetime(2014, 4, 30, 15, 0)])
-
-        # Check for files_to_keep=4
-        application.config['General']['files_to_keep'] = 4
-        dates = []
-        for d in application.dates_to_calculate:
-            dates.append(d)
-        self.assertEquals(dates, [datetime(2014, 4, 30, 12, 0),
-                                  datetime(2014, 4, 30, 13, 0),
-                                  datetime(2014, 4, 30, 14, 0),
-                                  datetime(2014, 4, 30, 15, 0)])
+        self.assertEquals(application.last_date, datetime(2014, 4, 30, 14, 0))
 
     def test_date_fmt(self):
         application = BitiaApp()
@@ -649,14 +635,14 @@ class BitiaAppTestCase(TestCase):
             f.write('1')
         with open(filename2, 'w') as f:
             f.write('1')
-        self.assertEquals(application.date_fmt, '%Y-%m-%d-%H-%M')
+        self.assertEquals(application.date_fmt, '%Y-%m-%d %H:%M')
 
         # Hourly
         with open(filename1, 'w') as f:
             f.write('2')
         with open(filename2, 'w') as f:
             f.write('2')
-        self.assertEquals(application.date_fmt, '%Y-%m-%d-%H-%M')
+        self.assertEquals(application.date_fmt, '%Y-%m-%d %H:%M')
 
         # Daily
         with open(filename1, 'w') as f:
@@ -684,14 +670,14 @@ class BitiaAppTestCase(TestCase):
             f.write('6')
         with open(filename2, 'w') as f:
             f.write('6')
-        self.assertEquals(application.date_fmt, '%Y-%m-%d-%H-%M')
+        self.assertEquals(application.date_fmt, '%Y-%m-%d %H:%M')
 
         # Fifteen-minute
         with open(filename1, 'w') as f:
             f.write('7')
         with open(filename2, 'w') as f:
             f.write('7')
-        self.assertEquals(application.date_fmt, '%Y-%m-%d-%H-%M')
+        self.assertEquals(application.date_fmt, '%Y-%m-%d %H:%M')
 
         # Inconsistent
         with open(filename1, 'w') as f:
@@ -700,37 +686,111 @@ class BitiaAppTestCase(TestCase):
             f.write('2')
         self.assertRaises(WrongValueError, lambda: application.date_fmt)
 
-    def test_delete_obsolete_files(self):
+    def get_file_timestamp(self, filename):
+        fp = gdal.Open(filename)
+        timestamp = fp.GetMetadata()['TIMESTAMP']
+        fp = None
+        return timestamp
+
+    def create_file_with_timestamp(self, filename, timestamp):
+        output = gdal.GetDriverByName('GTiff').Create(filename, 640, 480, 1,
+                                                      gdal.GDT_Float32)
+        output.SetMetadataItem('TIMESTAMP', timestamp)
+        output = None
+
+    def test_rename_existing_files(self):
         application = BitiaApp()
         application.read_command_line()
         application.read_configuration()
+        application.cache = TimeseriesCache(self.cache_dir,
+                                            application.timeseries_group)
+
+        # Annual time step
+        for item in application.timeseries_group:
+            timestep_filename = application.cache.get_filename(
+                item['base_url'], item['id']) + '_step'
+            with open(timestep_filename, 'w') as f:
+                f.write('5')
 
         # Create three files
         prefix = application.config['General']['filename_prefix']
-        filename1 = os.path.join(self.output_dir, '{}-1.tif'.format(prefix))
-        filename2 = os.path.join(self.output_dir, '{}-2.tif'.format(prefix))
-        filename3 = os.path.join(self.output_dir, '{}-3.tif'.format(prefix))
-        with open(filename1, 'w'):
-            pass
-        with open(filename2, 'w'):
-            pass
-        with open(filename3, 'w'):
-            pass
+        filename1 = os.path.join(self.output_dir, '{}-0000.tif'.format(prefix))
+        filename2 = os.path.join(self.output_dir, '{}-0001.tif'.format(prefix))
+        filename3 = os.path.join(self.output_dir, '{}-0002.tif'.format(prefix))
+        self.create_file_with_timestamp(filename1, '2014')
+        self.create_file_with_timestamp(filename2, '2013')
+        self.create_file_with_timestamp(filename3, '2012')
 
         # Just to make sure we didn't screw up above, check
         self.assertTrue(os.path.exists(filename1))
         self.assertTrue(os.path.exists(filename2))
         self.assertTrue(os.path.exists(filename3))
 
-        # Execute for files_to_keep = 2 and check
-        application.config['General']['files_to_keep'] = 2
-        application.delete_obsolete_files()
+        # Execute for files_to_produce = 3 and check
+        application.config['General']['files_to_produce'] = 3
+        application.rename_existing_files('2015')
         self.assertFalse(os.path.exists(filename1))
-        self.assertTrue(os.path.exists(filename2))
-        self.assertTrue(os.path.exists(filename3))
+        self.assertEquals(self.get_file_timestamp(filename2), '2014')
+        self.assertEquals(self.get_file_timestamp(filename3), '2013')
+        self.assertEquals(len(os.listdir(self.output_dir)), 2)
 
         # Re-execute; nothing should have changed
-        application.delete_obsolete_files()
+        application.rename_existing_files('2015')
         self.assertFalse(os.path.exists(filename1))
-        self.assertTrue(os.path.exists(filename2))
-        self.assertTrue(os.path.exists(filename3))
+        self.assertEquals(self.get_file_timestamp(filename2), '2014')
+        self.assertEquals(self.get_file_timestamp(filename3), '2013')
+        self.assertEquals(len(os.listdir(self.output_dir)), 2)
+
+    def test_execute(self):
+        application = BitiaApp()
+        application.read_command_line()
+        application.read_configuration()
+        cache = TimeseriesCache(self.cache_dir, application.timeseries_group)
+        application.cache = cache
+
+        # Create some time series data
+        g = application.timeseries_group
+        filename1 = cache.get_filename(g[0]['base_url'], g[0]['id'])
+        filename2 = cache.get_filename(g[1]['base_url'], g[1]['id'])
+        with open(filename1, 'w') as f:
+            f.write(textwrap.dedent('''\
+                2014-04-30 11:00,18.3,
+                2014-04-30 13:00,20.4,
+                2014-04-30 14:00,21.4,
+                2014-04-30 15:00,22.4,
+                '''))
+        with open(filename2, 'w') as f:
+            f.write(textwrap.dedent('''\
+                2014-04-30 11:00,18.3,
+                2014-04-30 12:00,19.3,
+                2014-04-30 13:00,20.4,
+                2014-04-30 14:00,21.4,
+                '''))
+
+        # Cache the timeseries step
+        with open(filename1 + '_step', 'w') as f:
+            f.write('2')
+        with open(filename2 + '_step', 'w') as f:
+            f.write('2')
+
+        # Create a mask
+        mask_filename = os.path.join(self.tempdir, 'mask.tif')
+        output = gdal.GetDriverByName('GTiff').Create(mask_filename, 640, 480,
+                                                      1, gdal.GDT_Float32)
+        output = None
+
+        # Execute
+        application.config['General']['files_to_produce'] = 3
+        application.execute(update_cache=False)
+
+        # Check that it has created three files
+        full_prefix = os.path.join(
+            self.output_dir,
+            application.config['General']['filename_prefix'])
+        self.assertTrue(os.path.exists(full_prefix + '-0000.tif'))
+        self.assertTrue(os.path.exists(full_prefix + '-0001.tif'))
+        self.assertTrue(os.path.exists(full_prefix + '-0002.tif'))
+
+        # We could check a myriad other things here, but since we've
+        # unit-tested lower level functions in detail, the above is reasonably
+        # sufficient for us to know that it works.

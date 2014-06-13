@@ -18,6 +18,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 """
 
+from calendar import monthrange
 from codecs import BOM_UTF8
 from ctypes import CDLL, c_int, c_longlong, c_double, c_char, c_char_p, \
     byref, Structure, c_void_p, POINTER, string_at
@@ -32,6 +33,8 @@ import zlib
 import six
 from six import u, StringIO
 from six.moves.configparser import ParsingError
+
+from simpletail import ropen
 
 psycopg2 = None  # Do not import unless needed
 
@@ -95,7 +98,7 @@ def isoformat_nosecs(adatetime, sep='T'):
 
 
 def add_months_to_datetime(adatetime, months):
-    m, y = adatetime.month, adatetime.year
+    m, y, d = adatetime.month, adatetime.year, adatetime.day
     m += months
     while m > 12:
         m -= 12
@@ -103,7 +106,8 @@ def add_months_to_datetime(adatetime, months):
     while m < 1:
         m += 12
         y -= 1
-    return adatetime.replace(year=y, month=m)
+    d = min(d, monthrange(y, m)[1])
+    return adatetime.replace(year=y, month=m, day=d)
 
 
 _DT_BASE = datetime(1970, 1, 1, 0, 0)
@@ -125,6 +129,56 @@ def _time_t_to_datetime(t):
     return _DT_BASE + timedelta(days=t // 86400, seconds=t % 86400)
 
 
+datere = re.compile(r"""(?P<year>\d+)
+                        (-(?P<month>\d+)
+                            (-(?P<day>\d+)
+                            ([ tT](?P<hour>\d+):(?P<minute>\d+))?
+                            )?
+                        )?
+                    """, re.VERBOSE)
+
+
+def datestr_diff(datestr1, datestr2):
+    m1 = datere.match(datestr1)
+    m2 = datere.match(datestr2)
+    year1 = int(m1.group('year'))
+    year2 = int(m2.group('year'))
+    month1 = int(m1.group('month') or 1)
+    month2 = int(m2.group('month') or 1)
+    day1 = int(m1.group('day') or 1)
+    day2 = int(m2.group('day') or 1)
+    hour1 = int(m1.group('hour') or 0)
+    hour2 = int(m2.group('hour') or 0)
+    minute1 = int(m1.group('minute') or 0)
+    minute2 = int(m2.group('minute') or 0)
+
+    date1 = datetime(year1, month1, day1, hour1, minute1)
+    date2 = datetime(year2, month2, day2, hour2, minute2)
+    return date_diff(date1, date2)
+
+
+def date_diff(date1, date2):
+    if date1 >= date2:
+        return _date_diff(date1, date2)
+    else:
+        months, minutes = _date_diff(date2, date1)
+        return (-months, -minutes)
+
+
+def _date_diff(date1, date2):
+    """
+    Similar to date_diff, but lower level and used by it. Only works if
+    date1 >= date2.
+    """
+    diff_months = (date1.year - date2.year) * 12 + date1.month - date2.month
+    date2a = add_months_to_datetime(date2, diff_months)
+    if date2a > date1:
+        diff_months -= 1
+        date2a = add_months_to_datetime(date2a, -1)
+    diff_minutes = int((date1 - date2a).total_seconds()) / 60
+    return (diff_months, diff_minutes)
+
+
 def read_timeseries_tail_from_db(db, id):
     c = db.cursor()
     c.execute("""SELECT bottom FROM ts_records
@@ -135,6 +189,35 @@ def read_timeseries_tail_from_db(db, id):
     if not bottom_lines:
         raise ValueError('No time series with id=%d found' % (id,))
     return bottom_lines[-1].split(',')[:2]
+
+
+def read_timeseries_tail_from_file(filename):
+
+    def get_next_line(fp):
+        try:
+            return fp.next()
+        except StopIteration:
+            raise ValueError('File {} does not contain a time series'.
+                             format(filename))
+
+    with ropen(filename) as fp:
+        last_line = get_next_line(fp)
+        datestring = last_line.split(',')[0]
+        try:
+            return datetime_from_iso(datestring)
+        except ValueError as e:
+            exception = e
+
+        # We were unable to read the last line. Perhaps the time series has no
+        # data?
+        while last_line.isspace():
+            last_line = get_next_line(fp)  # Skip empty lines
+        if '=' in last_line:
+            return None  # Last line looks like "name=value" - empty series
+
+        # No evidence that this is a time series with no data.
+        raise ValueError(exception.message
+                         + ' (file {}, last line)'.format(filename))
 
 
 def timeseries_bounding_dates_from_db(db, id):

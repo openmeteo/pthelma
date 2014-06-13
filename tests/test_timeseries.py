@@ -34,7 +34,7 @@ from six import u, StringIO
 
 from pthelma.timeseries import TimeStep, strip_trailing_zeros, \
     datetime_from_iso, isoformat_nosecs, Timeseries, IntervalType, \
-    identify_events, add_months_to_datetime
+    identify_events, add_months_to_datetime, datestr_diff
 
 
 big_test_timeseries = textwrap.dedent("""\
@@ -400,6 +400,63 @@ class _Test_datetime_utilities(TestCase):
     def test_isoformat_nosecs2(self):
         self.assertEqual(isoformat_nosecs(self.d, ' '), "1964-02-29 18:35")
 
+    def test_datestr_diff(self):
+        self.assertEqual(datestr_diff('2000', '1999'), (12, 0))
+        self.assertEqual(datestr_diff('1999', '1999'), (0, 0))
+        self.assertEqual(datestr_diff('1999', '2000'), (-12, 0))
+        self.assertEqual(datestr_diff('2000-05', '1999-12'), (5, 0))
+        self.assertEqual(datestr_diff('1999-12', '2000-05'), (-5, 0))
+        self.assertEqual(datestr_diff('2000-05', '2000-05'), (0, 0))
+        self.assertEqual(datestr_diff('2001-12', '1999-11'), (25, 0))
+        self.assertEqual(datestr_diff('2001-11-18', '1999-11-18'), (24, 0))
+        self.assertEqual(datestr_diff('2001-11-19', '1999-11-18'), (24, 1440))
+        self.assertEqual(datestr_diff('2001-11-17', '1999-11-18'), (23, 43200))
+        self.assertEqual(datestr_diff('1999-11-18', '2001-11-17'),
+                         (-23, -43200))
+        self.assertEqual(datestr_diff('2001-11-19 18:36', '1999-11-18 18:35'),
+                         (24, 1441))
+        self.assertEqual(datestr_diff('2001-11-18 18:34', '1999-11-18 18:35'),
+                         (23, 44639))
+        self.assertEqual(datestr_diff('2013-02-28', '2012-02-29'),
+                         (12, 0))
+
+    def test_add_months_to_datetime(self):
+        dt = datetime(2008, 2, 7, 13, 10)
+        self.assertEquals(add_months_to_datetime(dt, 0), dt)
+        self.assertEquals(add_months_to_datetime(dt, 10),
+                          datetime(2008, 12, 7, 13, 10))
+        self.assertEquals(add_months_to_datetime(dt, 11),
+                          datetime(2009,  1, 7, 13, 10))
+        self.assertEquals(add_months_to_datetime(dt, 22),
+                          datetime(2009, 12, 7, 13, 10))
+        self.assertEquals(add_months_to_datetime(dt, 23),
+                          datetime(2010,  1, 7, 13, 10))
+        self.assertEquals(add_months_to_datetime(dt, -1),
+                          datetime(2008,  1, 7, 13, 10))
+        self.assertEquals(add_months_to_datetime(dt, -2),
+                          datetime(2007, 12, 7, 13, 10))
+        self.assertEquals(add_months_to_datetime(dt, -13),
+                          datetime(2007,  1, 7, 13, 10))
+        self.assertEquals(add_months_to_datetime(dt, -14),
+                          datetime(2006, 12, 7, 13, 10))
+
+        dt = datetime(2008, 3, 31, 13, 10)
+        self.assertEquals(add_months_to_datetime(dt, 1),
+                          datetime(2008, 4, 30, 13, 10))
+        self.assertEquals(add_months_to_datetime(dt, -1),
+                          datetime(2008, 2, 29, 13, 10))
+        self.assertEquals(add_months_to_datetime(dt, 11),
+                          datetime(2009, 2, 28, 13, 10))
+
+        dt = datetime(2012, 2, 29, 13, 10)
+        self.assertEquals(add_months_to_datetime(dt, 12),
+                          datetime(2013, 2, 28, 13, 10))
+        self.assertEquals(add_months_to_datetime(dt, 48),
+                          datetime(2016, 2, 29, 13, 10))
+        self.assertEquals(add_months_to_datetime(dt, -12),
+                          datetime(2011, 2, 28, 13, 10))
+        self.assertEquals(add_months_to_datetime(dt, -48),
+                          datetime(2008, 2, 29, 13, 10))
 
 class _Test_strip_trailing_zeros(TestCase):
 
@@ -1166,26 +1223,3 @@ class _Test_Timeseries_identify_events(TestCase):
         self.assertEqual(events[1][1], datetime(2008, 2, 7, 12, 20))
         self.assertEqual(events[2][0], datetime(2008, 2, 7, 13, 10))
         self.assertEqual(events[2][1], datetime(2008, 2, 7, 13, 10))
-
-
-class AddMonthsToDatetimeTestCase(TestCase):
-
-    def test_add_months(self):
-        dt = datetime(2008, 2, 7, 13, 10)
-        self.assertEquals(add_months_to_datetime(dt, 0), dt)
-        self.assertEquals(add_months_to_datetime(dt, 10),
-                          datetime(2008, 12, 7, 13, 10))
-        self.assertEquals(add_months_to_datetime(dt, 11),
-                          datetime(2009,  1, 7, 13, 10))
-        self.assertEquals(add_months_to_datetime(dt, 22),
-                          datetime(2009, 12, 7, 13, 10))
-        self.assertEquals(add_months_to_datetime(dt, 23),
-                          datetime(2010,  1, 7, 13, 10))
-        self.assertEquals(add_months_to_datetime(dt, -1),
-                          datetime(2008,  1, 7, 13, 10))
-        self.assertEquals(add_months_to_datetime(dt, -2),
-                          datetime(2007, 12, 7, 13, 10))
-        self.assertEquals(add_months_to_datetime(dt, -13),
-                          datetime(2007,  1, 7, 13, 10))
-        self.assertEquals(add_months_to_datetime(dt, -14),
-                          datetime(2006, 12, 7, 13, 10))

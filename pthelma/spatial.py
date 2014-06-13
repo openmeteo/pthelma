@@ -15,7 +15,8 @@ from simpletail import ropen
 
 from pthelma import enhydris_api
 from pthelma.cliapp import CliApp, WrongValueError
-from pthelma.timeseries import Timeseries, datetime_from_iso
+from pthelma.timeseries import Timeseries, datetime_from_iso, datestr_diff, \
+    add_months_to_datetime
 
 
 def idw(point, data_layer, alpha=1):
@@ -175,18 +176,17 @@ class TimeseriesCache(object):
                 f.write(str(step_id))
 
 
-def h_integrate(group, mask, stations_layer, cache, date, output_dir,
-                filename_prefix, date_fmt, funct, kwargs):
+def h_integrate(group, mask, stations_layer, cache, date, filename, date_fmt,
+                funct, kwargs):
     # Return immediately if output file already exists
-    output_filename = os.path.join(
-        output_dir, '{}-{}.tif'.format(filename_prefix,
-                                       date.strftime(date_fmt)))
-    if os.path.exists(output_filename):
+    if os.path.exists(filename):
         return
 
     # Read the time series values and add the 'value' attribute to
     # stations_layer
     stations_layer.CreateField(ogr.FieldDefn('value', ogr.OFTReal))
+    found_value = False
+    stations_layer.ResetReading()
     for station in stations_layer:
         ts_id = station.GetField('timeseries_id')
         base_url = [x['base_url'] for x in group if x['id'] == ts_id][0]
@@ -194,13 +194,17 @@ def h_integrate(group, mask, stations_layer, cache, date, output_dir,
         t = Timeseries()
         with open(cache_filename) as f:
             t.read(f)
-        station.SetField('value', t.get(date, float('NaN')))
+        value = t.get(date, float('NaN'))
+        station.SetField('value', value)
+        found_value = found_value or (not isnan(value))
         stations_layer.SetFeature(station)
+    if not found_value:
+        return
 
     # Create destination data source
     output = gdal.GetDriverByName('GTiff').Create(
-        output_filename, mask.RasterXSize, mask.RasterYSize, 1,
-        gdal.GDT_Float32)
+        filename, mask.RasterXSize, mask.RasterYSize, 1, gdal.GDT_Float32)
+    output.SetMetadataItem('TIMESTAMP', date.strftime(date_fmt))
 
     try:
         # Set geotransform and projection in the output data source
@@ -218,19 +222,19 @@ class BitiaApp(CliApp):
     name = 'bitia'
     description = 'Perform spatial integration'
                         # Section          Option            Default
-    config_file_options = {'General': {'mask':            None,
-                                       'epsg':            None,
-                                       'cache_dir':       None,
-                                       'output_dir':      None,
-                                       'filename_prefix': None,
-                                       'files_to_keep':   None,
-                                       'method':          None,
-                                       'alpha':           '1',
+    config_file_options = {'General': {'mask':             None,
+                                       'epsg':             None,
+                                       'cache_dir':        None,
+                                       'output_dir':       None,
+                                       'filename_prefix':  None,
+                                       'files_to_produce': None,
+                                       'method':           None,
+                                       'alpha':            '1',
                                        },
-                           'other':   {'base_url':        None,
-                                       'id':              None,
-                                       'user':            '',
-                                       'password':        '',
+                           'other':   {'base_url':         None,
+                                       'id':               None,
+                                       'user':             '',
+                                       'password':         '',
                                        },
                            }
 
@@ -273,53 +277,36 @@ class BitiaApp(CliApp):
             raise WrongValueError(
                 'An error occurred when trying to use epsg={}'.format(epsg))
 
-    def get_last_dates(self, filename, n):
+    @property
+    def last_date(self):
         """
-        Given file-like object fp that is a time series in file format or text
-        format, it scans it from the bottom and returns the list of the n last
-        dates (may be less than n if the time series is too small). 'filename'
-        is used in error messages.
+        Return the last date for which any time series has data, or None if
+        all time series are empty.
         """
-        result = []
-        with ropen(filename) as fp:
-            for i, line in enumerate(fp):
-                if i >= n:
-                    break
-                datestring = line.split(',')[0]
-                try:
-                    result.insert(0, datetime_from_iso(datestring))
-                except ValueError as e:
-                    raise ValueError(e.message +
-                                     ' (file {}, {} lines from the end)'
-                                     .format(filename, i))
+        result = None
+        for item in self.timeseries_group:
+            filename = self.cache.get_filename(item['base_url'], item['id'])
+            if not os.path.exists(filename):
+                continue
+            with ropen(filename) as fp:
+                for line in fp:
+                    datestring = line.split(',')[0]
+                    try:
+                        last_date = datetime_from_iso(datestring)
+                    except ValueError as e:
+                        raise ValueError(e.message + ' (file {}, last line)'
+                                         .format(filename))
+                    break  # We only want to do this for the last line
+            if last_date and ((not result) or (last_date > result)):
+                result = last_date
         return result
 
     @property
-    def dates_to_calculate(self):
+    def time_step(self):
         """
-        Generator that yields the dates for which h_integrate should be run;
-        this is the latest list of dates such that:
-        * At least one of the time series has data
-        * The length of the list is the 'files_to_keep' configuration option
-          (maybe less if the time series don't have enough data yet).
-        On entry self.cache must be an updated TimeseriesCache object.
-        """
-        n = int(self.config['General']['files_to_keep'])
-        dates = set()
-        for item in self.timeseries_group:
-            filename = self.cache.get_filename(item['base_url'], item['id'])
-            dates |= set(self.get_last_dates(filename, n))
-        dates = list(dates)
-        dates.sort()
-        dates = dates[-n:]
-        for d in dates:
-            yield d
-
-    @property
-    def date_fmt(self):
-        """
-        Determine date_fmt based on time series time step.
-        Call after updating self.cache.
+        Return time step of all time series. If time step is not the same
+        for all time series, raises exception. Must be run after updating
+        cache.
         """
         time_step = None
         for item in self.timeseries_group:
@@ -331,50 +318,134 @@ class BitiaApp(CliApp):
                 raise WrongValueError(
                     'Not all time series have the same step')
             time_step = item_time_step
-        return {1: '%Y-%m-%d-%H-%M',
-                2: '%Y-%m-%d-%H-%M',
+        return time_step
+
+    @property
+    def date_fmt(self):
+        """
+        Determine date_fmt based on time series time step.
+        Call after updating self.cache.
+        """
+        return {1: '%Y-%m-%d %H:%M',
+                2: '%Y-%m-%d %H:%M',
                 3: '%Y-%m-%d',
                 4: '%Y-%m',
                 5: '%Y',
-                6: '%Y-%m-%d-%H-%M',
-                7: '%Y-%m-%d-%H-%M'}[time_step]
+                6: '%Y-%m-%d %H:%M',
+                7: '%Y-%m-%d %H:%M'}[self.time_step]
 
-    def delete_obsolete_files(self):
+    def rename_existing_files(self, last_date):
         """
-        Delete all tif files produced in the past except the last N,
-        where N is the 'files_to_keep' configuration option.
+        Assume filename_prefix-XXXX files exist, where XXXX goes from 0 to N-1,
+        where N is the 'files_to_produce' configuration option. This method
+        renames (by increasing XXXX) so that if a new file with XXXX=000 is
+        created for the specified last_date, the existing ones will be properly
+        numbered (usually XXXX is increased by one, but it can be more if the
+        system failed to run for some time steps).  It also removes files with
+        resulting XXXX >= N.
         """
-        n = int(self.config['General']['files_to_keep'])
         output_dir = self.config['General']['output_dir']
         filename_prefix = self.config['General']['filename_prefix']
         pattern = os.path.join(output_dir, '{}-*.tif'.format(filename_prefix))
         files = glob(pattern)
-        files.sort()
-        for filename in files[:-n]:
-            os.remove(filename)
+        files.sort(reverse=True)
+        for filename in files:
+            self.do_rename_file(filename, last_date)
 
-    def execute(self):
+    def do_rename_file(self, filename, last_date):
+        # Get the file's timestamp
+        fp = gdal.Open(filename)
+        timestamp = fp.GetMetadata()['TIMESTAMP']
+        fp = None
+
+        # What should the file's number be?
+        number = self.get_file_number(last_date, timestamp)
+
+        # Is the file too old? Delete it.
+        if number >= int(self.config['General']['files_to_produce']):
+            os.unlink(filename)
+            return
+
+        # Get the file's current number and rename the file
+        cur_number = int(filename.rpartition('-')[2].split('.')[0])
+        if number != cur_number:
+            new_filename = os.path.join(
+                self.config['General']['output_dir'],
+                '{}-{:04d}.tif'.format(
+                    self.config['General']['filename_prefix'], number))
+            os.rename(filename, new_filename)
+
+    def get_file_number(self, last_date, timestamp, filename=''):
+        """
+        Return the number a file should have for the given last_date and
+        timestamp. If the two days are equal, the result is 0; otherwise
+        it is the number of time steps between them, or 10000 if the
+        difference is too large. The filename is used for error messages.
+        """
+        diff_months, diff_minutes = datestr_diff(last_date, timestamp)
+        divider = [10, 60, 1440, 1, 12, 5, 15][self.time_step - 1]
+        if self.time_step in (4, 5):  # Monthly or annual
+            number = diff_months / divider
+            if diff_minutes or (number * divider != diff_months):
+                raise ValueError("Something's wrong in the timestamp in {}"
+                                 .format(filename))
+        else:
+            number = diff_minutes / divider
+            if number * divider != diff_minutes:
+                raise ValueError("Something's wrong in the timestamp in {}"
+                                 .format(filename))
+            if diff_months:
+                number = 10000
+        return number
+
+    def execute(self, update_cache=True):
+        # Setup cache
         cache_dir = self.config['General']['cache_dir']
-        epsg = int(self.config['General']['epsg'])
         self.cache = TimeseriesCache(cache_dir, self.timeseries_group)
-        self.cache.update()
+        if update_cache:
+            # update_cache may be False only during unit tests
+            self.cache.update()
+
+        # Create stations layer
         stations = ogr.GetDriverByName('memory').CreateDataSource('stations')
+        epsg = int(self.config['General']['epsg'])
         stations_layer = create_ogr_layer_from_stations(
             self.timeseries_group, epsg, stations, self.cache)
+
+        # Get mask
         mask = gdal.Open(self.config['General']['mask'])
         if mask is None:
             raise IOError('An error occured when trying to open {}'.format(
                 self.config['General']['mask']))
+
+        # Setup integration method
         if self.config['General']['method'] == 'idw':
             funct = idw
             kwargs = {'alpha': float(self.config['General']['alpha']), }
         else:
             assert False
-        date_fmt = self.date_fmt
-        for date in self.dates_to_calculate:
+
+        # Rename existing files and remove old files
+        self.rename_existing_files(self.last_date)
+
+        # Make calculation for each missing file
+        output_dir = self.config['General']['output_dir']
+        filename_prefix = self.config['General']['filename_prefix']
+        date_to_calculate = self.last_date
+        last_date_str = self.last_date.strftime(self.date_fmt)
+        while True:
+            dtc_str = date_to_calculate.strftime(self.date_fmt)
+            number = self.get_file_number(last_date_str, dtc_str)
+            if number >= int(self.config['General']['files_to_produce']):
+                break
+            filename = os.path.join(
+                output_dir, '{}-{:04d}.tif'.format(filename_prefix, number))
             h_integrate(self.timeseries_group, mask, stations_layer,
-                        self.cache, date,
-                        self.config['General']['output_dir'],
-                        self.config['General']['filename_prefix'],
-                        date_fmt, funct, kwargs)
-        self.delete_obsolete_files()
+                        self.cache, date_to_calculate, filename, self.date_fmt,
+                        funct, kwargs)
+            step = [10, 60, 1440, 1, 12, 5, 15][self.time_step - 1]
+            if self.time_step in (4, 5):
+                date_to_calculate = add_months_to_datetime(date_to_calculate,
+                                                           -step)
+            else:
+                date_to_calculate = date_to_calculate - timedelta(minutes=step)

@@ -88,7 +88,7 @@
    *timeseries_id* attribute. *cache* is a :class:`TimeseriesCache`
    object.
 
-.. function:: h_integrate(group, mask, stations_layer, cache, date, output_dir, filename_prefix, date_fmt, funct, kwargs)
+.. function:: h_integrate(group, mask, stations_layer, cache, date, output_dir, filename, date_fmt, funct, kwargs)
 
    Given an area mask, a list of cached time series, and a layer with
    stations, performs spatial integration and writes the result to a
@@ -105,16 +105,18 @@
    *cache* is a :class:`TimeseriesCache` object; this function does
    not update it; the caller should update it before calling.  *date*
    is a :class:`~datetime.datetime` object specifying the date and
-   time for which we are to perform integration. *output_dir* is the
-   directory to which the resulting GeoTiff file will be written.  The
-   filename has the form :samp:`{filename_prefix}-{d}.tif`, where *d*
-   is the *date* formatted by :func:`datetime.strftime()` with the
-   format *date_fmt*; if the file already exists, the function returns
-   immediately without doing anything. *funct* and *kwargs* are passed
-   to :func:`integrate()`.
+   time for which we are to perform integration.  The output goes to
+   *filename*; if it already exists, the function returns immediately
+   without doing anything. The attribute TIMESTAMP is written in the
+   file, with *date* as its value, formatted by
+   :func:`datetime.strftime()` with the format *date_fmt*; if the file
+   already exists, the function returns immediately without doing
+   anything. *funct* and *kwargs* are passed to :func:`integrate()`.
 
    If some of the time series in *group* don't have *date* in the
-   cache, they are not taken into account in the integration.
+   cache, they are not taken into account in the integration. If no
+   time series in *group* have *date* in the cache, the function does
+   nothing.
 
 .. class:: BitiaApp
 

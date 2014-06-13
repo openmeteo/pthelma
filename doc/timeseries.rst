@@ -20,6 +20,29 @@ Helper functions
    Return a :class:`datetime` object which is *adatetime* plus
    *months*, where *months* is an integer (it can be negative).
 
+   If you try to add one month to, say 2008-03-31, the result will be
+   2008-04-30; i.e. if the resulting month does not have enough days
+   to use the existing day, the maximum day of that month is used
+   instead.
+
+.. function:: date_diff(date1, date2)
+
+   Return the difference *date1* - *date2* as a (months, minutes)
+   tuple.  *date1* and *date2* are :class:`datetime` objects. Both
+   tuple items are negative if *date1* < *date2*.
+
+   The difference between 2008-03-31 and 2008-04-30 is one month, zero
+   minutes (see how :func:`add_months_to_datetime`). Likewise
+   for the difference between 2008-03-30 and 2008-04-30. So don't
+   expect this function to do miracles in edge cases; you should use
+   it only for day<=28, or for differences smaller than 28 days.
+
+.. function:: datestr_diff(datestr1, datestr2)
+
+   Same as :func:`date_diff`, but the arguments are strings formatted
+   as ``%Y[-%m[-%d[ %H:%M]]]``. A ``T`` or ``t`` can be used instead
+   of a space as a time separator.
+
 .. function:: datetime_from_iso(isostring)
 
    Return a :class:`datetime` object created from a string in ISO 8601
@@ -32,12 +55,6 @@ Helper functions
 
    Same as adatetime.isoformat, but without seconds.
 
-.. function:: strip_trailing_zeros(s)
-
-    If s is a string holding a number, return it after deleting extra
-    unneeded zeros following the decimal point, and possibly the
-    decimal point itself.
-
 .. function:: read_timeseries_tail_from_db(db, id)
 
     Reads the last record of a time series with id from the database.
@@ -46,6 +63,12 @@ Helper functions
     *db* is an object that has a :meth:`cursor` method that returns 
     a :pep:`249` Cursor Object. For example, *db* can be a :pep:`249` 
     Connection Object or a :data:`django.db.connection` object. 
+
+.. function:: strip_trailing_zeros(s)
+
+    If s is a string holding a number, return it after deleting extra
+    unneeded zeros following the decimal point, and possibly the
+    decimal point itself.
 
 TimeStep objects
 ----------------
