@@ -407,7 +407,7 @@ class Timeseries(dict):
 
     def __init__(self, id=0, time_step=None, unit=u(''), title=u(''),
                  timezone=u(''), variable=u(''), precision=None, comment=u(''),
-                 driver=SQLDRIVER_PSYCOPG2):
+                 location={}, driver=SQLDRIVER_PSYCOPG2):
         self.ts_handle = None
         self.id = id
         if time_step:
@@ -422,6 +422,7 @@ class Timeseries(dict):
         self.comment = comment
         assert(driver in (self.SQLDRIVER_NONE, self.SQLDRIVER_PSYCOPG2))
         self.driver = driver
+        self.location = location
         self.ts_handle = c_void_p(dickinson.ts_create())
         if self.ts_handle.value == 0:
             raise MemoryError.Create('Could not allocate memory '
@@ -613,17 +614,14 @@ class Timeseries(dict):
         line = fp.readline()
         if isinstance(line, six.binary_type):
             line = line.decode('utf-8')
-        (name, value) = '', ''
+        name, value = '', ''
         if line.isspace():
             return (name, value)
         if line.find('=') > 0:
-            (name, value) = line.split('=', 1)
+            name, value = line.split('=', 1)
             name = name.rstrip().lower()
             value = value.strip()
-        for c in name:
-            if c.isspace():
-                name = ''
-                break
+        name = '' if any([c.isspace() for c in name]) else name
         if not name:
             raise ParsingError(("Invalid file header line"))
         return (name, value)
@@ -648,68 +646,56 @@ class Timeseries(dict):
             fp.seek(saved_pos)
 
         line_number = 1
+
         try:
-            # Changed the behavior when 'version=2' is not present..
-            # If version=2 not parsed, then the file is considered as
-            # a plain text file with time series data only, withoud
-            # head section with meta information. Stefanos, 2011-06-10
-            try:
-                saved_pos = fp.tell()
-                (name, value) = self.__read_meta_line(fp)
-                if name != 'version' or value != '2':
-                    raise ParsingError(("The first line must be Version=2"))
-            except ParsingError:
-                fp.seek(saved_pos, SEEK_SET)
-                return line_number
             line_number += 1
             (name, value) = self.__read_meta_line(fp)
             while name:
-                if name == 'unit':
-                    self.unit = value
-                elif name == 'title':
-                    self.title = value
-                elif name == 'timezone':
-                    self.timezone = value
-                elif name == 'variable':
-                    self.variable = value
+                if name in ('unit', 'title', 'timezone', 'variable'):
+                    self.__dict__[name] = value
                 elif name == 'time_step':
                     minutes, months = read_minutes_months(value)
                     self.time_step.length_minutes = minutes
                     self.time_step.length_months = months
-                elif name == 'nominal_offset':
-                    self.time_step.nominal_offset = read_minutes_months(value)
-                elif name == 'actual_offset':
-                    self.time_step.actual_offset = read_minutes_months(value)
+                elif name in ('nominal_offset', 'actual_offset'):
+                    self.time_step.__dict__[name] = read_minutes_months(value)
                 elif name == 'interval_type':
-                    it = IntervalType
-                    v = value.lower()
-                    if v == 'sum':
-                        self.time_step.interval_type = it.SUM
-                    elif v == 'average':
-                        self.time_step.interval_type = it.AVERAGE
-                    elif v == 'maximum':
-                        self.time_step.interval_type = it.MAXIMUM
-                    elif v == 'minimum':
-                        self.time_step.interval_type = it.MINIMUM
-                    elif v == 'vector_average':
-                        self.time_step.interval_type = it.VECTOR_AVERAGE
-                    elif v == '':
-                        self.time_step.interval_type = None
-                    else:
+                    try:
+                        self.time_step.interval_type = IntervalType.__dict__[
+                            value.upper()]
+                    except KeyError:
                         raise ParsingError(("Invalid interval type"))
                 elif name == 'precision':
                     try:
                         self.precision = int(value)
-                    except TypeError as e:
+                    except ValueError as e:
                         raise ParsingError(e.args)
                 elif name == 'comment':
                     if self.comment:
                         self.comment += '\n'
                     self.comment += value
-                elif name == 'count':
+                elif name == 'location':
+                    try:
+                        items = value.split()
+                        (self.location['abscissa'],
+                         self.location['ordinate'],
+                         self.location['srid']) = (float(items[0]),
+                                                   float(items[1]),
+                                                   int(items[2]))
+                    except IndexError, ValueError:
+                        raise ParsingError("Invalid location")
+                elif name == 'altitude':
+                    try:
+                        items = value.split()
+                        self.location['altitude'] = float(items[0])
+                        self.location['asrid'] = int(items[1]) \
+                            if len(items) > 1 else None
+                    except IndexError, ValueError:
+                        raise ParsingError("Invalid altitude")
+                else:
                     pass
                 line_number += 1
-                (name, value) = self.__read_meta_line(fp)
+                name, value = self.__read_meta_line(fp)
                 if not name and not value:
                     return line_number
             return line_number
@@ -721,8 +707,9 @@ class Timeseries(dict):
         line_number = self.__read_meta(fp)
         self.read(fp, line_number=line_number)
 
-    def write_file(self, fp):
-        fp.write(u("Version=2\r\n"))
+    def write_file(self, fp, version=2):
+        if version == 2:
+            fp.write(u("Version=2\r\n"))
         if self.unit:
             fp.write(u("Unit=%s\r\n") % (self.unit,))
         fp.write(u("Count=%d\r\n") % (len(self),))
@@ -754,7 +741,23 @@ class Timeseries(dict):
             fp.write(u("Variable=%s\r\n") % (self.variable,))
         if self.precision is not None:
             fp.write(u("Precision=%d\r\n") % (self.precision,))
-
+        if version > 2:
+            try:
+                fp.write(
+                    u("Location={:.6f} {:.6f} {}\r\n")
+                    .format(*[self.location[x]
+                            for x in ['abscissa', 'ordinate', 'srid']]))
+            except KeyError:
+                pass
+            try:
+                if self.location['asrid'] is not None:
+                    fp.write(u("Altitude={:.2f} {}\r\n").format(
+                        self.location['altitude'], self.location['asrid']))
+                else:
+                    fp.write(u("Altitude={:.2f}\r\n").format(
+                        self.location['altitude']))
+            except KeyError:
+                pass
         fp.write("\r\n")
         self.write(fp)
 

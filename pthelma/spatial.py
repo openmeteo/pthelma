@@ -139,7 +139,7 @@ class TimeseriesCache(object):
         if os.path.exists(self.cache_filename):
             with open(self.cache_filename) as f:
                 try:
-                    result.read_file(f)
+                    result.read(f)
                 except ValueError:
                     # File may be corrupted; continue with empty time series
                     result = Timeseries()

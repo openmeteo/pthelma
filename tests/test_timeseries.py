@@ -159,7 +159,7 @@ tenmin_vector_test_timeseries = textwrap.dedent("""\
             """)
 
 
-tenmin_test_timeseries_file = textwrap.dedent(u("""\
+tenmin_test_timeseries_file_version_2 = textwrap.dedent(u("""\
             Version=2\r
             Unit=°C\r
             Count=22\r
@@ -175,6 +175,48 @@ tenmin_test_timeseries_file = textwrap.dedent(u("""\
             Actual_offset=0,0\r
             Variable=temperature\r
             Precision=1\r
+            \r
+            2008-02-07 09:40,10.3,\r
+            2008-02-07 09:50,10.4,\r
+            2008-02-07 10:00,10.5,\r
+            2008-02-07 10:10,10.5,\r
+            2008-02-07 10:20,10.7,\r
+            2008-02-07 10:30,11.0,\r
+            2008-02-07 10:40,10.9,\r
+            2008-02-07 10:50,11.1,\r
+            2008-02-07 11:00,11.2,\r
+            2008-02-07 11:10,11.4,\r
+            2008-02-07 11:20,11.4,\r
+            2008-02-07 11:30,11.4,MISS\r
+            2008-02-07 11:40,11.5,\r
+            2008-02-07 11:50,11.7,\r
+            2008-02-07 12:00,11.8,\r
+            2008-02-07 12:10,11.9,\r
+            2008-02-07 12:20,12.2,\r
+            2008-02-07 12:30,12.2,\r
+            2008-02-07 12:40,12.2,\r
+            2008-02-07 12:50,12.1,\r
+            2008-02-07 13:00,12.2,\r
+            2008-02-07 13:10,12.3,\r
+            """))
+
+tenmin_test_timeseries_file_version_3 = textwrap.dedent(u("""\
+            Unit=°C\r
+            Count=22\r
+            Title=A test 10-min time series\r
+            Comment=This timeseries is extremely important\r
+            Comment=because the comment that describes it\r
+            Comment=spans five lines.\r
+            Comment=\r
+            Comment=These five lines form two paragraphs.\r
+            Timezone=EET (UTC+0200)\r
+            Time_step=10,0\r
+            Nominal_offset=0,0\r
+            Actual_offset=0,0\r
+            Variable=temperature\r
+            Precision=1\r
+            Location=24.678900 38.123450 4326\r
+            Altitude=219.22\r
             \r
             2008-02-07 09:40,10.3,\r
             2008-02-07 09:50,10.4,\r
@@ -624,16 +666,24 @@ class _Test_Timeseries_file(TestCase):
             comment="This timeseries is extremely important\n"
                     "because the comment that describes it\n"
                     "spans five lines.\n\n"
-                    "These five lines form two paragraphs.")
+                    "These five lines form two paragraphs.",
+            location={'abscissa': 24.6789, 'ordinate': 38.12345,
+                      'srid': 4326, 'altitude': 219.22, 'asrid': None})
         self.reference_ts.read(StringIO(tenmin_test_timeseries))
 
     def test_write_file(self):
+        self.maxDiff = None
         outstring = StringIO()
         self.reference_ts.write_file(outstring)
-        self.assertEqual(outstring.getvalue(), tenmin_test_timeseries_file)
+        self.assertEqual(outstring.getvalue(),
+                         tenmin_test_timeseries_file_version_2)
+        outstring = StringIO()
+        self.reference_ts.write_file(outstring, version=3)
+        self.assertEqual(outstring.getvalue(),
+                         tenmin_test_timeseries_file_version_3)
 
-    def test_read_file(self):
-        instring = StringIO(tenmin_test_timeseries_file)
+    def test_read_file_version_2(self):
+        instring = StringIO(tenmin_test_timeseries_file_version_2)
         ts = Timeseries()
         ts.read_file(instring)
         self.assertEqual(ts.time_step.length_minutes,
@@ -652,6 +702,35 @@ class _Test_Timeseries_file(TestCase):
         self.assertEqual(ts.timezone, self.reference_ts.timezone)
         self.assertEqual(ts.variable, self.reference_ts.variable)
         self.assertEqual(ts.comment, self.reference_ts.comment)
+        self.assertEqual(len(ts), len(self.reference_ts))
+        for d in self.reference_ts:
+            self.assertAlmostEqual(ts[d], self.reference_ts[d], 1)
+
+    def test_read_file_version_3(self):
+        instring = StringIO(tenmin_test_timeseries_file_version_3)
+        ts = Timeseries()
+        ts.read_file(instring)
+        self.assertEqual(ts.time_step.length_minutes,
+                         self.reference_ts.time_step.length_minutes)
+        self.assertEqual(ts.time_step.length_months,
+                         self.reference_ts.time_step.length_months)
+        self.assertEqual(ts.time_step.nominal_offset,
+                         self.reference_ts.time_step.nominal_offset)
+        self.assertEqual(ts.time_step.actual_offset,
+                         self.reference_ts.time_step.actual_offset)
+        self.assertEqual(ts.time_step.interval_type,
+                         self.reference_ts.time_step.interval_type)
+        self.assertEqual(ts.unit, self.reference_ts.unit)
+        self.assertEqual(ts.title, self.reference_ts.title)
+        self.assertEqual(ts.precision, self.reference_ts.precision)
+        self.assertEqual(ts.timezone, self.reference_ts.timezone)
+        self.assertEqual(ts.variable, self.reference_ts.variable)
+        self.assertEqual(ts.comment, self.reference_ts.comment)
+        self.assertAlmostEqual(ts.location['abscissa'], 24.67890, places=6)
+        self.assertAlmostEqual(ts.location['ordinate'], 38.12345, places=6)
+        self.assertEqual(ts.location['srid'], 4326)
+        self.assertAlmostEqual(ts.location['altitude'], 219.22, places=2)
+        self.assertTrue(ts.location['asrid'] is None)
         self.assertEqual(len(ts), len(self.reference_ts))
         for d in self.reference_ts:
             self.assertAlmostEqual(ts[d], self.reference_ts[d], 1)

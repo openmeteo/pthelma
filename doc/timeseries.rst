@@ -197,7 +197,7 @@ sorted. There is no need to call timeseries.keys().sort().
 *ts_core* library is required, for installation see the bundled
 text in the ts_core directory in the repository.
 
-.. class:: Timeseries([id=0, time_step=None, unit='', title='', timezone='', variable='', precision=None, comment='', driver=Timeseries.SQLDRIVER_PSYCOPG2])
+.. class:: Timeseries([id=0, time_step=None, unit='', title='', timezone='', variable='', precision=None, comment='', location={}, driver=Timeseries.SQLDRIVER_PSYCOPG2])
 
    Create a new :class:`Timeseries` object. The arguments set initial
    values for the attributes described below.
@@ -215,6 +215,13 @@ text in the ts_core directory in the repository.
       as blob field writing. It may have the values of
       Timeseries.SQLDRIVER_PSYCOPG2 for PostgreSQL or
       Timeseries.SQLDRIVER_NONE for non database applications.
+
+   .. attribute:: Timeseries.location
+
+      A dictionary containing keys *abscissa*, *ordinate*, *altitude*,
+      *srid*, and *asrid*. The first three are floats, and the next
+      two are integers. *srid* is the EPSG SRID for *abscissa* and
+      *ordinate*, and *asrid* is the EPSG SRID for *altitude*.
 
    .. attribute:: Timeseries.SQLDRIVER_PSYCOPG2
 
@@ -295,11 +302,11 @@ text in the ts_core directory in the repository.
       :ref:`file format <fileformat>`; preserve original contents
       (unless overwritten).
 
-   .. method:: Timeseries.write_file(fp)
+   .. method:: Timeseries.write_file(fp, version=2)
 
       Write time series to the filelike object *fp*, in :ref:`file
-      format <fileformat>`. If :class:`datetime.datetime` objects
-      *start* and *end* are mentioned, only write that range.
+      format <fileformat>`. *version* specifies the version of the
+      file to write; it can be 2 or 3.
 
       See also :meth:`write` for information on the handling of the
       line terminators.
@@ -555,28 +562,29 @@ or without UTF-8 BOM (Byte Order Mark) in the begining of file.
 Writes may or may not include the BOM, according OS. (Usually
 Windows software attaches the BOM at the beginning of the file).
 
-If header is omited (not a Version=2 is included), then read_file
-method will try to read the file as raw data file by trying to
-parse dates, values, flags from the begining. If a Version=2 string
-is included then the head is parsed as a meta section and a
-blank line as separator between head and data is expected.
-
-Parameter names are case insensitive.
-There may be white space on either side of the equal sign, which is
-ignored. Trailing white space on the line is also ignored. A second
-equal sign is considered to be part of the value. The value cannot
-contain a newline, but there is a way to have multi-lined parameters
-explained in the Comment parameter below. All parameters except
-Version are optional: either the value can be blank or the entire
-``Parameter=Value`` can be missing; the only exception is the Comment
-parameter.
+Parameter names are case insensitive.  There may be white space on
+either side of the equal sign, which is ignored. Trailing white space
+on the line is also ignored. A second equal sign is considered to be
+part of the value. The value cannot contain a newline, but there is a
+way to have multi-lined parameters explained in the Comment parameter
+below. All parameters except Version are optional: either the value
+can be blank or the entire ``Parameter=Value`` can be missing; the
+only exception is the Comment parameter.
 
 The parameters available are:
 
 **Version**
-    This must have the value 2 and must be the first parameter in the
-    file. It is the only mandatory parameter; all the other are
-    optional.
+    For version 2 files, this must have the value 2 and must be the
+    first parameter in the file. Version 3 files do not have this
+    parameter. In addition, in Version 3 files, unrecognized
+    parameters are ignored; in Version 2 an error may be raised by
+    software reading them.
+
+    All other parameters are optional. However, in Version 3, at least
+    one parameter must be present.
+
+    (Version 1 files, which did not have a header section, are
+    obsolete.)
 
 **Unit**
     A symbol for the measurement unit, like ``°C`` or ``mm``.
@@ -652,6 +660,14 @@ The parameters available are:
     digits after the decimal separator. It can be negative; for
     example, a precision of -2 indicates values accurate to the
     hundred, such as 100, 200, 300 etc.
+
+**Location**
+**Altitude**
+
+    (Version 3 only.) *Location* is three numbers, space-separated:
+    abscissa, ordinate, and EPSG SRID. *Altitude* is one or two
+    space-separated numbers: the altitude and the EPSG SRID for
+    altitude. The altitude SRID may be omitted.
 
 .. _databaseformat:
 
