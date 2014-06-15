@@ -384,6 +384,29 @@ def strip_trailing_zeros(s):
     return s
 
 
+class BacktrackableFile(object):
+
+    def __init__(self, fp):
+        self.fp = fp
+        self.line_number = 0
+        self.next_line = None
+
+    def readline(self):
+        if self.next_line is None:
+            self.line_number += 1
+            result = self.fp.readline()
+        else:
+            result = self.next_line
+            self.next_line = None
+        return result
+
+    def backtrack(self, line):
+        self.next_line = line
+
+    def read(self, size=None):
+        return self.fp.read(size)
+
+
 class Timeseries(dict):
 
     # Some constants for how timeseries records are distributed in
@@ -623,7 +646,7 @@ class Timeseries(dict):
             value = value.strip()
         name = '' if any([c.isspace() for c in name]) else name
         if not name:
-            raise ParsingError(("Invalid file header line"))
+            raise ParsingError("Invalid file header line")
         return (name, value)
 
     def __read_meta(self, fp):
@@ -640,15 +663,7 @@ class Timeseries(dict):
             except Exception:
                 raise ParsingError(('Value should be "minutes, months"'))
 
-        # Ignore the BOM_UTF8 byte mark if present
-        saved_pos = fp.tell()
-        if fp.read(len(BOM_UTF8)) != BOM_UTF8:
-            fp.seek(saved_pos)
-
-        line_number = 1
-
         try:
-            line_number += 1
             (name, value) = self.__read_meta_line(fp)
             while name:
                 if name in ('unit', 'title', 'timezone', 'variable'):
@@ -694,18 +709,37 @@ class Timeseries(dict):
                         raise ParsingError("Invalid altitude")
                 else:
                     pass
-                line_number += 1
                 name, value = self.__read_meta_line(fp)
                 if not name and not value:
-                    return line_number
-            return line_number
+                    return
         except ParsingError as e:
-            e.args = e.args + (line_number,)
+            e.args = e.args + (fp.line_number,)
             raise
 
     def read_file(self, fp):
-        line_number = self.__read_meta(fp)
-        self.read(fp, line_number=line_number)
+        # Ignore the BOM_UTF8 byte mark if present
+        try:
+            saved_pos = fp.tell()
+            if fp.read(len(BOM_UTF8)) != BOM_UTF8:
+                fp.seek(saved_pos)
+        except AttributeError:
+            # This means that fp doesn't have tell(), so it's not a file,
+            # so hopefully it doesn't have a BOM.
+            pass
+
+        fp = BacktrackableFile(fp)
+
+        # Check if file contains headers
+        first_line = fp.readline()
+        fp.backtrack(first_line)
+        if isinstance(first_line, six.binary_type):
+            first_line = first_line.decode('utf-8')
+        has_headers = not first_line[0].isdigit()
+
+        # Read file, with its headers if needed
+        if has_headers:
+            self.__read_meta(fp)
+        self.read(fp)
 
     def write_file(self, fp, version=2):
         if version == 2:
