@@ -404,7 +404,7 @@ class BacktrackableFile(object):
         self.next_line = line
 
     def read(self, size=None):
-        return self.fp.read(size)
+        return self.fp.read() if size is None else self.fp.read(size)
 
 
 class Timeseries(dict):
@@ -649,11 +649,14 @@ class Timeseries(dict):
             raise ParsingError("Invalid file header line")
         return (name, value)
 
-    def __read_meta(self, fp):
+    def read_meta(self, fp):
         """Read the headers of a file in file format into the instance
         attributes and return the line number of the first data line of the
         file.
         """
+        if not isinstance(fp, BacktrackableFile):
+            fp = BacktrackableFile(fp)
+
         def read_minutes_months(s):
             """Return a (minutes, months) tuple after parsing a "M,N" string.
             """
@@ -738,7 +741,7 @@ class Timeseries(dict):
 
         # Read file, with its headers if needed
         if has_headers:
-            self.__read_meta(fp)
+            self.read_meta(fp)
         self.read(fp)
 
     def write_file(self, fp, version=2):
@@ -775,7 +778,7 @@ class Timeseries(dict):
             fp.write(u("Variable=%s\r\n") % (self.variable,))
         if self.precision is not None:
             fp.write(u("Precision=%d\r\n") % (self.precision,))
-        if version > 2:
+        if (version > 2) and self.location:
             try:
                 fp.write(
                     u("Location={:.6f} {:.6f} {}\r\n")

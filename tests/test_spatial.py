@@ -1,27 +1,22 @@
 from datetime import datetime
-import json
 import os
 import shutil
-from six import StringIO
 from six.moves import configparser
 import sys
 import tempfile
 import textwrap
-from unittest import TestCase, skipIf, skipUnless
+from unittest import TestCase, skipIf
 
 if sys.platform != 'win32':
     import numpy as np
     from osgeo import ogr, gdal
-    from pthelma.spatial import idw, integrate, TimeseriesCache, \
-        create_ogr_layer_from_stations, h_integrate, BitiaApp, WrongValueError
+    from pthelma.spatial import BitiaApp, create_ogr_layer_from_timeseries, \
+        h_integrate, idw, integrate, WrongValueError
     skip_osgeo = False
     skip_osgeo_message = ''
 else:
     skip_osgeo = True
     skip_osgeo_message = 'Not available on Windows'
-
-from pthelma import enhydris_api
-from pthelma.timeseries import Timeseries
 
 
 def add_point_to_layer(layer, x, y, value):
@@ -121,190 +116,41 @@ class IntegrateTestCase(TestCase):
 
 
 @skipIf(skip_osgeo, skip_osgeo_message)
-@skipUnless(os.getenv('PTHELMA_TEST_ENHYDRIS_API'),
-            'set PTHELMA_TEST_ENHYDRIS_API')
-class CreateOgrLayerFromStationsTestCase(TestCase):
+class CreateOgrLayerFromTimeseriesTestCase(TestCase):
 
     def setUp(self):
-        # Create two stations, each one with a time series
-        self.parms = json.loads(os.getenv('PTHELMA_TEST_ENHYDRIS_API'))
-        self.cookies = enhydris_api.login(self.parms['base_url'],
-                                          self.parms['user'],
-                                          self.parms['password'])
-        self.station1_id = enhydris_api.post_model(
-            self.parms['base_url'], self.cookies, 'Station',
-            {'name': 'station1',
-             'srid': 4326,
-             'point': 'POINT (23.78743 37.97385)',
-             'copyright_holder': 'Joe User',
-             'copyright_years': '2014',
-             'stype': 1,
-             'owner': self.parms['owner_id'],
-             })
-        self.timeseries1_id = enhydris_api.post_model(
-            self.parms['base_url'], self.cookies, 'Timeseries',
-            {'gentity': self.station1_id,
-             'variable': self.parms['variable_id'],
-             'unit_of_measurement': self.parms['unit_of_measurement_id'],
-             'time_zone': self.parms['time_zone_id']})
-        self.station2_id = enhydris_api.post_model(
-            self.parms['base_url'], self.cookies, 'Station',
-            {'name': 'station1',
-             'srid': 4326,
-             'point': 'POINT (24.56789 38.76543)',
-             'copyright_holder': 'Joe User',
-             'copyright_years': '2014',
-             'stype': 1,
-             'owner': self.parms['owner_id'],
-             })
-        self.timeseries2_id = enhydris_api.post_model(
-            self.parms['base_url'], self.cookies, 'Timeseries',
-            {'gentity': self.station2_id,
-             'variable': self.parms['variable_id'],
-             'unit_of_measurement': self.parms['unit_of_measurement_id'],
-             'time_zone': self.parms['time_zone_id']})
-
-        # Temporary directory for cache files
         self.tempdir = tempfile.mkdtemp()
+
+        # Create two time series
+        with open(os.path.join(self.tempdir, 'ts1'), 'w') as f:
+            f.write(textwrap.dedent("""\
+                                    Location=23.78743 37.97385 4326
+
+                                    """))
+        with open(os.path.join(self.tempdir, 'ts2'), 'w') as f:
+            f.write(textwrap.dedent("""\
+                                    Location=24.56789 38.76543 4326
+
+                                    """))
 
     def tearDown(self):
         shutil.rmtree(self.tempdir)
-        enhydris_api.delete_model(self.parms['base_url'], self.cookies,
-                                  'Station', self.station1_id)
-        enhydris_api.delete_model(self.parms['base_url'], self.cookies,
-                                  'Station', self.station2_id)
 
-    def test_create_ogr_layer_from_stations(self):
+    def test_create_ogr_layer_from_timeseries(self):
         data_source = ogr.GetDriverByName('memory').CreateDataSource('tmp')
-        group = [{'base_url': self.parms['base_url'],
-                  'user': self.parms['user'],
-                  'id': self.timeseries1_id},
-                 {'base_url': self.parms['base_url'],
-                  'user': self.parms['user'],
-                  'id': self.timeseries2_id}]
-        layer = create_ogr_layer_from_stations(group, 2100, data_source,
-                                               TimeseriesCache(self.tempdir,
-                                                               []))
+        filenames = [os.path.join(self.tempdir, x) for x in ('ts1', 'ts2')]
+        layer = create_ogr_layer_from_timeseries(filenames, 2100, data_source)
         self.assertTrue(layer.GetFeatureCount(), 2)
         # The co-ordinates below are converted from WGS84 to Greek Grid/GGRS87
         ref = [{'x': 481180.63, 'y': 4202647.01,  # 23.78743, 37.97385
-                'timeseries_id': self.timeseries1_id},
+                'filename': filenames[0]},
                {'x': 549187.44, 'y': 4290612.25,  # 24.56789, 38.76543
-                'timeseries_id': self.timeseries2_id},
+                'filename': filenames[1]},
                ]
         for feature, r in zip(layer, ref):
-            self.assertEqual(feature.GetField('timeseries_id'),
-                             r['timeseries_id'])
+            self.assertEqual(feature.GetField('filename'), r['filename'])
             self.assertAlmostEqual(feature.GetGeometryRef().GetX(), r['x'], 2)
             self.assertAlmostEqual(feature.GetGeometryRef().GetY(), r['y'], 2)
-
-
-@skipIf(skip_osgeo, skip_osgeo_message)
-@skipUnless(os.getenv('PTHELMA_TEST_ENHYDRIS_API'),
-            'set PTHELMA_TEST_ENHYDRIS_API')
-class TimeseriesCacheTestCase(TestCase):
-    test_timeseries1 = textwrap.dedent("""\
-                                   2014-01-01 08:00,11,
-                                   2014-01-02 08:00,12,
-                                   2014-01-03 08:00,13,
-                                   2014-01-04 08:00,14,
-                                   2014-01-05 08:00,15,
-                                   """)
-    test_timeseries2 = textwrap.dedent("""\
-                                   2014-07-01 08:00,9.11,
-                                   2014-07-02 08:00,9.12,
-                                   2014-07-03 08:00,9.13,
-                                   2014-07-04 08:00,9.14,
-                                   2014-07-05 08:00,9.15,
-                                   """)
-    timeseries1_top = ''.join(test_timeseries1.splitlines(True)[:-1])
-    timeseries2_top = ''.join(test_timeseries2.splitlines(True)[:-1])
-    timeseries1_bottom = test_timeseries1.splitlines(True)[-1]
-    timeseries2_bottom = test_timeseries2.splitlines(True)[-1]
-
-    def setUp(self):
-        self.parms = json.loads(os.getenv('PTHELMA_TEST_ENHYDRIS_API'))
-        self.cookies = enhydris_api.login(self.parms['base_url'],
-                                          self.parms['user'],
-                                          self.parms['password'])
-
-        # Create two time series
-        j = {
-            'gentity': self.parms['station_id'],
-            'variable': self.parms['variable_id'],
-            'unit_of_measurement': self.parms['unit_of_measurement_id'],
-            'time_zone': self.parms['time_zone_id'],
-            'time_step': 3,
-            'actual_offset_minutes': 0,
-            'actual_offset_months': 0,
-        }
-        self.ts1_id = enhydris_api.post_model(
-            self.parms['base_url'], self.cookies, 'Timeseries', j)
-        self.ts2_id = enhydris_api.post_model(
-            self.parms['base_url'], self.cookies, 'Timeseries', j)
-        assert self.ts1_id != self.ts2_id
-
-        # Add some data (all but the last record) to the database
-        ts = Timeseries(self.ts1_id)
-        ts.read(StringIO(self.timeseries1_top))
-        enhydris_api.post_tsdata(self.parms['base_url'], self.cookies, ts)
-        ts = Timeseries(self.ts2_id)
-        ts.read(StringIO(self.timeseries2_top))
-        enhydris_api.post_tsdata(self.parms['base_url'], self.cookies, ts)
-
-        # Temporary directory for cache files
-        self.tempdir = tempfile.mkdtemp()
-
-    def tearDown(self):
-        shutil.rmtree(self.tempdir)
-
-    def test_update(self):
-        self.parms = json.loads(os.getenv('PTHELMA_TEST_ENHYDRIS_API'))
-        timeseries_group = [{'base_url': self.parms['base_url'],
-                             'id': self.ts1_id,
-                             'user': self.parms['user'],
-                             'password': self.parms['password'],
-                             },
-                            {'base_url': self.parms['base_url'],
-                             'id': self.ts2_id,
-                             'user': self.parms['user'],
-                             'password': self.parms['password'],
-                             },
-                            ]
-        # Cache the two timeseries
-        cache = TimeseriesCache(self.tempdir, timeseries_group)
-        cache.update()
-
-        # Check that the cached stuff is what it should be
-        file1, file2 = [cache.get_filename(self.parms['base_url'], x)
-                        for x in (self.ts1_id, self.ts2_id)]
-        with open(file1) as f:
-            self.assertEqual(f.read().replace('\r', ''), self.timeseries1_top)
-        with open(file2) as f:
-            self.assertEqual(f.read().replace('\r', ''), self.timeseries2_top)
-        with open(file1 + '_step') as f:
-            self.assertEqual(f.read(), '3')
-        with open(file2 + '_step') as f:
-            self.assertEqual(f.read(), '3')
-
-        # Append a record to the database for each timeseries
-        ts = Timeseries(self.ts1_id)
-        ts.read(StringIO(self.timeseries1_bottom))
-        enhydris_api.post_tsdata(self.parms['base_url'], self.cookies, ts)
-        ts = Timeseries(self.ts2_id)
-        ts.read(StringIO(self.timeseries2_bottom))
-        enhydris_api.post_tsdata(self.parms['base_url'], self.cookies, ts)
-
-        # Update the cache
-        cache.update()
-
-        # Check that the cached stuff is what it should be
-        file1, file2 = [cache.get_filename(self.parms['base_url'], x)
-                        for x in (self.ts1_id, self.ts2_id)]
-        with open(file1) as f:
-            self.assertEqual(f.read().replace('\r', ''), self.test_timeseries1)
-        with open(file2) as f:
-            self.assertEqual(f.read().replace('\r', ''), self.test_timeseries2)
 
 
 @skipIf(skip_osgeo, skip_osgeo_message)
@@ -322,64 +168,6 @@ class HIntegrateTestCase(TestCase):
     in E2). We assume the bottom left corner of A3 to have co-ordinates (0, 0)
     and the gridpoint to be 10 km across. We also consider C1 to be masked out.
     """
-    data = [{'base_url': 'http://irrelevant.gr/',
-             'id': 1234,
-             'user': '',
-             'password': '',
-             'data': textwrap.dedent("""\
-                                     2014-04-22 12:50,5.03,
-                                     2014-04-22 13:00,0.54,
-                                     2014-04-22 13:10,6.93,
-                                     """),
-             'point': 'POINT (19.55729 0.04733)',  # GGRS87=5000.00 5000.00
-             },
-            {'base_url': 'http://irrelevant.gr/',
-             'id': 1235,
-             'user': '',
-             'password': '',
-             'data': textwrap.dedent("""\
-                                     2014-04-22 12:50,2.90,
-                                     2014-04-22 13:00,2.40,
-                                     2014-04-22 13:10,9.16,
-                                     """),
-             'point': 'POINT (19.64689 0.04734)',  # GGRS87=15000.00 5000.00
-             },
-            {'base_url': 'http://irrelevant.gr/',
-             'id': 1236,
-             'user': '',
-             'password': '',
-             'data': textwrap.dedent("""\
-                                     2014-04-22 12:50,9.70,
-                                     2014-04-22 13:00,1.84,
-                                     2014-04-22 13:10,7.63,
-                                     """),
-             'point': 'POINT (19.88886 0.12857)',  # GGSRS87=42000.00 14000.00
-             },
-            {'base_url': 'http://irrelevant.gr/',
-             'id': 1237,
-             'user': '',
-             'password': '',
-             # This station is missing the date required,
-             # so it should not be taken into account
-             'data': textwrap.dedent("""\
-                                     2014-04-22 12:50,9.70,
-                                     2014-04-22 13:10,7.63,
-                                     """),
-             'point': 'POINT (19.66480 0.15560)',  # GGRS87=17000.00 17000.00
-             },
-            ]
-
-    def write_data_to_cache(self):
-        self.cache = TimeseriesCache(self.tempdir, [])
-        for item in self.data:
-            point_filename = self.cache.get_point_filename(item['base_url'],
-                                                           item['id'])
-            with open(point_filename, 'w') as f:
-                f.write(item['point'])
-            ts_cache_filename = self.cache.get_filename(item['base_url'],
-                                                        item['id'])
-            with open(ts_cache_filename, 'w') as f:
-                f.write(item['data'])
 
     def create_mask(self):
         mask_array = np.ones((3, 4), np.int8)
@@ -390,24 +178,49 @@ class HIntegrateTestCase(TestCase):
         self.mask.GetRasterBand(1).WriteArray(mask_array)
 
     def setUp(self):
-        # Temporary directory for cache files
         self.tempdir = tempfile.mkdtemp()
 
-        self.write_data_to_cache()
+        self.filenames = [os.path.join(self.tempdir, x)
+                          for x in ('ts1', 'ts2', 'ts3', 'ts4')]
+        with open(self.filenames[0], 'w') as f:
+            f.write("Location=19.55729 0.04733 2100\n"  # GGRS87=5000 5000
+                    "\n"
+                    "2014-04-22 12:50,5.03,\n"
+                    "2014-04-22 13:00,0.54,\n"
+                    "2014-04-22 13:10,6.93,\n")
+        with open(self.filenames[1], 'w') as f:
+            f.write("Location=19.64689 0.04734 2100\n"  # GGRS87=15000 5000
+                    "\n"
+                    "2014-04-22 12:50,2.90,\n"
+                    "2014-04-22 13:00,2.40,\n"
+                    "2014-04-22 13:10,9.16,\n")
+        with open(self.filenames[2], 'w') as f:
+            f.write("Location=19.88886 0.12857 2100\n"  # GGRS87=42000 14000
+                    "\n"
+                    "2014-04-22 12:50,9.70,\n"
+                    "2014-04-22 13:00,1.84,\n"
+                    "2014-04-22 13:10,7.63,\n")
+        with open(self.filenames[3], 'w') as f:
+             # This station is missing the date required,
+             # so it should not be taken into account
+            f.write("Location=19.66480 0.15560 2100\n"  # GGRS87=17000 17000
+                    "\n"
+                    "2014-04-22 12:50,9.70,\n"
+                    "2014-04-22 13:10,7.63,\n")
+
         self.create_mask()
         self.stations = ogr.GetDriverByName('memory').CreateDataSource('tmp')
-        self.stations_layer = create_ogr_layer_from_stations(
-            self.data, 2100, self.stations, self.cache)
+        self.stations_layer = create_ogr_layer_from_timeseries(
+            self.filenames, 2100, self.stations)
 
     def tearDown(self):
         shutil.rmtree(self.tempdir)
 
     def test_h_integrate(self):
-        h_integrate(group=self.data, mask=self.mask,
+        h_integrate(mask=self.mask,
                     stations_layer=self.stations_layer,
-                    cache=TimeseriesCache(self.tempdir, []),
                     date=datetime(2014, 4, 22, 13, 0),
-                    filename=os.path.join(self.tempdir, 'test.tif'),
+                    output_filename=os.path.join(self.tempdir, 'test.tif'),
                     date_fmt='%Y-%m-%d %H:%M', funct=idw, kwargs={})
         f = gdal.Open(os.path.join(self.tempdir, 'test.tif'))
         result = f.GetRasterBand(1).ReadAsArray()
@@ -431,52 +244,24 @@ class BitiaAppTestCase(TestCase):
 
     def setUp(self):
         self.tempdir = tempfile.mkdtemp()
-        self.cache_dir = os.path.join(self.tempdir, 'cache')
         self.output_dir = os.path.join(self.tempdir, 'output')
         self.config_file = os.path.join(self.tempdir, 'bitia.conf')
-        os.mkdir(self.cache_dir)
         os.mkdir(self.output_dir)
         self.mask_file = os.path.join(self.tempdir, 'mask.tif')
         self.saved_argv = sys.argv
         sys.argv = ['bitia', '--traceback', self.config_file]
 
-        # Create two stations, each one with a time series
-        self.parms = json.loads(os.getenv('PTHELMA_TEST_ENHYDRIS_API'))
-        self.cookies = enhydris_api.login(self.parms['base_url'],
-                                          self.parms['user'],
-                                          self.parms['password'])
-        self.station1_id = enhydris_api.post_model(
-            self.parms['base_url'], self.cookies, 'Station',
-            {'name': 'station1',
-             'srid': 4326,
-             'point': 'POINT (23.78743 37.97385)',
-             'copyright_holder': 'Joe User',
-             'copyright_years': '2014',
-             'stype': 1,
-             'owner': self.parms['owner_id'],
-             })
-        self.timeseries1_id = enhydris_api.post_model(
-            self.parms['base_url'], self.cookies, 'Timeseries',
-            {'gentity': self.station1_id,
-             'variable': self.parms['variable_id'],
-             'unit_of_measurement': self.parms['unit_of_measurement_id'],
-             'time_zone': self.parms['time_zone_id']})
-        self.station2_id = enhydris_api.post_model(
-            self.parms['base_url'], self.cookies, 'Station',
-            {'name': 'station1',
-             'srid': 4326,
-             'point': 'POINT (24.56789 38.76543)',
-             'copyright_holder': 'Joe User',
-             'copyright_years': '2014',
-             'stype': 1,
-             'owner': self.parms['owner_id'],
-             })
-        self.timeseries2_id = enhydris_api.post_model(
-            self.parms['base_url'], self.cookies, 'Timeseries',
-            {'gentity': self.station2_id,
-             'variable': self.parms['variable_id'],
-             'unit_of_measurement': self.parms['unit_of_measurement_id'],
-             'time_zone': self.parms['time_zone_id']})
+        # Create two time series
+        self.filenames = [os.path.join(self.tempdir, x)
+                          for x in ('ts1', 'ts2')]
+        with open(self.filenames[0], 'w') as f:
+            f.write("Location=23.78743 37.97385 4326\n"
+                    "Time_step=60,0\n"
+                    "\n")
+        with open(self.filenames[1], 'w') as f:
+            f.write("Location=24.56789 38.76543 4326\n"
+                    "Time_step=60,0\n"
+                    "\n")
 
         # Prepare a configuration file (some tests override it)
         with open(self.config_file, 'w') as f:
@@ -484,28 +269,17 @@ class BitiaAppTestCase(TestCase):
                 [General]
                 mask = {0.mask_file}
                 epsg = 2100
-                cache_dir = {0.cache_dir}
                 output_dir = {0.output_dir}
                 filename_prefix = rainfall
                 files_to_produce = 24
                 method = idw
-
-                [ntua]
-                base_url = {1}
-                id = {0.timeseries1_id}
-
-                [nedontas]
-                base_url = {1}
-                id = {0.timeseries2_id}
-                ''').format(self, self.parms['base_url']))
+                files = {0.filenames[0]}
+                        {0.filenames[1]}
+                ''').format(self))
 
     def tearDown(self):
         shutil.rmtree(self.tempdir)
         sys.argv = self.saved_argv
-        enhydris_api.delete_model(self.parms['base_url'], self.cookies,
-                                  'Station', self.station1_id)
-        enhydris_api.delete_model(self.parms['base_url'], self.cookies,
-                                  'Station', self.station2_id)
 
     def test_correct_configuration(self):
         application = BitiaApp()
@@ -517,10 +291,10 @@ class BitiaAppTestCase(TestCase):
                 [General]
                 mask = {0.mask_file}
                 epsg = 2100
-                cache_dir = {0.cache_dir}
                 output_dir = {0.output_dir}
                 filename_prefix = rainfall
                 method = idw
+                files = myfile
                 ''').format(self))
         application = BitiaApp()
         self.assertRaisesRegex(configparser.Error, 'files_to_produce',
@@ -532,51 +306,11 @@ class BitiaAppTestCase(TestCase):
                 [General]
                 mask = {0.mask_file}
                 epsg = 2100
-                cache_dir = {0.cache_dir}
                 output_dir = {0.output_dir}
                 filename_prefix = rainfall
                 files_to_produce = 24
                 method = idw
-                nonexistent_option = irrelevant
-                ''').format(self))
-        application = BitiaApp()
-        self.assertRaisesRegex(configparser.Error, 'nonexistent_option',
-                               application.run)
-
-    def test_wrong_configuration3(self):
-        with open(self.config_file, 'w') as f:
-            f.write(textwrap.dedent('''\
-                [General]
-                mask = {0.mask_file}
-                epsg = 2100
-                cache_dir = {0.cache_dir}
-                output_dir = {0.output_dir}
-                filename_prefix = rainfall
-                files_to_produce = 24
-                method = idw
-
-                [ntua]
-                id = 9876
-                ''').format(self))
-        application = BitiaApp()
-        self.assertRaisesRegex(configparser.Error, 'base_url',
-                               application.run)
-
-    def test_wrong_configuration4(self):
-        with open(self.config_file, 'w') as f:
-            f.write(textwrap.dedent('''\
-                [General]
-                mask = {0.mask_file}
-                epsg = 2100
-                cache_dir = {0.cache_dir}
-                output_dir = {0.output_dir}
-                filename_prefix = rainfall
-                files_to_produce = 24
-                method = idw
-
-                [ntua]
-                base_url = https://openmeteo.org/
-                id = 9876
+                files = myfile
                 nonexistent_option = irrelevant
                 ''').format(self))
         application = BitiaApp()
@@ -589,15 +323,11 @@ class BitiaAppTestCase(TestCase):
                 [General]
                 mask = {0.mask_file}
                 epsg = 81122
-                cache_dir = {0.cache_dir}
                 output_dir = {0.output_dir}
                 filename_prefix = rainfall
                 files_to_produce = 24
                 method = idw
-
-                [ntua]
-                base_url = https://openmeteo.org/
-                id = 9876
+                files = myfile
                 ''').format(self))
         application = BitiaApp()
         self.assertRaisesRegex(WrongValueError, 'epsg=81122',
@@ -607,11 +337,7 @@ class BitiaAppTestCase(TestCase):
         application = BitiaApp()
         application.read_command_line()
         application.read_configuration()
-        application.cache = TimeseriesCache(self.cache_dir,
-                                            application.timeseries_group)
-        filename = application.cache.get_filename(self.parms['base_url'],
-                                                  self.timeseries1_id)
-        with open(filename, 'w') as f:
+        with open(application.files[0], 'a') as f:
             f.write(textwrap.dedent('''\
                 2014-04-30 11:00,18.3,
                 2014-04-30 12:00,19.3,
@@ -624,66 +350,47 @@ class BitiaAppTestCase(TestCase):
         application = BitiaApp()
         application.read_command_line()
         application.read_configuration()
-        cache = TimeseriesCache(self.cache_dir, application.timeseries_group)
-        application.cache = cache
-        g = application.timeseries_group
-        filename1 = cache.get_filename(g[0]['base_url'], g[0]['id']) + '_step'
-        filename2 = cache.get_filename(g[1]['base_url'], g[1]['id']) + '_step'
 
         # Ten-minute
-        with open(filename1, 'w') as f:
-            f.write('1')
-        with open(filename2, 'w') as f:
-            f.write('1')
+        with open(application.files[0], 'w') as f:
+            f.write('Time_step=10,0\n\n')
+        with open(application.files[1], 'w') as f:
+            f.write('Time_step=10,0\n\n')
         self.assertEquals(application.date_fmt, '%Y-%m-%d %H:%M')
 
         # Hourly
-        with open(filename1, 'w') as f:
-            f.write('2')
-        with open(filename2, 'w') as f:
-            f.write('2')
+        with open(application.files[0], 'w') as f:
+            f.write('Time_step=60,0\n\n')
+        with open(application.files[1], 'w') as f:
+            f.write('Time_step=60,0\n\n')
         self.assertEquals(application.date_fmt, '%Y-%m-%d %H:%M')
 
         # Daily
-        with open(filename1, 'w') as f:
-            f.write('3')
-        with open(filename2, 'w') as f:
-            f.write('3')
+        with open(application.files[0], 'w') as f:
+            f.write('Time_step=1440,0\n\n')
+        with open(application.files[1], 'w') as f:
+            f.write('Time_step=1440,0\n\n')
         self.assertEquals(application.date_fmt, '%Y-%m-%d')
 
         # Monthly
-        with open(filename1, 'w') as f:
-            f.write('4')
-        with open(filename2, 'w') as f:
-            f.write('4')
+        with open(application.files[0], 'w') as f:
+            f.write('Time_step=0,1\n\n')
+        with open(application.files[1], 'w') as f:
+            f.write('Time_step=0,1\n\n')
         self.assertEquals(application.date_fmt, '%Y-%m')
 
         # Annual
-        with open(filename1, 'w') as f:
-            f.write('5')
-        with open(filename2, 'w') as f:
-            f.write('5')
+        with open(application.files[0], 'w') as f:
+            f.write('Time_step=0,12\n\n')
+        with open(application.files[1], 'w') as f:
+            f.write('Time_step=0,12\n\n')
         self.assertEquals(application.date_fmt, '%Y')
 
-        # Five-minute
-        with open(filename1, 'w') as f:
-            f.write('6')
-        with open(filename2, 'w') as f:
-            f.write('6')
-        self.assertEquals(application.date_fmt, '%Y-%m-%d %H:%M')
-
-        # Fifteen-minute
-        with open(filename1, 'w') as f:
-            f.write('7')
-        with open(filename2, 'w') as f:
-            f.write('7')
-        self.assertEquals(application.date_fmt, '%Y-%m-%d %H:%M')
-
         # Inconsistent
-        with open(filename1, 'w') as f:
-            f.write('1')
-        with open(filename2, 'w') as f:
-            f.write('2')
+        with open(application.files[0], 'w') as f:
+            f.write('Time_step=10,0\n\n')
+        with open(application.files[1], 'w') as f:
+            f.write('Time_step=60,0\n\n')
         self.assertRaises(WrongValueError, lambda: application.date_fmt)
 
     def get_file_timestamp(self, filename):
@@ -702,15 +409,11 @@ class BitiaAppTestCase(TestCase):
         application = BitiaApp()
         application.read_command_line()
         application.read_configuration()
-        application.cache = TimeseriesCache(self.cache_dir,
-                                            application.timeseries_group)
 
         # Annual time step
-        for item in application.timeseries_group:
-            timestep_filename = application.cache.get_filename(
-                item['base_url'], item['id']) + '_step'
-            with open(timestep_filename, 'w') as f:
-                f.write('5')
+        for filename in application.files:
+            with open(filename, 'w') as f:
+                f.write('Time_step=0,12\n\n')
 
         # Create three files
         prefix = application.config['General']['filename_prefix']
@@ -745,21 +448,16 @@ class BitiaAppTestCase(TestCase):
         application = BitiaApp()
         application.read_command_line()
         application.read_configuration()
-        cache = TimeseriesCache(self.cache_dir, application.timeseries_group)
-        application.cache = cache
 
         # Create some time series data
-        g = application.timeseries_group
-        filename1 = cache.get_filename(g[0]['base_url'], g[0]['id'])
-        filename2 = cache.get_filename(g[1]['base_url'], g[1]['id'])
-        with open(filename1, 'w') as f:
+        with open(application.files[0], 'a') as f:
             f.write(textwrap.dedent('''\
                 2014-04-30 11:00,18.3,
                 2014-04-30 13:00,20.4,
                 2014-04-30 14:00,21.4,
                 2014-04-30 15:00,22.4,
                 '''))
-        with open(filename2, 'w') as f:
+        with open(application.files[1], 'a') as f:
             f.write(textwrap.dedent('''\
                 2014-04-30 11:00,18.3,
                 2014-04-30 12:00,19.3,
@@ -767,21 +465,14 @@ class BitiaAppTestCase(TestCase):
                 2014-04-30 14:00,21.4,
                 '''))
 
-        # Cache the timeseries step
-        with open(filename1 + '_step', 'w') as f:
-            f.write('2')
-        with open(filename2 + '_step', 'w') as f:
-            f.write('2')
-
         # Create a mask
         mask_filename = os.path.join(self.tempdir, 'mask.tif')
-        output = gdal.GetDriverByName('GTiff').Create(mask_filename, 640, 480,
-                                                      1, gdal.GDT_Float32)
-        output = None
+        gdal.GetDriverByName('GTiff').Create(mask_filename, 640, 480, 1,
+                                             gdal.GDT_Float32)
 
         # Execute
         application.config['General']['files_to_produce'] = 3
-        application.execute(update_cache=False)
+        application.execute()
 
         # Check that it has created three files
         full_prefix = os.path.join(

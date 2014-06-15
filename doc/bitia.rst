@@ -16,10 +16,10 @@ SYNOPSIS
 DESCRIPTION AND QUICK START
 ===========================
 
-``bitia`` gets the data of time series from an Enhydris database and performs
-spatial integration, storing the result in ``tif`` files.  The details of its
-operation are specified in the configuration file specified on the command
-line.
+``bitia`` gets the data of time series from files and performs spatial
+integration, storing the result in ``tif`` files.  The details of its
+operation are specified in the configuration file specified on the
+command line.
 
 Installation
 ------------
@@ -68,47 +68,31 @@ explanatory comments that follow it:
     logfile = C:\Somewhere\bitia.log
     mask = C:\Somewhere\mask.tif
     epsg = 2100
-    cache_dir = C:\Somewhere\BitiaCache
     output_dir = C:\Somewhere\BitiaOutput
     filename_prefix = rainfall
     files_to_produce = 24
     method = idw
     alpha = 1
-
-    [ntua]
-    base_url = https://openmeteo.org/
-    id = 6539
-
-    [nedontas]
-    base_url = https://openmeteo.org/
-    id = 9356
-
-    [arta]
-    base_url = https://upatras.gr/enhydris/
-    user = george
-    password = topsecret
-    id = 8765
+    files = C:\Somewhere\inputfile1.hts
+            C:\Somewhere\inputfile2.hts
+            C:\Somewhere\inputfile3.hts
 
 With the above configuration file, ``bitia`` will log information in
 the file specified by :confval:`logfile`.  :confval:`mask` defines the
 study area, whose co-ordinates are in the reference system specified
-by :confval:`epsg`.  ``bitia`` downloads time series and some other
-stuff from Enhydris, and caches it in files in :confval:`cache_dir`.
-Its output is GeoTIFF files in :confval:`output_dir`, prefixed with
-:confval:`filename_prefix`. In this example, the output files will be
-named :file:`C:\\Somewhere\\BitiaOutput\\rainfall-XXXX.tif`, where
-XXXX is from 0000 to 0023. 24 output files will be produced in total
+by :confval:`epsg`.  The output is GeoTIFF files in
+:confval:`output_dir`, prefixed with :confval:`filename_prefix`. In
+this example, the output files will be named
+:file:`C:\\Somewhere\\BitiaOutput\\rainfall-XXXX.tif`, where XXXX is
+from 0000 to 0023. 24 output files will be produced in total
 (:confval:`files_to_produce`), and the old ones will be removed.  The
 file ending in 0000 will correspond to the latest time available from
 the data; the one ending in 0001 will correspond to one time step
 before; and so on. The files will be renamed if new data becomes
 available, and missing ones will be recreated.  The integration method
-will be :confval:`idw` with :confval:`alpha` = 1.
-
-The spatial integration will be performed given three time series
-("ntua", "nedontas" and "arta"), whose :confval:`base_url` and
-:confval:`id` must be given.  Some Enhydris installations may require
-a :confval:`user` and a :confval:`password` to access the data.
+will be :confval:`idw` with :confval:`alpha` = 1.  The spatial
+integration will be performed given the three time series specified in
+:confval:`files`.
 
 CONFIGURATION FILE REFERENCE
 ============================
@@ -143,13 +127,6 @@ General parameters
    by :confval:`mask`. ``bitia`` will transform the co-ordinates of
    the stations to that CRS before performing the integration.
 
-.. confval:: cache_dir
-
-   The directory in which data downloaded from Enhydris will be
-   cached. This is time series data plus some minor information such
-   as the location of the stations to which these measurements refer
-   and the time series step.
-
 .. confval:: output_dir
              filename_prefix
 
@@ -177,28 +154,10 @@ General parameters
    is idw, the parameter :confval:`alpha` can optionally be specified
    (default 1).
 
-Time series sections
---------------------
+.. confval:: files
 
-All specified time series must have the same time step. The name of
-the section is ignored.
-
-.. confval:: base_url
-
-   The base URL of the Enhydris installation that hosts the time
-   series.  Most often the :confval:`base_url` will be the same for
-   all time series, but in the general case you might want to get data
-   from many Enhydris installations.
-
-.. confval:: id
-
-   The id of the time series.
-
-.. confval:: user
-             password
-
-   Optional.  Needed if that Enhydris installation needs login in
-   order to provide access to the data.
+   The files containing the time series; these must be in :ref:`file
+   format <fileformat>`, including Location and Time_step headers.
 
 AUTHOR AND COPYRIGHT
 ====================

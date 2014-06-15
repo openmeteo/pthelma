@@ -17,6 +17,7 @@ Developer documentation:
 
    cliapp
    enhydris_api
+   enhydris_cache
    meteologger
    spatial
    timeseries

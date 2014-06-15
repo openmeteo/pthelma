@@ -8,30 +8,6 @@
 .. moduleauthor:: Antonis Christofides <anthony@itia.ntua.gr>
 .. sectionauthor:: Antonis Christofides <anthony@itia.ntua.gr>
 
-.. class:: TimeseriesCache(cache_dir, timeseries_groups)
-
-   We keep some time series in our cache, which we download from
-   Enhydris using the Enhydris web service API.  *timeseries_groups*
-   is a dictionary; each item is a list of dictionaries, each one
-   representing an Enhydris time series; its keys are *base_url*,
-   *user*, *password*, *id*.
-
-   .. method:: update()
-
-      Downloads everything that has not already been downloaded (or all
-      the timeseries if nothing is in the cache).
-
-   .. method:: get_filename(base_url, timeseries_id)
-
-      Returns the full pathname of the file containing the cached
-      specified time series.
-
-   .. method:: get_point_filename(base_url, timeseries_id)
-
-      Returns the full pathname of the file containing the well-known
-      text of the location of the station to which the specified
-      timeseries refers.
-
 .. function:: idw(point, data_layer, alpha=1)
 
    Uses the inverse distance weighting method to calculate the value
@@ -72,23 +48,20 @@
    (i.e. that :samp:`mask.GetGeoTransform()[3]` and :samp:`[4]` are
    zero).
 
-.. function:: create_ogr_layer_from_stations(group, epsg, data_source, cache)
+.. function:: create_ogr_layer_from_timeseries(filenames, epsg, data_source)
 
    Creates and returns an :class:`ogr.Layer` with stations as its
    points.
 
-   *group* is a list of dictionaries; each dictionary is an Enhydris
-   time series; it has keys *base_url*, *user*, *password*, and *id*.
-   Each time series refers to a station.  This function retrieves the
-   co-ordinates of each station from Enhydris (unless we have them
-   cached), transforms them so that they are in the reference system
-   specified by *epsg* (an integer), and creates a layer in the
-   specified ogr *data_source* whose features are points; as many
-   points as there are stations/timeseries; each point is also given a
-   *timeseries_id* attribute. *cache* is a :class:`TimeseriesCache`
-   object.
+   *files* is a sequence of filenames; each file must be a timeseries
+   in :ref:`file format <fileformat>` that includes the Location
+   header.  This function transform the co-ordinates so that they are
+   in the reference system specified by *epsg* (an integer), and
+   creates a layer in the specified ogr *data_source* whose features
+   are points; as many points as there are stations/timeseries; each
+   point is also given a *filename* attribute.
 
-.. function:: h_integrate(group, mask, stations_layer, cache, date, output_dir, filename, date_fmt, funct, kwargs)
+.. function:: h_integrate(filenames, mask, stations_layer, date, output_filename, date_fmt, funct, kwargs)
 
    Given an area mask, a list of cached time series, and a layer with
    stations, performs spatial integration and writes the result to a
@@ -96,27 +69,23 @@
    function, in contrast to :func:`integrate()`, which does the actual
    job.
 
-   *group* is a list of time series, in the form accepted by
-   :func:`update_timeseries_cache()`. *mask* is a raster with the area
-   of study, in the form accepted by :func:`integrate()`.
-   *stations_layer* is an :class:`ogr.Layer` object like the one
-   returned by :func:`create_ogr_layer_from_stations()`; *mask* and
+   *mask* is a raster with the area of study, in the form accepted by
+   :func:`integrate()`.  *stations_layer* is an :class:`ogr.Layer`
+   object like the one returned by
+   :func:`create_ogr_layer_from_timeseries()`; *mask* and
    *stations_layer* must be in the same co-ordinate reference system.
-   *cache* is a :class:`TimeseriesCache` object; this function does
-   not update it; the caller should update it before calling.  *date*
-   is a :class:`~datetime.datetime` object specifying the date and
-   time for which we are to perform integration.  The output goes to
-   *filename*; if it already exists, the function returns immediately
-   without doing anything. The attribute TIMESTAMP is written in the
-   file, with *date* as its value, formatted by
+   *date* is a :class:`~datetime.datetime` object specifying the date
+   and time for which we are to perform integration.  The output goes
+   to *output_filename*; if it already exists, the function returns
+   immediately without doing anything. The attribute TIMESTAMP is
+   written in the file, with *date* as its value, formatted by
    :func:`datetime.strftime()` with the format *date_fmt*; if the file
    already exists, the function returns immediately without doing
    anything. *funct* and *kwargs* are passed to :func:`integrate()`.
 
-   If some of the time series in *group* don't have *date* in the
-   cache, they are not taken into account in the integration. If no
-   time series in *group* have *date* in the cache, the function does
-   nothing.
+   If some of the time series in *filenames* don't have *date*, they
+   are not taken into account in the integration. If no time series
+   has *date*, the function does nothing.
 
 .. class:: BitiaApp
 

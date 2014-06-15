@@ -1,19 +1,12 @@
-from copy import copy
-from datetime import datetime, timedelta
+from datetime import timedelta
 from glob import glob
 from math import isnan
 import os
 
-from six import StringIO
-from six.moves.urllib.parse import quote_plus
-
 import numpy as np
 from osgeo import ogr, osr, gdal
-import requests
-from requests.exceptions import HTTPError
 from simpletail import ropen
 
-from pthelma import enhydris_api
 from pthelma.cliapp import CliApp, WrongValueError
 from pthelma.timeseries import Timeseries, datetime_from_iso, datestr_diff, \
     add_months_to_datetime
@@ -59,7 +52,7 @@ def integrate(dataset, data_layer, target_band, funct, kwargs={}):
     target_band.WriteArray(interpolate(xarray, yarray, mask))
 
 
-def create_ogr_layer_from_stations(group, epsg, data_source, cache):
+def create_ogr_layer_from_timeseries(filenames, epsg, data_source):
     # Prepare the co-ordinate transformation from WGS84 to epsg
     source_sr = osr.SpatialReference()
     source_sr.ImportFromEPSG(4326)
@@ -68,118 +61,25 @@ def create_ogr_layer_from_stations(group, epsg, data_source, cache):
     transform = osr.CoordinateTransformation(source_sr, target_sr)
 
     layer = data_source.CreateLayer('stations', target_sr)
-    layer.CreateField(ogr.FieldDefn('timeseries_id', ogr.OFTInteger))
-    for item in group:
-        # Get the point from the cache, or fetch it anew on cache miss
-        cache_filename = cache.get_point_filename(item['base_url'], item['id'])
-        try:
-            with open(cache_filename) as f:
-                pointwkt = f.read()
-        except IOError:
-            cookies = enhydris_api.login(item['base_url'],
-                                         item.get('user', None),
-                                         item.get('password', None))
-            tsd = enhydris_api.get_model(item['base_url'], cookies,
-                                         'Timeseries', item['id'])
-            gpoint = enhydris_api.get_model(item['base_url'], cookies,
-                                            'Gpoint', tsd['gentity'])
-            pointwkt = gpoint['point']
-            with open(cache_filename, 'w') as f:
-                f.write(pointwkt)
-
-        # Create feature and put it on the layer
-        point = ogr.CreateGeometryFromWkt(pointwkt)
+    layer.CreateField(ogr.FieldDefn('filename', ogr.OFTString))
+    for filename in filenames:
+        with open(filename) as f:
+            ts = Timeseries()
+            ts.read_meta(f)
+        point = ogr.Geometry(ogr.wkbPoint)
+        point.AddPoint(ts.location['abscissa'], ts.location['ordinate'])
         point.Transform(transform)
         f = ogr.Feature(layer.GetLayerDefn())
         f.SetGeometry(point)
-        f.SetField('timeseries_id', item['id'])
+        f.SetField('filename', filename)
         layer.CreateFeature(f)
     return layer
 
 
-class TimeseriesCache(object):
-
-    def __init__(self, cache_dir, timeseries_group):
-        self.cache_dir = cache_dir
-        self.timeseries_group = timeseries_group
-
-    def get_filename(self, base_url, id):
-        return os.path.join(self.cache_dir,
-                            '{}_{}.hts'.format(quote_plus(base_url), id))
-
-    def get_point_filename(self, base_url, id):
-        return os.path.join(
-            self.cache_dir,
-            'timeseries_{}_{}_point'.format(quote_plus(base_url),
-                                            id))
-
-    def update(self):
-        for item in self.timeseries_group:
-            self.base_url = item['base_url']
-            if self.base_url[-1] != '/':
-                self.base_url += '/'
-            self.timeseries_id = item['id']
-            self.user = item['user']
-            self.password = item['password']
-            self.update_for_one_timeseries()
-
-    def update_for_one_timeseries(self):
-        self.cache_filename = self.get_filename(self.base_url,
-                                                self.timeseries_id)
-        ts1 = self.read_timeseries_from_cache_file()
-        end_date = self.get_timeseries_end_date(ts1)
-        start_date = end_date + timedelta(minutes=1)
-        self.append_newer_timeseries(start_date, ts1)
-        with open(self.cache_filename, 'w') as f:
-            ts1.write(f)
-        self.save_timeseries_step_to_cache()
-
-    def read_timeseries_from_cache_file(self):
-        result = Timeseries()
-        if os.path.exists(self.cache_filename):
-            with open(self.cache_filename) as f:
-                try:
-                    result.read(f)
-                except ValueError:
-                    # File may be corrupted; continue with empty time series
-                    result = Timeseries()
-        return result
-
-    def get_timeseries_end_date(self, timeseries):
-        try:
-            end_date = timeseries.bounding_dates()[1]
-        except TypeError:
-            # Timeseries is totally empty; no start and end date
-            end_date = datetime(1, 1, 1, 0, 0)
-        return end_date
-
-    def append_newer_timeseries(self, start_date, ts1):
-        self.session_cookies = enhydris_api.login(self.base_url, self.user,
-                                                  self.password)
-        url = self.base_url + 'timeseries/d/{}/download/{}/'.format(
-            self.timeseries_id, start_date.isoformat())
-        r = requests.get(url, cookies=self.session_cookies)
-        if r.status_code != 200:
-            raise HTTPError('Error {} while getting {}'.format(r.status_code,
-                                                               url))
-        ts2 = Timeseries()
-        ts2.read_file(StringIO(r.text))
-        ts1.append(ts2)
-
-    def save_timeseries_step_to_cache(self):
-        step_cache_filename = self.cache_filename + '_step'
-        if not os.path.exists(step_cache_filename):
-            step_id = enhydris_api.get_model(
-                self.base_url, self.session_cookies, 'Timeseries',
-                self.timeseries_id)['time_step']
-            with open(step_cache_filename, 'w') as f:
-                f.write(str(step_id))
-
-
-def h_integrate(group, mask, stations_layer, cache, date, filename, date_fmt,
+def h_integrate(mask, stations_layer, date, output_filename, date_fmt,
                 funct, kwargs):
     # Return immediately if output file already exists
-    if os.path.exists(filename):
+    if os.path.exists(output_filename):
         return
 
     # Read the time series values and add the 'value' attribute to
@@ -188,12 +88,10 @@ def h_integrate(group, mask, stations_layer, cache, date, filename, date_fmt,
     found_value = False
     stations_layer.ResetReading()
     for station in stations_layer:
-        ts_id = station.GetField('timeseries_id')
-        base_url = [x['base_url'] for x in group if x['id'] == ts_id][0]
-        cache_filename = cache.get_filename(base_url, ts_id)
+        filename = station.GetField('filename')
         t = Timeseries()
-        with open(cache_filename) as f:
-            t.read(f)
+        with open(filename) as f:
+            t.read_file(f)
         value = t.get(date, float('NaN'))
         station.SetField('value', value)
         found_value = found_value or (not isnan(value))
@@ -203,7 +101,8 @@ def h_integrate(group, mask, stations_layer, cache, date, filename, date_fmt,
 
     # Create destination data source
     output = gdal.GetDriverByName('GTiff').Create(
-        filename, mask.RasterXSize, mask.RasterYSize, 1, gdal.GDT_Float32)
+        output_filename, mask.RasterXSize, mask.RasterYSize, 1,
+        gdal.GDT_Float32)
     output.SetMetadataItem('TIMESTAMP', date.strftime(date_fmt))
 
     try:
@@ -224,32 +123,18 @@ class BitiaApp(CliApp):
                         # Section          Option            Default
     config_file_options = {'General': {'mask':             None,
                                        'epsg':             None,
-                                       'cache_dir':        None,
                                        'output_dir':       None,
                                        'filename_prefix':  None,
                                        'files_to_produce': None,
                                        'method':           None,
                                        'alpha':            '1',
-                                       },
-                           'other':   {'base_url':         None,
-                                       'id':               None,
-                                       'user':             '',
-                                       'password':         '',
+                                       'files':            None,
                                        },
                            }
 
     def read_configuration(self):
         super(BitiaApp, self).read_configuration()
-
-        # Convert all sections but 'General' into a list of time series
-        self.timeseries_group = []
-        for section in self.config:
-            if section == 'General':
-                continue
-            item = copy(self.config[section])
-            item['name'] = section
-            item['id'] = int(item['id'])
-            self.timeseries_group.append(item)
+        self.files = self.config['General']['files'].split('\n')
 
     def check_configuration(self):
         super(BitiaApp, self).check_configuration()
@@ -284,12 +169,14 @@ class BitiaApp(CliApp):
         all time series are empty.
         """
         result = None
-        for item in self.timeseries_group:
-            filename = self.cache.get_filename(item['base_url'], item['id'])
+        for filename in self.files:
+            last_date = None
             if not os.path.exists(filename):
                 continue
             with ropen(filename) as fp:
                 for line in fp:
+                    if not line.strip():
+                        break  # Time series has no data
                     datestring = line.split(',')[0]
                     try:
                         last_date = datetime_from_iso(datestring)
@@ -305,15 +192,15 @@ class BitiaApp(CliApp):
     def time_step(self):
         """
         Return time step of all time series. If time step is not the same
-        for all time series, raises exception. Must be run after updating
-        cache.
+        for all time series, raises exception.
         """
         time_step = None
-        for item in self.timeseries_group:
-            timestep_filename = self.cache.get_filename(
-                item['base_url'], item['id']) + '_step'
-            with open(timestep_filename) as f:
-                item_time_step = int(f.read())
+        for filename in self.files:
+            with open(filename) as f:
+                t = Timeseries()
+                t.read_meta(f)
+            item_time_step = (t.time_step.length_minutes,
+                              t.time_step.length_months)
             if time_step and (item_time_step != time_step):
                 raise WrongValueError(
                     'Not all time series have the same step')
@@ -324,15 +211,17 @@ class BitiaApp(CliApp):
     def date_fmt(self):
         """
         Determine date_fmt based on time series time step.
-        Call after updating self.cache.
         """
-        return {1: '%Y-%m-%d %H:%M',
-                2: '%Y-%m-%d %H:%M',
-                3: '%Y-%m-%d',
-                4: '%Y-%m',
-                5: '%Y',
-                6: '%Y-%m-%d %H:%M',
-                7: '%Y-%m-%d %H:%M'}[self.time_step]
+        minutes, months = self.time_step
+        if minutes and (minutes < 1440):
+            return '%Y-%m-%d %H:%M'
+        if minutes and (minutes >= 1440):
+            return '%Y-%m-%d'
+        if months and (months < 12):
+            return '%Y-%m'
+        if months and (months >= 12):
+            return '%Y'
+        raise ValueError("Can't use time step " + str(self.time_step))
 
     def rename_existing_files(self, last_date):
         """
@@ -383,34 +272,27 @@ class BitiaApp(CliApp):
         difference is too large. The filename is used for error messages.
         """
         diff_months, diff_minutes = datestr_diff(last_date, timestamp)
-        divider = [10, 60, 1440, 1, 12, 5, 15][self.time_step - 1]
-        if self.time_step in (4, 5):  # Monthly or annual
-            number = diff_months / divider
-            if diff_minutes or (number * divider != diff_months):
+        step_minutes, step_months = self.time_step
+        if step_months:  # Monthly or annual
+            number = diff_months / step_months
+            if diff_minutes or (number * step_months != diff_months):
                 raise ValueError("Something's wrong in the timestamp in {}"
                                  .format(filename))
         else:
-            number = diff_minutes / divider
-            if number * divider != diff_minutes:
+            number = diff_minutes / step_minutes
+            if number * step_minutes != diff_minutes:
                 raise ValueError("Something's wrong in the timestamp in {}"
                                  .format(filename))
             if diff_months:
                 number = 10000
         return number
 
-    def execute(self, update_cache=True):
-        # Setup cache
-        cache_dir = self.config['General']['cache_dir']
-        self.cache = TimeseriesCache(cache_dir, self.timeseries_group)
-        if update_cache:
-            # update_cache may be False only during unit tests
-            self.cache.update()
-
+    def execute(self):
         # Create stations layer
         stations = ogr.GetDriverByName('memory').CreateDataSource('stations')
         epsg = int(self.config['General']['epsg'])
-        stations_layer = create_ogr_layer_from_stations(
-            self.timeseries_group, epsg, stations, self.cache)
+        stations_layer = create_ogr_layer_from_timeseries(self.files, epsg,
+                                                          stations)
 
         # Get mask
         mask = gdal.Open(self.config['General']['mask'])
@@ -440,12 +322,12 @@ class BitiaApp(CliApp):
                 break
             filename = os.path.join(
                 output_dir, '{}-{:04d}.tif'.format(filename_prefix, number))
-            h_integrate(self.timeseries_group, mask, stations_layer,
-                        self.cache, date_to_calculate, filename, self.date_fmt,
-                        funct, kwargs)
-            step = [10, 60, 1440, 1, 12, 5, 15][self.time_step - 1]
-            if self.time_step in (4, 5):
+            h_integrate(mask, stations_layer, date_to_calculate, filename,
+                        self.date_fmt, funct, kwargs)
+            step_minutes, step_months = self.time_step
+            if step_months:
                 date_to_calculate = add_months_to_datetime(date_to_calculate,
-                                                           -step)
+                                                           -step_months)
             else:
-                date_to_calculate = date_to_calculate - timedelta(minutes=step)
+                date_to_calculate = date_to_calculate - timedelta(
+                    minutes=step_minutes)
