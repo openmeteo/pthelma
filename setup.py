@@ -120,7 +120,7 @@ try:
                                   vcredist_filename])]
 
     # Specify program executable
-    kwargs['console'] = ['bin/loggertodb']
+    kwargs['console'] = ['bin/loggertodb', 'bin/pond', 'bin/fordonia']
 except ImportError:
     pass
 

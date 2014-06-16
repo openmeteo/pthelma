@@ -6,14 +6,13 @@ Installation
 
 .. highlight:: bash
 
-loggertodb on Windows
-=====================
+loggertodb, pond, and fordonia on Windows
+=========================================
 
 Download and execute the Windows executable installer
-(``loggertodb-X.Y.Z-setup.exe``) from
+(``pthelma-X.Y.Z-setup.exe``) from
 https://github.com/openmeteo/pthelma/releases/ (not all ``pthelma``
-releases include a ``loggertodb`` installer; select the latest that
-does).
+releases include a Windows installer; select the latest that does).
 
 Linux
 =====
@@ -52,7 +51,7 @@ its dependencies instead (search for ``install_requires`` in
 
 Also note that creating an installer with ``py2exe`` or similar is
 difficult because of OSGeo4W_; therefore we only make an installer for
-``loggertodb``, which does not have OSGeo4W_ dependencies.
+the applications that do not have OSGeo4W_ dependencies.
 
 .. _dickinson: http://dickinson.readthedocs.org/
 .. _osgeo4w: http://trac.osgeo.org/osgeo4w/
