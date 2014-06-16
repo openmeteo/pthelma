@@ -786,15 +786,16 @@ class Timeseries(dict):
                             for x in ['abscissa', 'ordinate', 'srid']]))
             except KeyError:
                 pass
-            try:
-                if self.location['asrid'] is not None:
-                    fp.write(u("Altitude={:.2f} {}\r\n").format(
-                        self.location['altitude'], self.location['asrid']))
-                else:
-                    fp.write(u("Altitude={:.2f}\r\n").format(
-                        self.location['altitude']))
-            except KeyError:
-                pass
+
+            # Write location
+            loc = self.location  # Nickname
+            altitude = loc['altitude'] if 'altitude' in loc else None
+            asrid = loc['asrid'] if 'asrid' in loc else None
+            fmt = u("Altitude={altitude:.2f} {asrid}\r\n") \
+                if asrid else u("Altitude={altitude:.2f}\r\n")
+            if altitude is not None:
+                fp.write(fmt.format(altitude=altitude, asrid=asrid))
+
         fp.write("\r\n")
         self.write(fp)
 

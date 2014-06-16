@@ -1,25 +1,21 @@
+from copy import copy
 from datetime import datetime, timedelta
 import os
 
 from six import StringIO
-from six.moves.urllib.parse import quote_plus
 
 import requests
 from requests.exceptions import HTTPError
 
 from pthelma import enhydris_api
+from pthelma.cliapp import CliApp, WrongValueError
 from pthelma.timeseries import Timeseries
 
 
 class TimeseriesCache(object):
 
-    def __init__(self, cache_dir, timeseries_group):
-        self.cache_dir = cache_dir
+    def __init__(self, timeseries_group):
         self.timeseries_group = timeseries_group
-
-    def get_filename(self, base_url, id):
-        return os.path.join(self.cache_dir,
-                            '{}_{}.hts'.format(quote_plus(base_url), id))
 
     def update(self):
         for item in self.timeseries_group:
@@ -29,22 +25,21 @@ class TimeseriesCache(object):
             self.timeseries_id = item['id']
             self.user = item['user']
             self.password = item['password']
+            self.filename = item['file']
             self.update_for_one_timeseries()
 
     def update_for_one_timeseries(self):
-        self.cache_filename = self.get_filename(self.base_url,
-                                                self.timeseries_id)
         ts1 = self.read_timeseries_from_cache_file()
         end_date = self.get_timeseries_end_date(ts1)
         start_date = end_date + timedelta(minutes=1)
         self.append_newer_timeseries(start_date, ts1)
-        with open(self.cache_filename, 'w') as f:
+        with open(self.filename, 'w') as f:
             ts1.write_file(f, version=3)
 
     def read_timeseries_from_cache_file(self):
         result = Timeseries()
-        if os.path.exists(self.cache_filename):
-            with open(self.cache_filename) as f:
+        if os.path.exists(self.filename):
+            with open(self.filename) as f:
                 try:
                     result.read_file(f)
                 except ValueError:
@@ -75,3 +70,48 @@ class TimeseriesCache(object):
         responseio.seek(0)
         ts1.read_meta(responseio)
         ts1.append(ts2)
+
+
+class PondApp(CliApp):
+    name = 'pond'
+    description = 'Local filesystem cache of Enhydris data'
+                          # Section     Option      Default
+    config_file_options = {'General': {'cache_dir': os.getcwd()
+                                       },
+                           'other':   {'base_url':  None,
+                                       'id':        None,
+                                       'user':      '',
+                                       'password':  '',
+                                       'file':      None,
+                                       },
+                           }
+
+    def check_configuration(self):
+        super(PondApp, self).check_configuration()
+
+        for section in self.config:
+            if section == 'General':
+                continue
+            try:
+                int(self.config[section]['id'])
+            except ValueError as e:
+                raise WrongValueError('"{}" is not a valid integer'.format(
+                    self.config[section]['id']))
+
+    def read_configuration(self):
+        super(PondApp, self).read_configuration()
+
+        # Convert all sections but 'General' into a list of time series
+        self.timeseries_group = []
+        for section in self.config:
+            if section == 'General':
+                continue
+            item = copy(self.config[section])
+            item['name'] = section
+            item['id'] = int(item['id'])
+            self.timeseries_group.append(item)
+
+    def execute(self):
+        os.chdir(self.config['General']['cache_dir'])
+        self.cache = TimeseriesCache(self.timeseries_group)
+        self.cache.update()

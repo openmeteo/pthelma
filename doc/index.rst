@@ -8,6 +8,7 @@ User documentation:
 
    install
    loggertodb
+   pond
    bitia
 
 Developer documentation:

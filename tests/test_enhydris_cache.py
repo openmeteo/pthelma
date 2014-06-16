@@ -1,14 +1,16 @@
 import json
 import os
 import shutil
+import sys
 import tempfile
 import textwrap
 from unittest import TestCase, skipUnless
 
 from six import StringIO
+from six.moves import configparser
 
 from pthelma import enhydris_api
-from pthelma.enhydris_cache import TimeseriesCache
+from pthelma.enhydris_cache import PondApp, TimeseriesCache
 from pthelma.timeseries import Timeseries
 
 
@@ -66,8 +68,11 @@ class TimeseriesCacheTestCase(TestCase):
 
         # Temporary directory for cache files
         self.tempdir = tempfile.mkdtemp()
+        self.savedcwd = os.getcwd()
+        os.chdir(self.tempdir)
 
     def tearDown(self):
+        os.chdir(self.savedcwd)
         shutil.rmtree(self.tempdir)
 
     def test_update(self):
@@ -76,21 +81,21 @@ class TimeseriesCacheTestCase(TestCase):
                              'id': self.ts1_id,
                              'user': self.parms['user'],
                              'password': self.parms['password'],
+                             'file': 'file1',
                              },
                             {'base_url': self.parms['base_url'],
                              'id': self.ts2_id,
                              'user': self.parms['user'],
                              'password': self.parms['password'],
+                             'file': 'file2',
                              },
                             ]
         # Cache the two timeseries
-        cache = TimeseriesCache(self.tempdir, timeseries_group)
+        cache = TimeseriesCache(timeseries_group)
         cache.update()
 
         # Check that the cached stuff is what it should be
-        file1, file2 = [cache.get_filename(self.parms['base_url'], x)
-                        for x in (self.ts1_id, self.ts2_id)]
-        with open(file1) as f:
+        with open('file1') as f:
             ts = Timeseries()
             ts.read_file(f)
             self.assertEqual(ts.time_step.length_minutes, 1440)
@@ -99,7 +104,7 @@ class TimeseriesCacheTestCase(TestCase):
             ts.write(c)
             self.assertEqual(c.getvalue().replace('\r', ''),
                              self.timeseries1_top)
-        with open(file2) as f:
+        with open('file2') as f:
             ts = Timeseries()
             ts.read_file(f)
             self.assertEqual(ts.time_step.length_minutes, 1440)
@@ -121,9 +126,7 @@ class TimeseriesCacheTestCase(TestCase):
         cache.update()
 
         # Check that the cached stuff is what it should be
-        file1, file2 = [cache.get_filename(self.parms['base_url'], x)
-                        for x in (self.ts1_id, self.ts2_id)]
-        with open(file1) as f:
+        with open('file1') as f:
             ts = Timeseries()
             ts.read_file(f)
             self.assertEqual(ts.time_step.length_minutes, 1440)
@@ -132,7 +135,7 @@ class TimeseriesCacheTestCase(TestCase):
             ts.write(c)
             self.assertEqual(c.getvalue().replace('\r', ''),
                              self.test_timeseries1)
-        with open(file2) as f:
+        with open('file2') as f:
             ts = Timeseries()
             ts.read_file(f)
             self.assertEqual(ts.time_step.length_minutes, 1440)
@@ -141,3 +144,146 @@ class TimeseriesCacheTestCase(TestCase):
             ts.write(c)
             self.assertEqual(c.getvalue().replace('\r', ''),
                              self.test_timeseries2)
+
+
+@skipUnless(os.getenv('PTHELMA_TEST_ENHYDRIS_API'),
+            'set PTHELMA_TEST_ENHYDRIS_API')
+class PondAppTestCase(TestCase):
+
+    def __init__(self, *args, **kwargs):
+        super(PondAppTestCase, self).__init__(*args, **kwargs)
+
+        # Python 2.7 compatibility
+        try:
+            self.assertRaisesRegex
+        except AttributeError:
+            self.assertRaisesRegex = self.assertRaisesRegexp
+
+    def setUp(self):
+        self.tempdir = tempfile.mkdtemp()
+        self.config_file = os.path.join(self.tempdir, 'pond.conf')
+        self.saved_argv = sys.argv
+        sys.argv = ['pond', '--traceback', self.config_file]
+        self.savedcwd = os.getcwd()
+
+        # Create two stations, each one with a time series
+        self.parms = json.loads(os.getenv('PTHELMA_TEST_ENHYDRIS_API'))
+        self.cookies = enhydris_api.login(self.parms['base_url'],
+                                          self.parms['user'],
+                                          self.parms['password'])
+        self.station1_id = enhydris_api.post_model(
+            self.parms['base_url'], self.cookies, 'Station',
+            {'name': 'station1',
+             'srid': 4326,
+             'point': 'POINT (23.78743 37.97385)',
+             'copyright_holder': 'Joe User',
+             'copyright_years': '2014',
+             'stype': 1,
+             'owner': self.parms['owner_id'],
+             })
+        self.timeseries1_id = enhydris_api.post_model(
+            self.parms['base_url'], self.cookies, 'Timeseries',
+            {'gentity': self.station1_id,
+             'variable': self.parms['variable_id'],
+             'unit_of_measurement': self.parms['unit_of_measurement_id'],
+             'time_zone': self.parms['time_zone_id']})
+        self.station2_id = enhydris_api.post_model(
+            self.parms['base_url'], self.cookies, 'Station',
+            {'name': 'station1',
+             'srid': 4326,
+             'point': 'POINT (24.56789 38.76543)',
+             'copyright_holder': 'Joe User',
+             'copyright_years': '2014',
+             'stype': 1,
+             'owner': self.parms['owner_id'],
+             })
+        self.timeseries2_id = enhydris_api.post_model(
+            self.parms['base_url'], self.cookies, 'Timeseries',
+            {'gentity': self.station2_id,
+             'variable': self.parms['variable_id'],
+             'unit_of_measurement': self.parms['unit_of_measurement_id'],
+             'time_zone': self.parms['time_zone_id']})
+
+        # Prepare a configuration file (some tests override it)
+        with open(self.config_file, 'w') as f:
+            f.write(textwrap.dedent('''\
+                [General]
+                cache_dir = {self.tempdir}
+
+                [timeseries1]
+                base_url = {base_url}
+                id = {self.timeseries1_id}
+                file = file1
+
+                [timeseries2]
+                base_url = {base_url}
+                id = {self.timeseries2_id}
+                file = file2
+                ''').format(self=self, base_url=self.parms['base_url']))
+
+    def tearDown(self):
+        os.chdir(self.savedcwd)
+        shutil.rmtree(self.tempdir)
+        sys.argv = self.saved_argv
+
+    def test_correct_configuration(self):
+        application = PondApp()
+        application.run(dry=True)
+
+    def test_wrong_configuration1(self):
+        with open(self.config_file, 'w') as f:
+            f.write(textwrap.dedent('''\
+                [General]
+                cache_dir = {self.tempdir}
+                nonexistent_option = irrelevant
+                ''').format(self=self))
+        application = PondApp()
+        self.assertRaisesRegex(configparser.Error, 'nonexistent_option',
+                               application.run)
+
+    def test_wrong_configuration2(self):
+        with open(self.config_file, 'w') as f:
+            f.write(textwrap.dedent('''\
+                [General]
+                cache_dir = {self.tempdir}
+
+                [timeseries1]
+                id = 5432
+                file = file1
+                ''').format(self=self))
+        application = PondApp()
+        self.assertRaisesRegex(configparser.Error, 'base_url',
+                               application.run)
+
+    def test_wrong_configuration3(self):
+        with open(self.config_file, 'w') as f:
+            f.write(textwrap.dedent('''\
+                [General]
+                cache_dir = {self.tempdir}
+
+                [timeseries1]
+                base_url = wrongproto://irrelevant.com/
+                id = non-numeric
+                file = file1
+                ''').format(self=self))
+        application = PondApp()
+        self.assertRaisesRegex(configparser.Error, 'id',
+                               application.run)
+
+    def test_execute(self):
+        application = PondApp()
+        application.read_command_line()
+        application.read_configuration()
+
+        # Check that the two files don't exist yet
+        self.assertFalse(os.path.exists(os.path.join(self.tempdir, 'file1')))
+        self.assertFalse(os.path.exists(os.path.join(self.tempdir, 'file2')))
+
+        application.execute()
+
+        # Check that it has created two files
+        self.assertTrue(os.path.exists(os.path.join(self.tempdir, 'file1')))
+        self.assertTrue(os.path.exists(os.path.join(self.tempdir, 'file2')))
+
+        # The above is reasonably sufficient to know that it works, given
+        # that lower-level functionality has been tested in other unit tests.

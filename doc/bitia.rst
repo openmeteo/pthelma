@@ -97,10 +97,8 @@ integration will be performed given the three time series specified in
 CONFIGURATION FILE REFERENCE
 ============================
 
-The configuration file has the format of INI files. There is a
-``[General]`` section with general parameters, and any number of other
-sections, which we will call "time series sections", each time series
-section referring to one time series.
+The configuration file has the format of INI files. There is only one
+section, ``[General]``.
 
 General parameters
 ------------------
