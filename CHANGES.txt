@@ -1,3 +1,20 @@
+0.9.0 (2014-06-16)
+------------------
+
+- New application Pond performs local filesystem caching of Enhydris
+  data.
+
+- Bitia no longer puts date in output filename, but as a field in the
+  file instead; the file is named filename_prefix-XXXX.tif, where XXXX
+  is a number from 0 (for most recent) to files_to_produce.
+
+- Bitia now works locally, without communicating with Enhydris; Pond
+  must be called before it in order to update the local cache.
+
+- Added version 3 of time series file format.
+
+- New application Fordonia performs time series aggregation.
+
 0.8.1 (2014-06-06)
 ------------------
 
