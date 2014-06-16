@@ -1,28 +1,45 @@
 from copy import copy
-from datetime import timedelta
+import os
 
-from pthelma import enhydris_api
 from pthelma.cliapp import CliApp, WrongValueError
-from pthelma.timeseries import add_months_to_datetime
+from pthelma.timeseries import TimeStep, Timeseries, IntervalType
 
 
 class FordoniaApp(CliApp):
     name = 'fordonia'
     description = 'Aggregate time series'
                           # Section     Option            Default
-    config_file_options = {'General': {'base_url':        None,
-                                       'user':            None,
-                                       'password':        None,
-                                       },
-                           'other':   {'source_id':       None,
-                                       'target_id':       None,
-                                       'missing_allowed': 0.0,
+    config_file_options = {'General': {'base_dir':        None,
+                                       'target_step':     None,
+                                       'nominal_offset':  '0,0',
+                                       'actual_offset':   '0,0',
+                                       'missing_allowed': '0.0',
                                        'missing_flag':    'MISSING',
-                                       }
+                                       },
+                           'other':   {'source_file':     None,
+                                       'target_file':     None,
+                                       'interval_type':   None,
+                                       },
                            }
 
     def read_configuration(self):
         super(FordoniaApp, self).read_configuration()
+
+        # Save some stuff to easy to access variables
+        genconfig = self.config['General']
+        self.base_dir = genconfig['base_dir']
+        self.missing_allowed = float(genconfig['missing_allowed'])
+        minutes, months = [int(x.strip())
+                           for x in genconfig['target_step'].split(',')]
+        nominal_offset = [int(x.strip())
+                          for x in genconfig['nominal_offset'].split(',')]
+        actual_offset = [int(x.strip())
+                         for x in genconfig['actual_offset'].split(',')]
+        self.target_step = TimeStep(length_minutes=minutes,
+                                    length_months=months,
+                                    nominal_offset=nominal_offset,
+                                    actual_offset=actual_offset)
+        self.missing_flag = genconfig['missing_flag']
 
         # Convert time series sections into a list
         self.aggregation_items = []
@@ -30,54 +47,75 @@ class FordoniaApp(CliApp):
             if section in self.config_file_options:
                 continue
             item = copy(self.config[section])
-            item['source_id'] = int(item['source_id'])
-            item['target_id'] = int(item['target_id'])
-            item['missing_allowed'] = float(item['missing_allowed'])
+            item['interval_type'] = IntervalType.__dict__[
+                item['interval_type'].upper()]
             self.aggregation_items.append(item)
-
-        # Save some stuff to easy to access variables
-        self.base_url = self.config['General']['base_url']
-        self.user = self.config['General']['user']
-        self.password = self.config['General']['password']
 
     def check_configuration(self):
         super(FordoniaApp, self).check_configuration()
 
-        self.check_configuration_aggregation_items()
+        self.check_configuration_missing_allowed()
+        self.check_configuration_target_step()
+        self.check_configuration_offset('nominal_offset')
+        self.check_configuration_offset('actual_offset')
+        for item in self.config:
+            if item == 'General':
+                continue
+            self.check_configuration_item(item)
 
-    def check_configuration_aggregation_items(self):
-        for item in self.aggregation_items:
-            ma = item['missing_allowed']
-            if ma < 0.0 or ma >= 1.0:
-                raise WrongValueError('missing_allowed must be '
-                                      'between 0 and 1')
+    def check_configuration_item(self, item):
+        interval_type = self.config[item]['interval_type'].upper()
+        if interval_type not in IntervalType.__dict__:
+            raise WrongValueError('{} is not a valid interval type'.
+                                  format(interval_type.lower()))
+
+    def check_configuration_missing_allowed(self):
+        missing_allowed = self.config['General']['missing_allowed']
+        try:
+            ma = float(missing_allowed)
+        except ValueError:
+            raise WrongValueError('{} is not a number'.format(missing_allowed))
+        if ma < 0.0 or ma >= 1.0:
+            raise WrongValueError('missing_allowed must be '
+                                  'between 0 and 1')
+
+    def check_configuration_target_step(self):
+        target_step = self.config['General']['target_step']
+        try:
+            minutes, months = [int(x.strip()) for x in target_step.split(',')]
+            if minutes and months:
+                raise ValueError("not both minutes and months can be nonzero")
+            if not minutes and not months:
+                raise ValueError("one of minutes and months must be nonzero")
+        except (IndexError, ValueError):
+            raise WrongValueError(
+                '"{}" is not an appropriate time step; use "X,Y" where X is '
+                'minutes and Y is months; one and only one must be nonzero.'
+                .format(target_step))
+
+    def check_configuration_offset(self, offsetname):
+        offset = self.config['General'][offsetname]
+        try:
+            minutes, months = [int(x.strip()) for x in offset.split(',')]
+        except (IndexError, ValueError):
+            raise WrongValueError(
+                '"{}" is not an appropriate offset; use "X,Y" where X is '
+                'minutes and Y is months.'.format(offset))
 
     def execute(self):
-        self.session_cookies = enhydris_api.login(self.base_url, self.user,
-                                                  self.password)
+        if self.base_dir:
+            os.chdir(self.base_dir)
         for item in self.aggregation_items:
             self.execute_item(item)
 
     def execute_item(self, item):
-        # Find the actual end date of the target time series (actual means
-        # after dealing with the actual_offset). This is also the actual start
-        # date of the source time series (because we need the source time
-        # series from that point onwards).
-        target_ts = enhydris_api.get_model(
-            self.base_url, self.session_cookies, 'Timeseries',
-            item['target_id'])
-        target_end_date = enhydris_api.get_ts_end_date(
-            self.base_url, self.session_cookies, item['target_id'])
-        target_actual_end_date = add_months_to_datetime(
-            target_end_date, target_ts.actual_offset_months) + timedelta(
-            minutes=target_ts.actual_offset_minutes)
-
-        # Given the actual end date of target, aka actual start date of source,
-        # deal with the source's actual_offset to determine the source's
-        # nominal start date.
-        source_ts = enhydris_api.get_model(
-            self.base_url, self.session_cookies, 'Timeseries',
-            item['source_id'])
-        source_start_date = add_months_to_datetime(
-            target_actual_end_date, -source_ts.actual_offset_months) + \
-            timedelta(minutes=-source_ts.actual_offset_minutes)
+        source_ts = Timeseries()
+        with open(item['source_file']) as f:
+            source_ts.read_file(f)
+        self.target_step.interval_type = item['interval_type']
+        target_ts, missing = source_ts.aggregate(
+            self.target_step,
+            missing_allowed=self.missing_allowed,
+            missing_flag=self.missing_flag)
+        with open(item['target_file'], 'w') as f:
+            target_ts.write_file(f)

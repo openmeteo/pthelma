@@ -1,17 +1,22 @@
 Pthelma
 =======
 
-User documentation:
+User documentation
+------------------
 
 .. toctree::
    :maxdepth: 1
 
    install
+   bitia
+   fordonia
    loggertodb
    pond
-   bitia
 
-Developer documentation:
+Developer documentation
+-----------------------
+
+Well-maintained modules:
 
 .. toctree::
    :maxdepth: 1
@@ -23,12 +28,18 @@ Developer documentation:
    spatial
    timeseries
 
+Modules that need some work but should work:
+
+.. toctree::
+   :maxdepth: 1
+
    cplot
    curves
    meteocalcs
    tsprocess
 
-Miscellaneous:
+Miscellaneous
+-------------
 
 .. toctree::
    :maxdepth: 1
@@ -36,7 +47,7 @@ Miscellaneous:
    copyright
 
 Indices and tables
-==================
+------------------
 
 * :ref:`genindex`
 * :ref:`modindex`

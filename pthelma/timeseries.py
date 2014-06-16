@@ -760,11 +760,11 @@ class Timeseries(dict):
             fp.write(u("Time_step=%d,%d\r\n") % (self.time_step.length_minutes,
                                                  self.time_step.length_months))
             if self.time_step.nominal_offset:
-                fp.write(u("Nominal_offset=%d,%d\r\n") %
-                         self.time_step.nominal_offset)
+                fp.write(u("Nominal_offset={o[0]},{o[1]}\r\n").format(
+                    o=self.time_step.nominal_offset))
 
-            fp.write(u("Actual_offset=%d,%d\r\n") %
-                     self.time_step.actual_offset)
+            fp.write(u("Actual_offset={o[0]},{o[1]}\r\n").format(
+                o=self.time_step.actual_offset))
         if self.time_step.interval_type:
             fp.write(
                 u("Interval_type={}\r\n").format({
