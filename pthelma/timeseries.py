@@ -700,7 +700,7 @@ class Timeseries(dict):
                          self.location['srid']) = (float(items[0]),
                                                    float(items[1]),
                                                    int(items[2]))
-                    except IndexError, ValueError:
+                    except (IndexError, ValueError):
                         raise ParsingError("Invalid location")
                 elif name == 'altitude':
                     try:
@@ -708,7 +708,7 @@ class Timeseries(dict):
                         self.location['altitude'] = float(items[0])
                         self.location['asrid'] = int(items[1]) \
                             if len(items) > 1 else None
-                    except IndexError, ValueError:
+                    except (IndexError, ValueError):
                         raise ParsingError("Invalid altitude")
                 else:
                     pass

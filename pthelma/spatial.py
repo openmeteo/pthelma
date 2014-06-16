@@ -274,12 +274,12 @@ class BitiaApp(CliApp):
         diff_months, diff_minutes = datestr_diff(last_date, timestamp)
         step_minutes, step_months = self.time_step
         if step_months:  # Monthly or annual
-            number = diff_months / step_months
+            number = int(diff_months / step_months)
             if diff_minutes or (number * step_months != diff_months):
                 raise ValueError("Something's wrong in the timestamp in {}"
                                  .format(filename))
         else:
-            number = diff_minutes / step_minutes
+            number = int(diff_minutes / step_minutes)
             if number * step_minutes != diff_minutes:
                 raise ValueError("Something's wrong in the timestamp in {}"
                                  .format(filename))
