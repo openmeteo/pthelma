@@ -92,7 +92,7 @@ kwargs = {
     'author': "Antonis Christofides",
     'author_email': "anthony@itia.ntua.gr",
     'packages': find_packages(),
-    'scripts': ['bin/loggertodb', 'bin/bitia'],
+    'scripts': ['bin/loggertodb', 'bin/bitia', 'bin/pond', 'bin/fordonia'],
     'test_suite': "tests",
     'install_requires': installation_requirements,
     'options': {'py2exe': {'excludes': ['spatial']}},
