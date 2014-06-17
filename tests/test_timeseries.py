@@ -1103,6 +1103,21 @@ class _Test_Timeseries_aggregate(TestCase):
         missing.write(out)
         self.assertEqual(out.getvalue(), aggregated_hourly_missing)
 
+    def test_aggregate_empty(self):
+        self.ts = Timeseries(time_step=TimeStep(length_minutes=10,
+                                                nominal_offset=(0, 0)))
+        target_step = TimeStep(length_minutes=60, nominal_offset=(0, 0),
+                               interval_type=IntervalType.SUM)
+        result, missing = self.ts.aggregate(target_step, missing_allowed=3,
+                                            missing_flag="MISS")
+        out = StringIO()
+        result.write(out)
+        self.assertEqual(out.getvalue(), "")
+        out.truncate(0)
+        out.seek(0)
+        missing.write(out)
+        self.assertEqual(out.getvalue(), "")
+
 
 class _Test_Timeseries_vector_aggregate(TestCase):
 

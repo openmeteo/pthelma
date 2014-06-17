@@ -1108,11 +1108,14 @@ class Timeseries(dict):
                         aggregate_value = 0
             return (aggregate_value, flag), missing, explicit_components
 
-        source_start_date, source_end_date = self.bounding_dates()
-        target_start_date = target_step.previous(source_start_date)
-        target_end_date = target_step.next(source_end_date)
         result = Timeseries(time_step=target_step)
         missing = Timeseries(time_step=target_step)
+        bounding_dates = self.bounding_dates()
+        if not bounding_dates:
+            return result, missing
+        source_start_date, source_end_date = bounding_dates
+        target_start_date = target_step.previous(source_start_date)
+        target_end_date = target_step.next(source_end_date)
         ec = 0
         it = 0
 
