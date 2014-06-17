@@ -94,6 +94,6 @@ Here's how to release a new micro X.Y.Z version:
    12. Also apply the bug fixes to the master branch. On the release
        branch:
        
-          git log [note commits to be applied to master
+          git log [note commits to be applied to master]
           git checkout master
           git cherry-pick [commits]
