@@ -636,7 +636,7 @@ class Timeseries(dict):
         line."""
         line = fp.readline()
         if isinstance(line, six.binary_type):
-            line = line.decode('utf-8')
+            line = line.decode('utf-8-sig')
         name, value = '', ''
         if line.isspace():
             return (name, value)
@@ -720,23 +720,13 @@ class Timeseries(dict):
             raise
 
     def read_file(self, fp):
-        # Ignore the BOM_UTF8 byte mark if present
-        try:
-            saved_pos = fp.tell()
-            if fp.read(len(BOM_UTF8)) != BOM_UTF8:
-                fp.seek(saved_pos)
-        except AttributeError:
-            # This means that fp doesn't have tell(), so it's not a file,
-            # so hopefully it doesn't have a BOM.
-            pass
-
         fp = BacktrackableFile(fp)
 
         # Check if file contains headers
         first_line = fp.readline()
         fp.backtrack(first_line)
         if isinstance(first_line, six.binary_type):
-            first_line = first_line.decode('utf-8')
+            first_line = first_line.decode('utf-8-sig')
         has_headers = not first_line[0].isdigit()
 
         # Read file, with its headers if needed
