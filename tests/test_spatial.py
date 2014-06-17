@@ -402,6 +402,8 @@ class BitiaAppTestCase(TestCase):
     def create_file_with_timestamp(self, filename, timestamp):
         output = gdal.GetDriverByName('GTiff').Create(filename, 640, 480, 1,
                                                       gdal.GDT_Float32)
+        if not output:
+            raise IOError('Could not create ' + filename)
         output.SetMetadataItem('TIMESTAMP', timestamp)
         output = None
 
