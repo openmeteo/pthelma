@@ -1,3 +1,4 @@
+import codecs
 from copy import copy
 from datetime import datetime, timedelta
 import os
@@ -33,7 +34,7 @@ class TimeseriesCache(object):
         end_date = self.get_timeseries_end_date(ts1)
         start_date = end_date + timedelta(minutes=1)
         self.append_newer_timeseries(start_date, ts1)
-        with open(self.filename, 'w') as f:
+        with codecs.open(self.filename, 'w', 'utf-8') as f:
             ts1.write_file(f, version=3)
 
     def read_timeseries_from_cache_file(self):
