@@ -103,6 +103,9 @@ def h_integrate(mask, stations_layer, date, output_filename, date_fmt,
     output = gdal.GetDriverByName('GTiff').Create(
         output_filename, mask.RasterXSize, mask.RasterYSize, 1,
         gdal.GDT_Float32)
+    if not output:
+        raise IOError('An error occured when trying to open {}'.format(
+            output_filename))
     output.SetMetadataItem('TIMESTAMP', date.strftime(date_fmt))
 
     try:
@@ -308,13 +311,13 @@ class BitiaApp(CliApp):
             assert False
 
         # Rename existing files and remove old files
-        self.rename_existing_files(self.last_date)
+        last_date_str = self.last_date.strftime(self.date_fmt)
+        self.rename_existing_files(last_date_str)
 
         # Make calculation for each missing file
         output_dir = self.config['General']['output_dir']
         filename_prefix = self.config['General']['filename_prefix']
         date_to_calculate = self.last_date
-        last_date_str = self.last_date.strftime(self.date_fmt)
         while True:
             dtc_str = date_to_calculate.strftime(self.date_fmt)
             number = self.get_file_number(last_date_str, dtc_str)

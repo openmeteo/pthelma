@@ -118,4 +118,4 @@ class FordoniaApp(CliApp):
             missing_allowed=self.missing_allowed,
             missing_flag=self.missing_flag)
         with open(item['target_file'], 'w') as f:
-            target_ts.write_file(f)
+            target_ts.write_file(f, version=3)
