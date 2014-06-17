@@ -1,3 +1,4 @@
+# -*- coding: utf8 -*-
 import json
 import os
 import shutil
@@ -51,6 +52,7 @@ class TimeseriesCacheTestCase(TestCase):
             'time_step': 3,
             'actual_offset_minutes': 0,
             'actual_offset_months': 0,
+            'remarks': 'Très importante',
         }
         self.ts1_id = enhydris_api.post_model(
             self.parms['base_url'], self.cookies, 'Timeseries', j)
