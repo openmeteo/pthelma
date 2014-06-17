@@ -86,7 +86,7 @@ else:
 
 kwargs = {
     'name': "pthelma",
-    'version': "0.9a2",
+    'version': "0.9a3",
     'license': "GPL3",
     'description': "Hydro/meteorological timeseries library",
     'author': "Antonis Christofides",
