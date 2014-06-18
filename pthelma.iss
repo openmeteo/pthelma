@@ -36,6 +36,7 @@ Source: "dist\_ctypes.pyd"; DestDir: "{app}"; Flags: ignoreversion
 Source: "dist\_hashlib.pyd"; DestDir: "{app}"; Flags: ignoreversion
 Source: "dist\_socket.pyd"; DestDir: "{app}"; Flags: ignoreversion
 Source: "dist\_ssl.pyd"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\pyodbc.pyd"; DestDir: "{app}"; Flags: ignoreversion
 Source: "dist\bz2.pyd"; DestDir: "{app}"; Flags: ignoreversion
 Source: "dist\library.zip"; DestDir: "{app}"; Flags: ignoreversion
 Source: "dist\pyexpat.pyd"; DestDir: "{app}"; Flags: ignoreversion
