@@ -52,7 +52,7 @@ Then, open a command prompt and give it this command:
 
 **Windows**::
 
-    C:\Program Files\Loggertodb\loggertodb.exe C:\Users\user\loggertodb.conf
+    C:\Program Files\Pthelma\loggertodb.exe C:\Users\user\loggertodb.conf
 
 (the details may differ; for example, in 64-bit Windows, it may be
 :file:`C:\Program Files (x86)` instead of :file:`C:\Program Files`.)
