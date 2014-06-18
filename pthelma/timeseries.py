@@ -32,19 +32,7 @@ import zlib
 
 import six
 from six import u, StringIO
-
-# Importing configparser.ParsingError.
-# We would normally write this as
-#   from six.moves.configparser import ParsingError
-# However, if we do this, for some reason py2exe does not include
-# ConfigParser in library.zip. We therefore phrase the same thing
-# differently.  This need only be done once. Elsewhere we can use the
-# concise form, since the existence of the thing below will result in
-# ConfigParser being included.
-if six.PY2:
-    from ConfigParser import ParsingError
-else:
-    from configparser import ParsingError
+from six.moves.configparser import ParsingError
 
 from simpletail import ropen
 

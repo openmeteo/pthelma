@@ -96,10 +96,20 @@ kwargs = {
     'test_suite': "tests",
     'install_requires': installation_requirements,
     'options': {'py2exe': {'includes': ['pyodbc',
-	                                'decimal',  # Required by pyodbc
-					'datetime', # Required by pyodbc
-					],
-	                   'excludes': ['spatial']}},
+
+                                        # The following two are required by
+                                        # pyodbc but might not be found by
+                                        # py2exe, which doesn't look in C++
+                                        # files.
+                                        'decimal',
+                                        'datetime',
+
+                                        # ConfigParser is not automatically
+                                        # found by py2exe when imported as
+                                        # six.moves.configparser.
+                                        'ConfigParser',
+                                        ],
+                           'excludes': ['spatial']}},
 }
 
 try:
