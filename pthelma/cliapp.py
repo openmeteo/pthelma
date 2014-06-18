@@ -66,6 +66,8 @@ class CliApp(object):
             section_options_key = section \
                 if section in self.config_file_options else 'other'
             section_options = self.config_file_options[section_options_key]
+            if section_options == 'nocheck':
+                continue
             for option in section_options:
                 value = section_options[option]
                 if value is not None:
