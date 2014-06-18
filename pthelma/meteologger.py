@@ -668,16 +668,18 @@ class LoggertodbApp(CliApp):
             self.config['General']['base_url'] += '/'
 
     def execute(self):
-        cookies = enhydris_api.login(self.config.base_url,
-                                     self.config.username,
-                                     self.config.password)
+        cookies = enhydris_api.login(self.config['General']['base_url'],
+                                     self.config['General']['user'],
+                                     self.config['General']['password'])
         for section in self.config:
             if section == 'General':
                 continue
             datafileclass = eval('Datafile_{}'.format(
                 self.config[section]['datafile_format']))
-            adatafile = datafileclass(self.config.base_url, cookies,
-                                      self.config[section], self.logger)
+            adatafile = datafileclass(self.config['General']['base_url'],
+                                      cookies,
+                                      self.config[section],
+                                      self.logger)
             try:
                 adatafile.update_database()
             except MeteologgerError as e:
