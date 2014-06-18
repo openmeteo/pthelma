@@ -95,7 +95,11 @@ kwargs = {
     'scripts': ['bin/loggertodb', 'bin/bitia', 'bin/pond', 'bin/fordonia'],
     'test_suite': "tests",
     'install_requires': installation_requirements,
-    'options': {'py2exe': {'excludes': ['spatial']}},
+    'options': {'py2exe': {'includes': ['pyodbc',
+	                                'decimal',  # Required by pyodbc
+					'datetime', # Required by pyodbc
+					],
+	                   'excludes': ['spatial']}},
 }
 
 try:
