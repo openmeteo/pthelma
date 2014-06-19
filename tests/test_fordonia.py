@@ -151,3 +151,26 @@ class FordoniaAppTestCase(TestCase):
             t.read_file(f)
         self.assertEqual(len(t), 1)
         self.assertAlmostEqual(t['2014-06-17 16:00'], 50.8167, places=5)
+
+    def test_execute_error_message(self):
+        application = FordoniaApp()
+        application.read_command_line()
+        application.read_configuration()
+
+        # Create a file that doesn't have nominal offset
+        with open(self.filenames[0], 'w') as f:
+            f.write("Location=23.78743 37.97385 4326\n"
+                    "Time_step=10,0\n"
+                    "Actual_offset=0,0\n"
+                    "\n"
+                    "2014-06-16 14:50,14.1,\n"
+                    )
+
+        # Execute
+        try:
+            application.execute()
+        except Exception as e:
+            # Make sure the file name is included in the message
+            self.assertTrue(self.filenames[0] in str(e))
+        else:
+            self.assertTrue(False)

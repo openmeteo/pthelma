@@ -1,5 +1,6 @@
 from copy import copy
 import os
+import sys
 
 from pthelma.cliapp import CliApp, WrongValueError
 from pthelma.timeseries import TimeStep, Timeseries, IntervalType
@@ -106,7 +107,17 @@ class FordoniaApp(CliApp):
         if self.base_dir:
             os.chdir(self.base_dir)
         for item in self.aggregation_items:
-            self.execute_item(item)
+            self.logger.info('Processing {}'.format(item['source_file']))
+            try:
+                self.execute_item(item)
+            except Exception as e:
+                exc_class, exc, tb = sys.exc_info()
+                new_exception = Exception(
+                    'A {} occurred while processing {}: {}'.format(
+                        exc_class.__name__,
+                        os.path.join(self.base_dir, item['source_file']),
+                        str(e)))
+                raise new_exception.__class__, new_exception, tb
 
     def execute_item(self, item):
         source_ts = Timeseries()
