@@ -72,6 +72,9 @@ class IdwTestCase(TestCase):
 @skipIf(skip_osgeo, skip_osgeo_message)
 class IntegrateTestCase(TestCase):
 
+    # The calculations for this test have been made manually in
+    # data/spatial_calculations.ods, tab test_integrate_idw.
+
     def setUp(self):
         # We will test on a 7x15 grid
         self.mask = np.zeros((7, 15), np.int8)
@@ -167,6 +170,9 @@ class HIntegrateTestCase(TestCase):
     gridpoints A3 and B3, and one will be slightly outside the grid (somewhere
     in E2). We assume the bottom left corner of A3 to have co-ordinates (0, 0)
     and the gridpoint to be 10 km across. We also consider C1 to be masked out.
+
+    The calculations for the test have been made manually in
+    data/spatial_calculations.ods, tab test_h_integrate.
     """
 
     def create_mask(self):
