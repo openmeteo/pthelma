@@ -21,6 +21,7 @@ from datetime import datetime, timedelta
 from glob import glob
 import math
 import os
+import re
 import struct
 import sys
 import traceback
@@ -459,11 +460,17 @@ class Datafile_wdat5(Datafile):
         date = self.last_timeseries_end_date
         first_file = os.path.join(self.filename,
                                   '{0.year}-{0.month:02}.wlk'.format(date))
-        data_files = [x for x in glob(os.path.join(self.filename, '*.wlk'))
-                      if x >= first_file]
-        data_files.sort()
-        for current_file in data_files:
-            self.tail.extend(self._get_tail_part(date, current_file))
+        saveddir = os.getcwd()
+        try:
+            os.chdir(self.filename)
+            filename_regexp = re.compile(r'\d{4}-\d{2}.wlk$')
+            data_files = [x for x in glob('*.wlk')
+                          if filename_regexp.match(x) and x >= first_file]
+            data_files.sort()
+            for current_file in data_files:
+                self.tail.extend(self._get_tail_part(date, current_file))
+        finally:
+            os.chdir(saveddir)
 
     def _get_tail_part(self, last_date, filename):
         """
