@@ -120,12 +120,14 @@ class CliApp(object):
             if self.logger:
                 self.logger.error(msg)
                 self.logger.debug(traceback.format_exc())
-                self.logger.info(
-                    'Finished {}, {}'.format(self.name,
-                                             datetime.today().isoformat()))
             if self.args and self.args.traceback:
                 raise
             sys.exit(1)
+        finally:
+            if self.logger:
+                self.logger.info(
+                    'Finished {}, {}'.format(self.name,
+                                             datetime.today().isoformat()))
 
     def execute(self):
         raise NotImplementedError("CliApp is an abstract class")
