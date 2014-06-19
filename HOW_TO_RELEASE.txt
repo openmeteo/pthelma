@@ -77,6 +77,11 @@ Here's how to release a new micro X.Y.Z version:
        
        then open Inno Setup and compile.
 
+       (Make sure you have a recent version of setuptools, otherwise
+       pytz will have trouble finding its time zones in library.zip
+       [it uses pkg_resources.resource_stream for that]. Setuptools
+       5.1 on Python 2.7 works fine.)
+
     8. Push changes and tag:
 
           git push
