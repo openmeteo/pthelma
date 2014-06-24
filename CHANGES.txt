@@ -15,6 +15,8 @@
 
 - New application Fordonia performs time series aggregation.
 
+- Fixed bug: loggertodb's WDAT5 format now pays attention to DST.
+
 0.8.1 (2014-06-06)
 ------------------
 
