@@ -33,7 +33,8 @@ from simpletail import ropen
 
 from pthelma import enhydris_api
 from pthelma.cliapp import CliApp
-from pthelma.timeseries import Timeseries, datetime_from_iso, isoformat_nosecs
+from pthelma.timeseries import add_months_to_datetime, datetime_from_iso, \
+    isoformat_nosecs, Timeseries
 
 
 class MeteologgerError(Exception):
@@ -463,7 +464,18 @@ class Datafile_wdat5(Datafile):
         saveddir = os.getcwd()
         try:
             os.chdir(self.filename)
-            first_file = '{0.year:04}-{0.month:02}.wlk'.format(date)
+
+            # We assume that the first possible file we need to read is the
+            # previous than what it seems initially, because of the possibility
+            # of a DST offset interfering (I think that actually a negative DST
+            # offset would be needed for this to be a problem - but let's be
+            # safe and not sorry) (note that if the date is 0001-01-01 it
+            # means that the time series in the database is empty and we'll
+            # upload it in its entirety anyway, so no need to do the trick
+            # [which would fail because dates can't be less than that]).
+            a = add_months_to_datetime(date, -1) if date.year > 1 else date
+            first_file = '{0.year:04}-{0.month:02}.wlk'.format(a)
+
             filename_regexp = re.compile(r'\d{4}-\d{2}.wlk$')
             data_files = [x for x in glob('*.wlk')
                           if filename_regexp.match(x) and x >= first_file]
@@ -501,6 +513,7 @@ class Datafile_wdat5(Datafile):
                     decoded_record = self._decode_wdat_record(record)
                     date = datetime(year=year, month=month, day=day) + \
                         timedelta(minutes=decoded_record['packedTime'])
+                    date = self._fix_dst(date)
                     if date <= last_date:
                         continue
                     result.append({'date': date,
