@@ -155,6 +155,8 @@ class Datafile(object):
     def _update_timeseries(self):
         end_date_in_database = enhydris_api.get_ts_end_date(
             self.base_url, self.cookies, self.ts)
+        self.logger.info('Last date in database: {}'
+                         .format(end_date_in_database))
         ts_to_append = self._get_records_to_append(end_date_in_database)
         self.logger.info('Appending %d records' % (len(ts_to_append)))
         if len(ts_to_append):
@@ -458,11 +460,10 @@ class Datafile_wdat5(Datafile):
         "Read the part of the data after last_timeseries_end_date"
         self.tail = []
         date = self.last_timeseries_end_date
-        first_file = os.path.join(self.filename,
-                                  '{0.year}-{0.month:02}.wlk'.format(date))
         saveddir = os.getcwd()
         try:
             os.chdir(self.filename)
+            first_file = '{0.year:04}-{0.month:02}.wlk'.format(date)
             filename_regexp = re.compile(r'\d{4}-\d{2}.wlk$')
             data_files = [x for x in glob('*.wlk')
                           if filename_regexp.match(x) and x >= first_file]

@@ -382,7 +382,7 @@ class TestWdat5(_Test_logger):
                                  'datafile_format': 'irrelevant'})
 
     def upload_test(self):
-        d = {'filename': full_testdata_filename('wdat5/1'),
+        d = {'filename': full_testdata_filename(os.path.join('wdat5', '1')),
              'datafile_format': 'irrelevant'}
         for parm in self.parameters:
             if parm['ts_id']:
@@ -390,7 +390,7 @@ class TestWdat5(_Test_logger):
         df = Datafile_wdat5(self.base_url, self.cookies, d)
         df.update_database()
         self.check(d['filename'])
-        d['filename'] = full_testdata_filename('wdat5/2')
+        d['filename'] = full_testdata_filename(os.path.join('wdat5', '2'))
         df = Datafile_wdat5(self.base_url, self.cookies, d)
         df.update_database()
         self.check(d['filename'])
