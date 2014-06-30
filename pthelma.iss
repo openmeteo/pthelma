@@ -45,6 +45,7 @@ Source: "dist\select.pyd"; DestDir: "{app}"; Flags: ignoreversion
 Source: "dist\unicodedata.pyd"; DestDir: "{app}"; Flags: ignoreversion
 Source: "dist\dickinson.dll"; DestDir: "{app}"; Flags: ignoreversion
 Source: "dist\vcredist_x86.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\cacert.pem"; DestDir: "{app}"; Flags: ignoreversion
 
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
