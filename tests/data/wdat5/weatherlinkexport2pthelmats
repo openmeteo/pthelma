@@ -2,7 +2,7 @@
 """
 Convert a weatherlink export file to pthelma timeseries format.
 
-weatherlinkexport2pthelmats export_file
+weatherlinkexport2pthelmats export_file [timezone]
 
 This program reads the export file and outputs one file for each
 variable present in the weatherlink export file. The names of the
@@ -10,19 +10,28 @@ output files are taken from the headings. The date should be in
 YYYY-MM-DD and the time in 24-hour clock format, where midnight is
 00:00.
 
+If timezone is specified, it also corrects the timestamps for DST, so,
+for example, if timezone is Europe/Athens and the export file contains
+a timestamp of 2014-04-05 15:00, this will be converted to 2014-04-05
+14:00 in the output. It won't work for ambiguous times.
+
 The purpose of this program is to prepare data for unit testing
 purposes.
 """
 
+from datetime import datetime
 import sys
+
+import pytz
 
 
 class WeatherLinkExportFile(object):
     wind_dir_symbols = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE',
                         'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW',]
 
-    def __init__(self, filename):
+    def __init__(self, filename, timezone):
         self.filename = filename
+        self.timezone = pytz.timezone(timezone)
 
     def __enter__(self):
         self.fp = open(self.filename)
@@ -43,6 +52,15 @@ class WeatherLinkExportFile(object):
                           .strip('-').lower() + '.txt'
                           for h1, h2 in zip(headings1, headings2)]
 
+    def fix_dst(self, date, time):
+        year, month, day = [int(x) for x in date.split('-')]
+        hour, minute = [int(x) for x in time.split(':')]
+        adatetime = datetime(year, month, day, hour, minute)
+        adatetime -= self.timezone.dst(adatetime)
+        date, time = adatetime.isoformat().split('T')
+        time, d, d = time.rpartition(':')  # Remove seconds
+        return date, time
+
     def create_output_files(self):
         fps = [open(filename, 'w') for filename in self.filenames]
         self.fp.seek(0)
@@ -55,6 +73,7 @@ class WeatherLinkExportFile(object):
             items = line.strip().split('\t')
             date = items.pop(0)
             time = items.pop(0)
+            date, time = self.fix_dst(date, time)
             for item, fp, fn in zip(items, fps, self.filenames):
                 if '-speed' in fn:
                     value = '{0:.1f}'.format(self.kmh2ms(float(item)))
@@ -80,5 +99,6 @@ class WeatherLinkExportFile(object):
         return mph * 1609.344 / 3600
 
 export_file = sys.argv[1]
-with WeatherLinkExportFile(export_file) as w:
+timezone = 'UTC' if len(sys.argv) <= 2 else sys.argv[2]
+with WeatherLinkExportFile(export_file, timezone) as w:
     w.process()

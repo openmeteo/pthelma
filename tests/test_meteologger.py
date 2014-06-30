@@ -279,9 +279,7 @@ class TestDst(TestCase):
 
 @skipUnless(os.getenv('PTHELMA_TEST_ENHYDRIS_API'),
             "set PTHELMA_TEST_ENHYDRIS_API")
-class TestWdat5(_Test_logger):
-    class_being_tested = Datafile_wdat5
-    longMessage = True
+class TestWdat5(TestCase):
     # The dicts below hold the parameter name as it is in the WeatherLink
     # README file, and the corresponding heading in the WeatherLink export file
     # (lowercase, after changing spaces to hyphens and removing dots), empty
@@ -369,19 +367,20 @@ class TestWdat5(_Test_logger):
                                           'Timeseries', parm['ts_id'])
 
     def check_config_test(self):
-        self.assertRaises(ConfigurationError, self.class_being_tested,
+        self.assertRaises(ConfigurationError, Datafile_WDAT5,
                           self.base_url, self.cookies, {})
-        self.assertRaises(ConfigurationError, self.class_being_tested,
+        self.assertRaises(ConfigurationError, Datafile_WDAT5,
                           self.base_url, self.cookies,
                           {'filename': 'hello', 'outsidetemp': '0',
                            'datafile_format': 'irrelevant',
                            'nonexistent_config_option': True})
         # Call it correctly and expect it doesn't raise anything
-        self.class_being_tested(self.base_url, self.cookies,
-                                {'filename': 'hello', 'outsidetemp': '0',
-                                 'datafile_format': 'irrelevant'})
+        self.Datafile_WDAT5(self.base_url, self.cookies,
+                            {'filename': 'hello', 'outsidetemp': '0',
+                             'datafile_format': 'irrelevant'})
 
-    def upload_test(self):
+    def test_upload(self):
+        # Initial upload of the stuff in the "1" directory
         d = {'filename': full_testdata_filename(os.path.join('wdat5', '1')),
              'datafile_format': 'irrelevant'}
         for parm in self.parameters:
@@ -390,7 +389,22 @@ class TestWdat5(_Test_logger):
         df = Datafile_wdat5(self.base_url, self.cookies, d)
         df.update_database()
         self.check(d['filename'])
+
+        # We now move to the "2" directory and re-run; "2" contains all the
+        # data of "1" plus newer, so it should append the newer.
         d['filename'] = full_testdata_filename(os.path.join('wdat5', '2'))
+        df = Datafile_wdat5(self.base_url, self.cookies, d)
+        df.update_database()
+        self.check(d['filename'])
+
+    def test_dst(self):
+        # Upload and check the "3" directory, which contains a DST switch
+        d = {'filename': full_testdata_filename(os.path.join('wdat5', '3')),
+             'datafile_format': 'irrelevant',
+             'timezone': 'Europe/Athens'}
+        for parm in self.parameters:
+            if parm['ts_id']:
+                d[parm['name'].lower()] = parm['ts_id']
         df = Datafile_wdat5(self.base_url, self.cookies, d)
         df.update_database()
         self.check(d['filename'])
@@ -438,8 +452,12 @@ class TestWdat5(_Test_logger):
 
     def assertAlmostEqual(self, a, b, places=7, msg=None):
         """We redefine assertAlmostEqual so that, e.g. with places=1, 0.55 is
-        considered equal to both 0.5 and 0.6
+        considered equal to both 0.5 and 0.6. Actually 0.548 is also considered
+        equal to 0.6 (we round 0.548 to 0.55, then we consider it equal to 0.6
+        [and 0.5]). This is because WeatherLink sucks when exporting values.
         """
+        a = round(a, places + 1)
+        b = round(b, places + 1)
         tolerance = 10 ** (-places - 3)
         if abs(a - b) <= 0.5 * 10 ** (-places) + tolerance:
             return
