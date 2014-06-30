@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import atexit
+from compileall import compile_file
 from ctypes import CDLL, c_char_p
 import os
 import platform
@@ -16,6 +17,7 @@ except ImportError:
     from urllib2 import urlopen
 from zipfile import ZipFile
 
+import requests
 from setuptools import setup, find_packages
 from pkg_resources import parse_version
 
@@ -135,6 +137,56 @@ try:
 
     # Specify program executable
     kwargs['console'] = ['bin/loggertodb', 'bin/pond', 'bin/fordonia']
+
+    # python-requests' cacert.pem.
+    # First, we need to add cacert.pem to the bundle. That's the easy part.
+    # However, requests.certs looks for cacert.pem in the directory from which
+    # requests.certs has been loaded (i.e.
+    # os.path.dirname(requests.certs.__file__). This is probably wrong; it
+    # should be using pkg_resources to load it. The problem is that py2exe puts
+    # requests in library.zip, so attempting to read stuff from the above
+    # directory won't work.  So, instead, we add cacert.pem to the bundle,
+    # deploy it alongside library.zip, and modify requests/certs.py at bundle
+    # creation time so that, when deployed, it will read certs.py from the
+    # bundle location.
+    cacert_filename = os.path.join(os.path.dirname(requests.__file__),
+                                   'cacert.pem')
+    kwargs['data_files'][0][1].append(cacert_filename)
+    certs_path = os.path.join(
+        os.path.dirname(requests.__file__),
+        'certs.py')  # We can't use requests.certs.__file__; it may be the .pyc
+    try:
+        os.remove(certs_path + '.bak')
+    except:
+        pass
+    os.rename(certs_path, certs_path + '.bak')
+
+    def restore_certs():
+        os.remove(certs_path)
+        os.rename(certs_path + '.bak', certs_path)
+        compile_file(certs_path, force=True)
+
+    atexit.register(restore_certs)
+    with open(certs_path, 'w') as f:
+        f.write(textwrap.dedent("""\
+            import os
+            import sys
+
+            def where():
+                # This is not the function packaged by python-requests, but
+                # a patch made by py2exe setup. If you are looking at the code
+                # bundled by py2exe (unlikely, since it normally doesn't
+                # include the source), this is normal. If, however, you are
+                # looking at the python-requests code installed on the system
+                # where you run py2exe, it is likely that something went wrong
+                # and py2exe failed to revert this file to the original, as it
+                # should have done after creating the bundle. You should delete
+                # and re-install python-requests. See pthelma's setup.py for
+                # more information.
+                return os.path.join(os.path.dirname(sys.executable),
+                                    'cacert.pem')
+            """))
+    compile_file(certs_path, force=True)
 except ImportError:
     pass
 
