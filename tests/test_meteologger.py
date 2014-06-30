@@ -624,6 +624,21 @@ class LoggertodbAppTestCase(TestCase):
         sys.argv = self.saved_argv
         shutil.rmtree(self.tempdir)
 
+    def test_nonexistent_config_file(self):
+        app = LoggertodbApp()
+        sys.argv = ['loggertodb',
+                    os.path.join(self.tempdir, 'nonexistent.conf')]
+        stderr = StringIO()
+        orig_stderr = sys.stderr
+        sys.stderr = stderr
+        try:
+            app.run()
+            self.assertFalse()
+        except SystemExit as e:
+            self.assertTrue('nonexistent.conf' in stderr.getvalue())
+        finally:
+            sys.stderr = orig_stderr
+
     def test_wrong_configuration1(self):
         app = LoggertodbApp()
         with open(self.config_file, 'w') as f:

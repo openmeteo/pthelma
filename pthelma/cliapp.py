@@ -4,6 +4,7 @@ import logging
 import sys
 import traceback
 
+import six
 from six.moves import configparser
 from six.moves.configparser import RawConfigParser, NoOptionError
 
@@ -54,7 +55,9 @@ class CliApp(object):
 
         # Read config
         cp = RawConfigParser()
-        cp.read((self.args.config_file,))
+        if six.PY2:
+            cp.read_file = cp.readfp
+        cp.read_file(open(self.args.config_file))
 
         # Convert config to dictionary (for Python 2.7 compatibility)
         self.config = {}
