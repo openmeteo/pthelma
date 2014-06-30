@@ -2,6 +2,8 @@ from copy import copy
 import os
 import sys
 
+import six
+
 from pthelma.cliapp import CliApp, WrongValueError
 from pthelma.timeseries import TimeStep, Timeseries, IntervalType
 
@@ -117,7 +119,10 @@ class FordoniaApp(CliApp):
                         exc_class.__name__,
                         os.path.join(self.base_dir, item['source_file']),
                         str(e)))
-                raise new_exception.__class__, new_exception, tb
+                if six.PY2:
+                    exec('raise new_exception.__class__, new_exception, tb')
+                else:
+                    raise new_exception.with_traceback(tb)
 
     def execute_item(self, item):
         source_ts = Timeseries()
