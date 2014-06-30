@@ -61,6 +61,31 @@ class LoginTestCase(TestCase):
         self.assertTrue('Logout' in r.text)
 
 
+@skipUnless(os.getenv('PTHELMA_TEST_ENHYDRIS_API_HTTPS'),
+            'set PTHELMA_TEST_ENHYDRIS_API_HTTPS')
+class HttpsLoginTestCase(TestCase):
+
+    def test_login(self):
+        v = json.loads(os.getenv('PTHELMA_TEST_ENHYDRIS_API_HTTPS'))
+        if v['base_url'][:5] != 'https':
+            raise Exception('Set PTHELMA_TEST_ENHYDRIS_API_HTTPS with an '
+                            'https base_url')
+        base_url, user, password = v['base_url'], v['user'], v['password']
+
+        # Verify we are logged out
+        r = requests.get(base_url)
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue('Login' in r.text)
+        self.assertFalse('Logout' in r.text)
+
+        # Now login and verify we're logged on
+        cookies = enhydris_api.login(base_url, user, password)
+        r = requests.get(base_url, cookies=cookies)
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse('Login' in r.text)
+        self.assertTrue('Logout' in r.text)
+
+
 def get_after_blank_line(s):
     r"""
     This helper function returns all content of s that follows the
