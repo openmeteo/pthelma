@@ -114,9 +114,7 @@ kwargs = {
                            'excludes': ['spatial']}},
 }
 
-try:
-    # Py2exe stuff; ignored if not in Windows or if py2exe is not installed
-
+if len(sys.argv) >= 2 and sys.argv[1] == 'py2exe':
     import py2exe
     py2exe  # Does nothing, but lint checkers won't warn about unused py2exe
 
@@ -187,8 +185,6 @@ try:
                                     'cacert.pem')
             """))
     compile_file(certs_path, force=True)
-except ImportError:
-    pass
 
 setup(**kwargs)
 
