@@ -1,5 +1,6 @@
 import os
 import shutil
+from six import StringIO
 from six.moves import configparser
 import sys
 import tempfile
@@ -134,7 +135,7 @@ class FordoniaAppTestCase(TestCase):
         self.assertFalse(os.path.exists(self.output_filenames[1]))
 
         # Execute
-        application.execute()
+        application.run()
 
         # Check that it has created two files
         self.assertTrue(os.path.exists(self.output_filenames[0]))
@@ -168,9 +169,8 @@ class FordoniaAppTestCase(TestCase):
 
         # Execute
         try:
-            application.execute()
+            application.run()
+            self.assertTrue(False)
         except Exception as e:
             # Make sure the file name is included in the message
             self.assertTrue(self.filenames[0] in str(e))
-        else:
-            self.assertTrue(False)

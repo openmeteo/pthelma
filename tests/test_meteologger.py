@@ -633,7 +633,7 @@ class LoggertodbAppTestCase(TestCase):
         sys.stderr = stderr
         try:
             app.run()
-            self.assertFalse()
+            self.assertTrue(False)
         except SystemExit as e:
             self.assertTrue('nonexistent.conf' in stderr.getvalue())
         finally:
