@@ -1,3 +1,9 @@
+0.9.1 (2014-06-16)
+------------------
+
+- Fixed installation bug which made it necessary to install requests
+  before installing pthelma.
+
 0.9.0 (2014-06-16)
 ------------------
 
