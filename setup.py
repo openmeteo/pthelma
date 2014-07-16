@@ -17,7 +17,6 @@ except ImportError:
     from urllib2 import urlopen
 from zipfile import ZipFile
 
-import requests
 from setuptools import setup, find_packages
 from pkg_resources import parse_version
 
@@ -116,6 +115,7 @@ kwargs = {
 
 if len(sys.argv) >= 2 and sys.argv[1] == 'py2exe':
     import py2exe
+    import requests
     py2exe  # Does nothing, but lint checkers won't warn about unused py2exe
 
     # Download and save MSVC++ 2008 redistributable in a temporary directory
