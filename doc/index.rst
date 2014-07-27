@@ -24,6 +24,7 @@ Well-maintained modules:
    cliapp
    enhydris_api
    enhydris_cache
+   evaporation
    meteologger
    spatial
    timeseries
