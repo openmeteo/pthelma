@@ -8,36 +8,84 @@
 .. moduleauthor:: Antonis Christofides <anthony@itia.ntua.gr>
 .. sectionauthor:: Antonis Christofides <anthony@itia.ntua.gr>
 
-.. function:: penman_monteith_hourly(incoming_solar_radiation, albedo, clear_sky_solar_radiation, psychrometric_constant, mean_wind_speed, mean_temperature, mean_actual_vapour_pressure, nighttime_solar_radiation_ratio)
+.. class:: PenmanMonteith(albedo, nighttime_solar_radiation_ratio, elevation, latitude, longitude, step_length, unit_converters={})
 
-   Calculates and returns the reference evapotranspiration according
-   to Allen et al. (1998), equation 53, page 74.
+   Calculates evapotranspiration according to the Penman-Monteith
+   equation. The methodology used is that of Allen et al. (1998).
+   Details can be found in the code, which has comments indicating
+   which equations it uses.
 
-   As explained in Allen et al. (1998, p. 74), the function is
-   modified in relation to the original Penman-Monteith equation, so
-   that it is suitable for hourly data.
+   First the class is initialized with some parameters that are
+   constant for the area of interest; then, the :meth:`calculate`
+   method can be called as many times as necessary in order to
+   calculate reference evapotranspiration given the date and time and
+   the values of the meteorological variables.
 
-   In order to estimate the outgoing radiation, the ratio
-   *incoming_solar_radiation* / *clear_sky_solar_radiation* is used as a
-   representation of cloud cover. This, however, does not work during the
-   night, so whenever *clear_sky_solar_radiation* is zero, the
-   *nighttime_solar_radiation_ratio* is used as a rough approximation of that
-   ratio. It should be a number between 0.4 and 0.8; see Allen et al.  (1998),
-   top of page 75.
+   Evapotranspiration can be calculated either at a point or on a
+   grid, so the input can be either simple scalar values or ``numpy``
+   arrays. The term "scalar or array", when used below, signifies a
+   parameter that can be either. You will normally either use all
+   scalars or all arrays; however, when you generally use arrays, you
+   may also use scalars for some of the parameters if you want the
+   array to have the same value for all gridpoints; for example, you
+   might want to have a single albedo value for all gridpoints.
 
-   The units are as follows:
+   The class is initialized with the following parameters:
 
+   *albedo* is a scalar or array with the albedo (dimensionless).
+
+   In order to estimate the outgoing radiation, the ratio of incoming
+   solar radiation to clear sky solar radiation is used as a
+   representation of cloud cover. This, however, does not work during
+   the night, in which case *nighttime_solar_radiation_ratio* is used
+   as a rough approximation of that ratio. It should be a scalar or
+   array between 0.4 and 0.8; see Allen et al. (1998), top of page 75.
+
+   *elevation* is a scalar or array with the location elevation above
+   sea level in meters.
+
+   *latitude* and *longitude* are scalars or arrays, in decimal
+   degrees north of the equator or east of the prime meridian
+   (negative for west or south).
+
+   *step_length* is a :class:`datetime.timedelta` object with the
+   length of the time step; so, for example, to calculate daily
+   evaporation, *step_length* must be one day. In this version of
+   :class:`PenmanMonteith`, we only support hourly or smaller time
+   steps. The equation used is Allen et al. (1998), equation 53, page
+   74.  As explained there, the function is modified in relation to
+   the original Penman-Monteith equation, so that it is suitable for
+   hourly data.
+
+   The meteorological values that will be supplied after class
+   initialization to the :meth:`calculate` method are supposed to be
+   in the following units:
+   
    ========================  =====================
    Parameter                 Unit
    ========================  =====================
-   solar radiation           MJ/m²/h
-   albedo                    dimensionless
-   psychrometric constant    kPa/℃
-   wind speed                m/s
    temperature               ℃
-   vapour pressure           kPa
-   evapotranspiration        mm/h
+   humidity                  %
+   wind speed                m/s
+   pressure                  kPa
+   solar radiation           MJ/m²/h
    ========================  =====================
+   
+   If they are in different units, *unit_converters* is a dictionary
+   with functions to convert them. For example, if you have pressure 
+   in hPa and solar radiation in W/m², you should specify this::
+
+      unit_converters = {
+          'pressure': lambda x: x / 10.0,
+          'solar_radiation': lambda x: x * 3600 / 1e6,
+      }
+
+   Any variable whose name is not found in *unit_converters* is used
+   as is, without conversion.
+
+   .. method:: calculate(self, temperature, humidity, wind_speed, pressure, solar_radiation, adatetime)
+
+      Calculates and returns the reference evapotranspiration, in mm/h.
 
 
 References
