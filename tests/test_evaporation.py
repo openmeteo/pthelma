@@ -1,6 +1,8 @@
 from datetime import datetime, timedelta, tzinfo
 from unittest import TestCase
 
+import numpy as np
+
 from pthelma.evaporation import PenmanMonteith
 
 
@@ -25,7 +27,7 @@ class PenmanMonteithTest(TestCase):
 
     tzinfo = SenegalTzinfo()
 
-    def test_penman_monteith(self):
+    def test_point(self):
         # Apply Allen et al. (1998) Example 19 page 75.
         pm = PenmanMonteith(albedo=0.23,
                             nighttime_solar_radiation_ratio=0.8,
@@ -51,3 +53,23 @@ class PenmanMonteithTest(TestCase):
                               adatetime=datetime(2014, 10, 1, 2, 30,
                                                  tzinfo=self.tzinfo))
         self.assertAlmostEqual(result, 0.0, places=2)
+
+    def test_grid(self):
+        # We use a 2x1 grid, where point 1, 1 is the same as Example 19, and
+        # point 1, 2 has some different values.
+        pm = PenmanMonteith(albedo=0.23,
+                            nighttime_solar_radiation_ratio=0.8,
+                            elevation=8,
+                            latitude=16.217,
+                            longitude=np.array([-16.25, -15.25]),
+                            step_length=timedelta(hours=1)
+                            )
+        result = pm.calculate(temperature=np.array([38, 28]),
+                              humidity=np.array([52, 42]),
+                              wind_speed=np.array([3.3, 2.3]),
+                              pressure=101.3,
+                              solar_radiation=np.array([2.450, 1.450]),
+                              adatetime=datetime(2014, 10, 1, 15, 0,
+                                                 tzinfo=self.tzinfo))
+        np.testing.assert_almost_equal(result, np.array([0.63, 0.36]),
+                                       decimal=2)

@@ -2,6 +2,8 @@ from datetime import timedelta
 import math
 from math import cos, pi, sin
 
+import numpy as np
+
 
 class PenmanMonteith(object):
     sigma = 2.043e-10  # Modified Stefan-Boltzmann constant (Allen et al.,
@@ -85,7 +87,7 @@ class PenmanMonteith(object):
         phi = self.latitude / 180.0 * pi
         return 12 * 60 / pi * 0.0820 * dr * (
             (omega2 - omega1) * sin(phi) * sin(decl)
-            + cos(phi) * cos(decl) * (sin(omega2) - sin(omega1)))
+            + cos(phi) * cos(decl) * (np.sin(omega2) - np.sin(omega1)))
 
     def get_psychrometric_constant(self, temperature, pressure):
         """
@@ -158,12 +160,12 @@ class PenmanMonteith(object):
         factor2 = 0.34 - 0.14 * (mean_actual_vapour_pressure ** 0.5)
 
         # Solar radiation ratio Rs/Rs0 (Allen et al., 1998, top of p. 75).
-        solar_radiation_ratio = \
-            incoming_solar_radiation / clear_sky_solar_radiation \
-            if clear_sky_solar_radiation > 0.05 \
-            else self.nighttime_solar_radiation_ratio
-        solar_radiation_ratio = max(solar_radiation_ratio, 0.3)
-        solar_radiation_ratio = min(solar_radiation_ratio, 1.0)
+        solar_radiation_ratio = np.where(
+            clear_sky_solar_radiation > 0.05,
+            incoming_solar_radiation / clear_sky_solar_radiation,
+            self.nighttime_solar_radiation_ratio)
+        solar_radiation_ratio = np.maximum(solar_radiation_ratio, 0.3)
+        solar_radiation_ratio = np.minimum(solar_radiation_ratio, 1.0)
 
         factor3 = 1.35 * solar_radiation_ratio - 0.35
 
@@ -175,7 +177,7 @@ class PenmanMonteith(object):
 
     def get_soil_heat_flux_density(self, incoming_solar_radiation, rn):
         "Allen et al. (1998), p. 55, eq. 45 & 46."
-        coefficient = 0.1 if incoming_solar_radiation > 0.05 else 0.5
+        coefficient = np.where(incoming_solar_radiation > 0.05, 0.1, 0.5)
         return coefficient * rn
 
     def get_saturation_vapour_pressure_curve_slope(self, temperature):
