@@ -85,7 +85,9 @@
 
    .. method:: calculate(self, temperature, humidity, wind_speed, pressure, solar_radiation, adatetime)
 
-      Calculates and returns the reference evapotranspiration, in mm/h.
+      Calculates and returns the reference evapotranspiration, in mm/h, for the
+      interval that ends at *adatetime*, which must be a timezone-aware
+      :class:`~datetime.datetime` object.
 
 
 References

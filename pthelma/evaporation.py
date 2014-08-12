@@ -30,15 +30,15 @@ class PenmanMonteith(object):
                                        solar_radiation=solar_radiation)
         gamma = self.get_psychrometric_constant(variables['temperature'],
                                                 variables['pressure'])
-        r_a = self.get_extraterrestrial_radiation(adatetime) * (
+        r_so = self.get_extraterrestrial_radiation(adatetime) * (
             0.75 + 2e-5 * self.elevation)  # Eq. 37, p. 51
         return self.penman_monteith(
-            solar_radiation=variables['solar_radiation'],
-            clear_sky_solar_radiation=r_a,
+            incoming_solar_radiation=variables['solar_radiation'],
+            clear_sky_solar_radiation=r_so,
             psychrometric_constant=gamma,
-            wind_speed=variables['wind_speed'],
-            temperature=variables['temperature'],
-            humidity=variables['humidity'])
+            mean_wind_speed=variables['wind_speed'],
+            mean_temperature=variables['temperature'],
+            mean_relative_humidity=variables['humidity'])
 
     def convert_units(self, **kwargs):
         result = {}
@@ -66,17 +66,18 @@ class PenmanMonteith(object):
         sc = 0.1645 * sin(2 * b) - 0.1255 * cos(b) - 0.025 * sin(b)
 
         # Longitude at the centre of the local time zone
-        utc_offset = adatetime.tzinfo.utcoffset()
-        utc_offset_hours = utc_offset.hours + utc_offset.minutes / 60.0
+        utc_offset = adatetime.utcoffset()
+        utc_offset_hours = utc_offset.days * 24 + utc_offset.seconds / 3600.0
         lz = -utc_offset_hours * 15
 
         # Solar time angle at midpoint of the time period, eq. 31, p. 48.
-        t = adatetime - self.step_length / 2.0
-        omega = pi / 12 * ((t + 0.06667 * (lz - self.longitude) + sc) - 12)
+        tm = adatetime - self.step_length / 2
+        t = tm.hour + tm.minute / 60.0
+        omega = pi / 12 * ((t + 0.06667 * (lz + self.longitude) + sc) - 12)
 
         # Solar time angles at beginning and end of the period, eqs. 29 and 30,
         # p. 48.
-        t1 = self.step_length.hours + self.step_length.minutes / 60.0
+        t1 = self.step_length.seconds / 3600.0
         omega1 = omega - pi * t1 / 24
         omega2 = omega + pi * t1 / 24
 
@@ -97,7 +98,7 @@ class PenmanMonteith(object):
         it, so it isn't a constant.
         """
         lambda_ = 2.501 - (2.361e-3) * temperature  # eq. 3-1, p. 223
-        return 1013e-3 * pressure / 0.622 / lambda_
+        return 1.013e-3 * pressure / 0.622 / lambda_
 
     def penman_monteith(self, incoming_solar_radiation,
                         clear_sky_solar_radiation,
@@ -138,8 +139,8 @@ class PenmanMonteith(object):
 
         # Apply the formula
         numerator_term1 = 0.408 * delta * (rn - g)
-        numerator_term2 = g * 37 / (mean_temperature + 273.16) \
-            * mean_wind_speed * (svp - avp)
+        numerator_term2 = psychrometric_constant * 37 / \
+            (mean_temperature + 273.16) * mean_wind_speed * (svp - avp)
         denominator = delta + psychrometric_constant * (1 +
                                                         0.34 * mean_wind_speed)
 
@@ -148,7 +149,6 @@ class PenmanMonteith(object):
     def get_net_outgoing_radiation(self, mean_temperature,
                                    incoming_solar_radiation,
                                    clear_sky_solar_radiation,
-                                   nighttime_solar_radiation_ratio,
                                    mean_actual_vapour_pressure):
         """
         Allen et al. (1998), p. 52, eq. 39, modified according to end of page
@@ -161,7 +161,7 @@ class PenmanMonteith(object):
         solar_radiation_ratio = \
             incoming_solar_radiation / clear_sky_solar_radiation \
             if clear_sky_solar_radiation > 0.05 \
-            else nighttime_solar_radiation_ratio
+            else self.nighttime_solar_radiation_ratio
         solar_radiation_ratio = max(solar_radiation_ratio, 0.3)
         solar_radiation_ratio = min(solar_radiation_ratio, 1.0)
 
