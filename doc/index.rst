@@ -10,6 +10,7 @@ User documentation
    install
    bitia
    fordonia
+   gerarda
    loggertodb
    pond
 
