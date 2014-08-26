@@ -28,6 +28,16 @@ class FordoniaApp(CliApp):
     def read_configuration(self):
         super(FordoniaApp, self).read_configuration()
 
+        # Make some checks
+        self.check_configuration_missing_allowed()
+        self.check_configuration_target_step()
+        self.check_configuration_offset('nominal_offset')
+        self.check_configuration_offset('actual_offset')
+        for item in self.config:
+            if item == 'General':
+                continue
+            self.check_configuration_item(item)
+
         # Save some stuff to easy to access variables
         genconfig = self.config['General']
         self.base_dir = genconfig['base_dir']
@@ -53,18 +63,6 @@ class FordoniaApp(CliApp):
             item['interval_type'] = IntervalType.__dict__[
                 item['interval_type'].upper()]
             self.aggregation_items.append(item)
-
-    def check_configuration(self):
-        super(FordoniaApp, self).check_configuration()
-
-        self.check_configuration_missing_allowed()
-        self.check_configuration_target_step()
-        self.check_configuration_offset('nominal_offset')
-        self.check_configuration_offset('actual_offset')
-        for item in self.config:
-            if item == 'General':
-                continue
-            self.check_configuration_item(item)
 
     def check_configuration_item(self, item):
         interval_type = self.config[item]['interval_type'].upper()

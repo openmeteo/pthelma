@@ -138,9 +138,6 @@ class BitiaApp(CliApp):
     def read_configuration(self):
         super(BitiaApp, self).read_configuration()
         self.files = self.config['General']['files'].split('\n')
-
-    def check_configuration(self):
-        super(BitiaApp, self).check_configuration()
         self.check_configuration_method()
         self.check_configuration_epsg()
 

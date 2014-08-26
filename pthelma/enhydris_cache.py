@@ -87,18 +87,6 @@ class PondApp(CliApp):
                                        },
                            }
 
-    def check_configuration(self):
-        super(PondApp, self).check_configuration()
-
-        for section in self.config:
-            if section == 'General':
-                continue
-            try:
-                int(self.config[section]['id'])
-            except ValueError as e:
-                raise WrongValueError('"{}" is not a valid integer'.format(
-                    self.config[section]['id']))
-
     def read_configuration(self):
         super(PondApp, self).read_configuration()
 
@@ -109,7 +97,10 @@ class PondApp(CliApp):
                 continue
             item = copy(self.config[section])
             item['name'] = section
-            item['id'] = int(item['id'])
+            try:
+                item['id'] = int(item['id'])
+            except ValueError:
+                raise WrongValueError('"{}" is not a valid integer'.format(item['id']))
             self.timeseries_group.append(item)
 
     def execute(self):

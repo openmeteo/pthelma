@@ -17,8 +17,7 @@
    :attr:`description` properties and the :meth:`execute()` method;
    usually it will also define the :attr:`config_file_options` and
    :attr:`cmdline_arguments` properties, and it may extend the
-   :meth:`read_configuration()` and :meth:`check_configuration()`
-   methods.
+   :meth:`read_configuration()` method.
 
    A minimal example of a command line application is thus this::
 
@@ -65,9 +64,8 @@
               super(MyApp, self).read_configuration()
               self.do_some_more_things_with_the_configuration()
 
-          def check_configuration(self):
-              super(MyApp, self).check_configuration()
-              self.check_more_things()
+          def execute(self):
+              do_something()
 
 
       if __name__ == '__main__':
@@ -117,17 +115,15 @@
 
    .. method:: read_configuration()
 
-      Usually you won't need to override this method; however, if you
-      want to transfer data from :attr:`config` to a data structure
-      that is more convenient, you would do so here, after calling the
-      inherited method.
-
-   .. method:: check_configuration()
-
-      Override this method; call the inherited (which checks for the
+      You should override this method either in order to make
+      additional sanity checks of the configuration or in order to
+      transfer data from :attr:`config` to data structures that are
+      more convenient. First call the inherited method; this will read
+      the configuration into :attr:`config` and check for the
       existence of compulsory options and everything else it can
-      check), then make checks to see if the values of the options
-      specified are appropriate; raise :exc:`WrongValueError` when not.
+      check. Then do anything else you want to do with the
+      configuration. Any exception you raise will be caught, logged,
+      and shown to the user.
 
    .. method:: execute()
 
