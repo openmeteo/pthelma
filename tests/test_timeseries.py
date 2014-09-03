@@ -33,7 +33,7 @@ import zlib
 from six import u, StringIO
 
 from pthelma.timeseries import TimeStep, strip_trailing_zeros, \
-    datetime_from_iso, isoformat_nosecs, Timeseries, IntervalType, \
+    isoformat_nosecs, Timeseries, IntervalType, \
     identify_events, add_months_to_datetime, datestr_diff
 
 
@@ -417,25 +417,6 @@ class _Test_datetime_utilities(TestCase):
     def setUp(self):
         self.d = datetime(1964, 2, 29, 18, 35)
 
-    def test_datetime_from_iso1(self):
-        self.assertEqual(self.d, datetime_from_iso("1964-02-29 18:35"))
-
-    def test_datetime_from_iso2(self):
-        self.assertEqual(self.d, datetime_from_iso("1964-02-29T18:35"))
-
-    def test_datetime_from_iso3(self):
-        self.assertEqual(self.d, datetime_from_iso("1964-02-29t18:35"))
-
-    def test_datetime_from_iso4(self):
-        self.assertRaises(ValueError, datetime_from_iso, "1964")
-
-    def test_datetime_from_iso5(self):
-        self.assertRaises(ValueError, datetime_from_iso, "1965-29-29 18:35")
-
-    def test_date_time_from_iso6(self):
-        self.assertEqual(datetime(1964, 2, 29),
-                         datetime_from_iso("1964-02-29"))
-
     def test_isoformat_nosecs1(self):
         self.assertEqual(isoformat_nosecs(self.d), "1964-02-29T18:35")
 
@@ -531,7 +512,7 @@ class _Test_Timeseries_setitem(TestCase):
 
     def setUp(self):
         self.ts = Timeseries()
-        self.date = datetime_from_iso("1970-05-23 08:00")
+        self.date = datetime(1970, 5, 23, 8, 0)
 
     def test1(self):
         self.ts[self.date] = 8.2
@@ -584,7 +565,7 @@ class _Test_Timeseries_write_nonempty(TestCase):
             """))
 
     def test_with_start1(self):
-        self.ts.write(self.c, start=datetime_from_iso("2005-08-24 19:52"))
+        self.ts.write(self.c, start=datetime(2005, 8, 24, 19, 52))
         self.assertEqual(self.c.getvalue(), textwrap.dedent("""\
             2005-08-24 19:52,108.7,\r
             2005-08-25 23:59,28.3,HEARTS SPADES\r
@@ -593,7 +574,7 @@ class _Test_Timeseries_write_nonempty(TestCase):
             """))
 
     def test_with_start2(self):
-        self.ts.write(self.c, start=datetime_from_iso("2005-08-24 19:51"))
+        self.ts.write(self.c, start=datetime(2005, 8, 24, 19, 51))
         self.assertEqual(self.c.getvalue(), textwrap.dedent("""\
             2005-08-24 19:52,108.7,\r
             2005-08-25 23:59,28.3,HEARTS SPADES\r
@@ -602,7 +583,7 @@ class _Test_Timeseries_write_nonempty(TestCase):
             """))
 
     def test_with_start3(self):
-        self.ts.write(self.c, start=datetime_from_iso("2000-08-24 19:51"))
+        self.ts.write(self.c, start=datetime(2000, 8, 24, 19, 51))
         self.assertEqual(self.c.getvalue(), textwrap.dedent("""\
             2005-08-23 18:53,93,\r
             2005-08-24 19:52,108.7,\r
@@ -612,7 +593,7 @@ class _Test_Timeseries_write_nonempty(TestCase):
             """))
 
     def test_with_end1(self):
-        self.ts.write(self.c, end=datetime_from_iso("2005-08-27 00:02"))
+        self.ts.write(self.c, end=datetime(2005, 8, 27, 0, 2))
         self.assertEqual(self.c.getvalue(), textwrap.dedent("""\
             2005-08-23 18:53,93,\r
             2005-08-24 19:52,108.7,\r
@@ -622,7 +603,7 @@ class _Test_Timeseries_write_nonempty(TestCase):
             """))
 
     def test_with_end2(self):
-        self.ts.write(self.c, end=datetime_from_iso("3005-08-27 00:02"))
+        self.ts.write(self.c, end=datetime(3005, 8, 27, 0, 2))
         self.assertEqual(self.c.getvalue(), textwrap.dedent("""\
             2005-08-23 18:53,93,\r
             2005-08-24 19:52,108.7,\r
@@ -632,7 +613,7 @@ class _Test_Timeseries_write_nonempty(TestCase):
             """))
 
     def test_with_end3(self):
-        self.ts.write(self.c, end=datetime_from_iso("2005-08-26 00:03"))
+        self.ts.write(self.c, end=datetime(2005, 8, 26, 0, 3))
         self.assertEqual(self.c.getvalue(), textwrap.dedent("""\
             2005-08-23 18:53,93,\r
             2005-08-24 19:52,108.7,\r
@@ -641,8 +622,8 @@ class _Test_Timeseries_write_nonempty(TestCase):
             """))
 
     def test_with_start_and_end1(self):
-        self.ts.write(self.c, start=datetime_from_iso("2005-08-24 19:50"),
-                      end=datetime_from_iso("2005-08-26 00:03"))
+        self.ts.write(self.c, start=datetime(2005, 8, 24, 19, 50),
+                      end=datetime(2005, 8, 26, 0, 3))
         self.assertEqual(self.c.getvalue(), textwrap.dedent("""\
             2005-08-24 19:52,108.7,\r
             2005-08-25 23:59,28.3,HEARTS SPADES\r
@@ -650,8 +631,8 @@ class _Test_Timeseries_write_nonempty(TestCase):
             """))
 
     def test_with_start_and_end2(self):
-        self.ts.write(self.c, start=datetime_from_iso("2005-08-24 19:53"),
-                      end=datetime_from_iso("2005-08-24 19:54"))
+        self.ts.write(self.c, start=datetime(2005, 8, 24, 19, 53),
+                      end=datetime(2005, 8, 24, 19, 54))
         self.assertEqual(self.c.getvalue(), "")
 
 

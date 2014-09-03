@@ -3,12 +3,13 @@ from glob import glob
 from math import isnan
 import os
 
+import iso8601
 import numpy as np
 from osgeo import ogr, osr, gdal
 from simpletail import ropen
 
 from pthelma.cliapp import CliApp, WrongValueError
-from pthelma.timeseries import Timeseries, datetime_from_iso, datestr_diff, \
+from pthelma.timeseries import Timeseries, datestr_diff, \
     add_months_to_datetime
 
 
@@ -179,7 +180,8 @@ class BitiaApp(CliApp):
                         break  # Time series has no data
                     datestring = line.split(',')[0]
                     try:
-                        last_date = datetime_from_iso(datestring)
+                        last_date = iso8601.parse_date(datestring,
+                                                       default_timezone=None)
                     except ValueError as e:
                         raise ValueError(e.message + ' (file {}, last line)'
                                          .format(filename))

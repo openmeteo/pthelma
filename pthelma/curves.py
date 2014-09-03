@@ -23,7 +23,9 @@ from math import log, exp
 from datetime import datetime, MINYEAR, MAXYEAR
 import math
 from ConfigParser import ParsingError
-from pthelma.timeseries import Timeseries, datetime_from_iso
+from pthelma.timeseries import Timeseries
+
+import iso8601
 
 class CurvePoint(object):
     def __init__(self, independent, dependent):
@@ -214,9 +216,11 @@ class TransientCurve(InterpolatingCurve):
             elif name=='offset':
                 self.offset=CurvePoint(float(value),0)
             elif name in ('start_date', 'startdate'):
-                self.start_date=datetime_from_iso(value)
+                self.start_date = iso8601.parse_date(value,
+                                                     default_timezone=None)
             elif name in ('end_date', 'enddate'):
-                self.end_date=datetime_from_iso(value)
+                self.end_date = iso8601.parse_date(value,
+                                                   default_timezone=None)
             (name, value) = read_meta_line(fp)
         super(TransientCurve, self).read_fp(fp, columns)
 

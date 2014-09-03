@@ -34,6 +34,7 @@ import six
 from six import u, StringIO
 from six.moves.configparser import ParsingError
 
+import iso8601
 from simpletail import ropen
 
 psycopg2 = None  # Do not import unless needed
@@ -77,21 +78,6 @@ dickinson.ts_write.restype = POINTER(c_char)
 dickinson.ts_get_next.restype = POINTER(T_REC)
 dickinson.ts_get_prev.restype = POINTER(T_REC)
 
-re_compiled = re.compile(r'''^(\d{4})-(\d{1,2})-(\d{1,2})
-                         (?: [ tT] (\d{1,2}):(\d{1,2}) )?''',
-                         re.VERBOSE)
-
-
-def datetime_from_iso(isostring):
-    m = re_compiled.match(isostring)
-    if m is None:
-        raise ValueError('%s is not a valid date and time' % (isostring))
-    args = []
-    for x in m.groups():
-        if not (x is None):
-            args.append(int(x))
-    return datetime(*args)
-
 
 def isoformat_nosecs(adatetime, sep='T'):
     return adatetime.isoformat(sep)[:16]
@@ -119,7 +105,7 @@ if 'long' in [c.__name__ for c in six.integer_types]:
 def _datetime_to_time_t(d):
     """Convert d (a datetime or iso string) to number of seconds since 1970"""
     if not isinstance(d, datetime):
-        d = datetime_from_iso(d)
+        d = iso8601.parse_date(d, default_timezone=None)
     delta = d - _DT_BASE
     return delta.days * _SECONDS_PER_DAY + delta.seconds
 
@@ -204,7 +190,7 @@ def read_timeseries_tail_from_file(filename):
         last_line = get_next_line(fp)
         datestring = last_line.split(',')[0]
         try:
-            return datetime_from_iso(datestring)
+            return iso8601.parse_date(datestring, default_timezone=None)
         except ValueError as e:
             exception = e
 

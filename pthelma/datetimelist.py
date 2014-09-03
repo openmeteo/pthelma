@@ -19,13 +19,15 @@ GNU General Public License for more details.
 """
 
 from datetime import datetime
-from pthelma.timeseries import (datetime_from_iso, isoformat_nosecs,
-    _DT_BASE, _datetime_to_time_t, _time_t_to_datetime,)
-
 from ctypes import CDLL, c_int, c_longlong,  c_char_p, byref, \
                    c_void_p
-
 import platform
+
+import iso8601
+
+from pthelma.timeseries import (isoformat_nosecs,
+    _DT_BASE, _datetime_to_time_t, _time_t_to_datetime,)
+
 dickinson = CDLL('dickinson.dll' if platform.system()=='Windows'
                                                     else 'libdickinson.so')
 
@@ -53,8 +55,8 @@ class DatetimeList(list):
         self.dl_handle.value=0
 
     def append(self, x):
-        d = datetime_from_iso(x) if (isinstance(x, unicode) or \
-                                     isinstance(x, str)) else x
+        d = iso8601.parse_date(x, default_timezone=None) \
+            if (isinstance(x, unicode) or isinstance(x, str)) else x
         if not isinstance(d, datetime):
             raise ValueError('Only date time items or ISO date strings '
                              'allowed for date time lists') 
@@ -135,8 +137,8 @@ class DatetimeList(list):
             i-=1
 
     def index(self, x):
-        d = datetime_from_iso(x) if (isinstance(x, unicode) or \
-                                     isinstance(x, str)) else x
+        d = iso8601.parse_date(x, default_timezone=None) \
+            if (isinstance(x, unicode) or isinstance(x, str)) else x
         if not isinstance(d, datetime):
             raise ValueError('Only date time items or ISO date strings '
                              'allowed for date time lists') 

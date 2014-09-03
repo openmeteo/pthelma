@@ -43,14 +43,6 @@ Helper functions
    as ``%Y[-%m[-%d[ %H:%M]]]``. A ``T`` or ``t`` can be used instead
    of a space as a time separator.
 
-.. function:: datetime_from_iso(isostring)
-
-   Return a :class:`datetime` object created from a string in ISO 8601
-   format.  In the current implementation it only converts strings of
-   the form YYYY-MM-DD, optionally followed by THH:mm, where T is a
-   literal T. Instead of T, a lower case t or a space can also be
-   used.
-
 .. function:: isoformat_nosecs(adatetime[, sep])
 
    Same as adatetime.isoformat, but without seconds.

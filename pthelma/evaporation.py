@@ -394,7 +394,8 @@ class GerardaApp(CliApp):
             # Close file
             fp = None
 
-        input_data['adatetime'] = iso8601.parse_date(timestamp)
+        input_data['adatetime'] = iso8601.parse_date(timestamp,
+                                                     default_timezone=None)
         result = self.penman_monteith.calculate(**input_data)
 
         # Create destination data source

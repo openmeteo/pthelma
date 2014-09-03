@@ -28,12 +28,13 @@ import traceback
 
 from six import StringIO
 
+import iso8601
 from pytz import timezone
 from simpletail import ropen
 
 from pthelma import enhydris_api
 from pthelma.cliapp import CliApp
-from pthelma.timeseries import add_months_to_datetime, datetime_from_iso, \
+from pthelma.timeseries import add_months_to_datetime, \
     isoformat_nosecs, Timeseries
 
 
@@ -242,7 +243,7 @@ class Datafile_deltacom(Datafile):
 
     def extract_date(self, line):
         try:
-            return datetime_from_iso(line)
+            return iso8601.parse_date(line.split()[0], default_timezone=None)
         except ValueError:
             self.raise_error(line, 'parse error or invalid date')
 
@@ -298,7 +299,7 @@ class Datafile_CR1000(Datafile):
     def extract_date(self, line):
         try:
             datestr = line.split(',')[0].strip('"')
-            return datetime_from_iso(datestr[:16])
+            return iso8601.parse_date(datestr[:16], default_timezone=None)
         except StandardError:
             self.raise_error(line, 'parse error or invalid date')
 
@@ -331,7 +332,8 @@ class Datafile_simple(Datafile):
                 result = datetime.strptime(datestr, self.date_format).replace(
                     second=0)
             else:
-                result = datetime_from_iso(datestr[:16])
+                result = iso8601.parse_date(datestr[:16],
+                                            default_timezone=None)
             return result
         except ValueError as e:
             self.raise_error(line.strip(), "invalid date '{0}': {1}".format(

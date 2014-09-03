@@ -1,9 +1,8 @@
 from datetime import datetime
 from six import StringIO
 
+import iso8601
 import requests
-
-from pthelma.timeseries import datetime_from_iso
 
 
 def urljoin(*args):
@@ -102,5 +101,5 @@ def get_ts_end_date(base_url, session_cookies, ts_id):
         if not line:
             continue
         datestring = line.split(',')[0]
-        return datetime_from_iso(datestring)
+        return iso8601.parse_date(datestring, default_timezone=None)
     return datetime(1, 1, 1)
