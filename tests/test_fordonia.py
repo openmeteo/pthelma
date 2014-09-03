@@ -1,3 +1,4 @@
+from copy import copy
 import os
 import shutil
 from six import StringIO
@@ -26,7 +27,7 @@ class FordoniaAppTestCase(TestCase):
     def setUp(self):
         self.tempdir = tempfile.mkdtemp()
         self.config_file = os.path.join(self.tempdir, 'fordonia.conf')
-        self.saved_argv = sys.argv
+        self.saved_argv = copy(sys.argv)
         sys.argv = ['fordonia', '--traceback', self.config_file]
         self.savedcwd = os.getcwd()
 
@@ -88,7 +89,7 @@ class FordoniaAppTestCase(TestCase):
     def tearDown(self):
         os.chdir(self.savedcwd)
         shutil.rmtree(self.tempdir)
-        sys.argv = self.saved_argv
+        sys.argv = copy(self.saved_argv)
 
     def test_correct_configuration(self):
         application = FordoniaApp()
