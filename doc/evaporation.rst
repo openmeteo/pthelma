@@ -89,6 +89,14 @@
       interval that ends at *adatetime*, which must be a timezone-aware
       :class:`~datetime.datetime` object.
 
+.. class:: GerardaApp
+
+   This class contains the :doc:`gerarda` command-line application. The
+   :file:`gerarda` executable does little other than this::
+
+      application = GerardaApp()
+      application.run()
+
 
 References
 ----------
