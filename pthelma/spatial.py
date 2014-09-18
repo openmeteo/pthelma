@@ -216,7 +216,7 @@ class BitiaApp(CliApp):
         """
         minutes, months = self.time_step
         if minutes and (minutes < 1440):
-            return '%Y-%m-%d %H:%M'
+            return '%Y-%m-%d %H:%M%z'
         if minutes and (minutes >= 1440):
             return '%Y-%m-%d'
         if months and (months < 12):

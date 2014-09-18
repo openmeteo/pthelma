@@ -362,14 +362,14 @@ class BitiaAppTestCase(TestCase):
             f.write('Time_step=10,0\n\n')
         with open(application.files[1], 'w') as f:
             f.write('Time_step=10,0\n\n')
-        self.assertEquals(application.date_fmt, '%Y-%m-%d %H:%M')
+        self.assertEquals(application.date_fmt, '%Y-%m-%d %H:%M%z')
 
         # Hourly
         with open(application.files[0], 'w') as f:
             f.write('Time_step=60,0\n\n')
         with open(application.files[1], 'w') as f:
             f.write('Time_step=60,0\n\n')
-        self.assertEquals(application.date_fmt, '%Y-%m-%d %H:%M')
+        self.assertEquals(application.date_fmt, '%Y-%m-%d %H:%M%z')
 
         # Daily
         with open(application.files[0], 'w') as f:

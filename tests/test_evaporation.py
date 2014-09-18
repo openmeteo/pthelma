@@ -135,6 +135,15 @@ class GerardaAppTestCase(TestCase):
         self.setup_input_file('pressure', np.array([[1013, 1013]]))
         self.setup_input_file('solar_radiation', np.array([[681, 403]]))
 
+        # Also prepare input files without time zone, to test an error
+        # condition.
+        self.timestamp = datetime(2014, 10, 1, 15, 0).isoformat()
+        self.setup_input_file('temperature-notz', np.array([[38, 28]]))
+        self.setup_input_file('humidity-notz', np.array([[52, 42]]))
+        self.setup_input_file('wind_speed-notz', np.array([[3.3, 2.3]]))
+        self.setup_input_file('pressure-notz', np.array([[1013, 1013]]))
+        self.setup_input_file('solar_radiation-notz', np.array([[681, 403]]))
+
         # Prepare a configuration file (some tests override it)
         with open(self.config_file, 'w') as f:
             f.write(textwrap.dedent('''\
@@ -218,6 +227,28 @@ class GerardaAppTestCase(TestCase):
         self.assertRaisesRegex(configparser.Error,
                                'nighttime_solar_radiation_ratio',
                                application.run)
+
+    def test_execute_notz(self):
+        # Use input files without time zone in TIMESTAMP
+        with open(self.config_file) as f:
+            config = f.read()
+        config = config.replace('-0001', '-notz-0001')
+        with open(self.config_file, 'w') as f:
+            f.write(config)
+
+        application = GerardaApp()
+        application.read_command_line()
+        application.read_configuration()
+
+        # Verify the output file doesn't exist yet
+        result_filename = os.path.join(self.tempdir, 'evaporation-0001.tif')
+        self.assertFalse(os.path.exists(result_filename))
+
+        # Execute
+        self.assertRaisesRegex(Exception, 'time zone', application.run)
+
+        # Verify the output file still doesn't exist
+        self.assertFalse(os.path.exists(result_filename))
 
     def test_execute(self):
         application = GerardaApp()

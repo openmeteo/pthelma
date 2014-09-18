@@ -396,6 +396,10 @@ class GerardaApp(CliApp):
 
         input_data['adatetime'] = iso8601.parse_date(timestamp,
                                                      default_timezone=None)
+        if input_data['adatetime'].tzinfo is None:
+            raise Exception('The TIMESTAMP in the input files does not '
+                            'have a time zone specified.')
+
         result = self.penman_monteith.calculate(**input_data)
 
         # Create destination data source
