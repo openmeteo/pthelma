@@ -1,3 +1,12 @@
+0.10.0 (2014-09)
+----------------
+
+- Added "evaporation" module, which calculates evaporation, and
+  related "gerarda" command line application.
+- Improvement in API of cliapp.
+- Abolished timeseries.datetime_from_iso in favour of "iso8601"
+  module.
+
 0.9.1 (2014-06-16)
 ------------------
 
