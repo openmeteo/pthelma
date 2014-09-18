@@ -515,19 +515,11 @@ format should always use CR-LF to end lines, but code that reads text
 format should be able to also read lines that end in LF only, as well
 as CR-CR-LF (for reasons explained in :meth:`Timeseries.write`).
 
-In order to improve performance in file writes, the maximum length
-of each time series record line is limited by a number of 255
-characters. With a fix date string of 16 characters, three commas,
-a value string with a mean size of 10 characters, this is leaving
-about 220 characters per line for flags. Assuming a mean size
-of 10 characters for each flags, this leaves space for 20 flags
-per record which is more than sufficient. An attempt to write more
-than 255 characters, raise an exception and stops every file write.
+In order to improve performance in file writes, the maximum length of
+each time series record line is limited to 255 characters. 
 
-Flags should be encoded in ASCI (7 bit) character set. In case of
-characters with code>127, the string will have errors in encodings
-and probably this will stop some file operations. Client software
-should prevent the writing of non ASCI characters for flags.
+Flags should be encoded in ASCII; there must be no characters with
+code greater than 127.
 
 .. _fileformat:
 
