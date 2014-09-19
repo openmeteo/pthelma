@@ -35,6 +35,7 @@ from six import u, StringIO
 from six.moves.configparser import ParsingError
 
 import iso8601
+import pytz
 from simpletail import ropen
 
 psycopg2 = None  # Do not import unless needed
@@ -97,16 +98,22 @@ def add_months_to_datetime(adatetime, months):
 
 
 _DT_BASE = datetime(1970, 1, 1, 0, 0)
+_DT_BASE_AWARE = datetime(1970, 1, 1, 0, 0, tzinfo=pytz.utc)
 _SECONDS_PER_DAY = 86400
 if 'long' in [c.__name__ for c in six.integer_types]:
     _SECONDS_PER_DAY = long(_SECONDS_PER_DAY)
+
+
+def is_aware(d):
+    return (d.tzinfo is not None) and (d.tzinfo.utcoffset(d) is not None)
 
 
 def _datetime_to_time_t(d):
     """Convert d (a datetime or iso string) to number of seconds since 1970"""
     if not isinstance(d, datetime):
         d = iso8601.parse_date(d, default_timezone=None)
-    delta = d - _DT_BASE
+    dt_base = _DT_BASE_AWARE if is_aware(d) else _DT_BASE
+    delta = d - dt_base
     return delta.days * _SECONDS_PER_DAY + delta.seconds
 
 

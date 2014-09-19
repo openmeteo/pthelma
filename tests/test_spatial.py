@@ -18,6 +18,8 @@ else:
     skip_osgeo = True
     skip_osgeo_message = 'Not available on Windows'
 
+from pthelma.spatial import TzinfoFromString
+
 
 def add_point_to_layer(layer, x, y, value):
     p = ogr.Geometry(ogr.wkbPoint)
@@ -227,7 +229,7 @@ class HIntegrateTestCase(TestCase):
                     stations_layer=self.stations_layer,
                     date=datetime(2014, 4, 22, 13, 0),
                     output_filename=os.path.join(self.tempdir, 'test.tif'),
-                    date_fmt='%Y-%m-%d %H:%M', funct=idw, kwargs={})
+                    date_fmt='%Y-%m-%d %H:%M%z', funct=idw, kwargs={})
         f = gdal.Open(os.path.join(self.tempdir, 'test.tif'))
         result = f.GetRasterBand(1).ReadAsArray()
         expected_result = np.array([[1.5088, 1.6064, np.nan, 1.7237],
@@ -262,10 +264,12 @@ class BitiaAppTestCase(TestCase):
                           for x in ('ts1', 'ts2')]
         with open(self.filenames[0], 'w') as f:
             f.write("Location=23.78743 37.97385 4326\n"
+                    "Timezone=+0200\n"
                     "Time_step=60,0\n"
                     "\n")
         with open(self.filenames[1], 'w') as f:
             f.write("Location=24.56789 38.76543 4326\n"
+                    "Timezone=EET (+0200)\n"
                     "Time_step=60,0\n"
                     "\n")
 
@@ -350,7 +354,9 @@ class BitiaAppTestCase(TestCase):
                 2014-04-30 13:00,20.4,
                 2014-04-30 14:00,21.4,
                 '''))
-        self.assertEquals(application.last_date, datetime(2014, 4, 30, 14, 0))
+        tz = TzinfoFromString('+0200')
+        self.assertEquals(application.last_date,
+                          datetime(2014, 4, 30, 14, 0, tzinfo=tz))
 
     def test_date_fmt(self):
         application = BitiaApp()
@@ -475,8 +481,16 @@ class BitiaAppTestCase(TestCase):
 
         # Create a mask
         mask_filename = os.path.join(self.tempdir, 'mask.tif')
-        gdal.GetDriverByName('GTiff').Create(mask_filename, 640, 480, 1,
-                                             gdal.GDT_Float32)
+        mask = gdal.GetDriverByName('GTiff').Create(mask_filename, 640, 480, 1,
+                                                    gdal.GDT_Float32)
+        mask.SetGeoTransform((23, 0.01, 0, 39, 0, -0.01))
+        mask.SetProjection(
+            'GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,'
+            '298.257223563,AUTHORITY["EPSG","7030"]],AUTHORITY["EPSG","6326"'
+            ']],PRIMEM["Greenwich",0,AUTHORITY["EPSG","8901"]],UNIT["degree",'
+            '0.01745329251994328,AUTHORITY["EPSG","9122"]],AUTHORITY["EPSG",'
+            '"4326"]]')
+        mask = None
 
         # Execute
         application.config['General']['files_to_produce'] = 3
@@ -489,6 +503,12 @@ class BitiaAppTestCase(TestCase):
         self.assertTrue(os.path.exists(full_prefix + '-0000.tif'))
         self.assertTrue(os.path.exists(full_prefix + '-0001.tif'))
         self.assertTrue(os.path.exists(full_prefix + '-0002.tif'))
+
+        # Check the timestamp in the first file
+        fp = gdal.Open(full_prefix + '-0000.tif')
+        timestamp = fp.GetMetadata()['TIMESTAMP']
+        fp = None
+        self.assertEqual(timestamp, '2014-04-30 15:00+0200')
 
         # We could check a myriad other things here, but since we've
         # unit-tested lower level functions in detail, the above is reasonably
