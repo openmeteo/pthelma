@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import timedelta, tzinfo
 from glob import glob
 from math import isnan
 import os
@@ -121,6 +121,42 @@ def h_integrate(mask, stations_layer, date, output_filename, date_fmt,
         output = None
 
 
+class TzinfoFromString(tzinfo):
+    """Create a tzinfo object from a string formatted as "+0000" or as
+       "XXX (+0000)".
+    """
+
+    def __init__(self, string):
+        if not string:
+            self.offset = None
+            return
+
+        # If string contains brackets, only take the part inside the brackets
+        i = string.find('(')
+        s = string[i + 1:]
+        i = s.find(')')
+        i = len(s) if i < 0 else i
+        s = s[:i]
+
+        # s should be in +0000 format
+        try:
+            if len(s) != 5:
+                raise ValueError()
+            sign = {'+': 1, '-': -1}[s[0]]
+            hours = int(s[1:3])
+            minutes = int(s[3:5])
+        except (ValueError, IndexError):
+            raise ValueError('Time zone {} is invalid'.format(string))
+
+        self.offset = sign * timedelta(hours=hours, minutes=minutes)
+
+    def utcoffset(self, dt):
+        return self.offset
+
+    def dst(self, dt):
+        return timedelta(0)
+
+
 class BitiaApp(CliApp):
     name = 'bitia'
     description = 'Perform spatial integration'
@@ -174,20 +210,30 @@ class BitiaApp(CliApp):
             last_date = None
             if not os.path.exists(filename):
                 continue
+            # Get the time zone
+            with open(filename) as fp:
+                for line in fp:
+                    if line.startswith('Timezone') or (
+                            line and line[0] in '0123456789'):
+                        break
+            zonestr = line.partition('=')[2].strip() \
+                if line.startswith('Timezone') else ''
+            timezone = TzinfoFromString(zonestr)
             with ropen(filename) as fp:
                 for line in fp:
                     if not line.strip():
                         break  # Time series has no data
                     datestring = line.split(',')[0]
                     try:
-                        last_date = iso8601.parse_date(datestring,
-                                                       default_timezone=None)
+                        last_date = iso8601.parse_date(
+                            datestring, default_timezone=timezone)
                     except ValueError as e:
                         raise ValueError(e.message + ' (file {}, last line)'
                                          .format(filename))
                     break  # We only want to do this for the last line
-            if last_date and ((not result) or (last_date > result)):
-                result = last_date
+            result = last_date \
+                if last_date and ((not result) or (last_date > result)) \
+                else result
         return result
 
     @property

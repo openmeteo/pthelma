@@ -43,6 +43,11 @@ Helper functions
    as ``%Y[-%m[-%d[ %H:%M]]]``. A ``T`` or ``t`` can be used instead
    of a space as a time separator.
 
+.. function:: datetime_from_iso(isostring)
+
+   **Deprecated** (will be removed in pthelma 1.0). This function does
+   the same as ``iso8601.parse_date()``; use that one instead.
+
 .. function:: isoformat_nosecs(adatetime[, sep])
 
    Same as adatetime.isoformat, but without seconds.
