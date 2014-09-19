@@ -80,6 +80,10 @@ dickinson.ts_get_next.restype = POINTER(T_REC)
 dickinson.ts_get_prev.restype = POINTER(T_REC)
 
 
+def datetime_from_iso(isostring):
+    return iso8601.parse_date(isostring, default_timezone=None)
+
+
 def isoformat_nosecs(adatetime, sep='T'):
     return adatetime.isoformat(sep)[:16]
 
