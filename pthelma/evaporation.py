@@ -271,7 +271,7 @@ class GerardaApp(CliApp):
         s = self.config['General']['albedo']
         self.albedo = self.get_number_or_grid(s)
         if self.albedo < 0.0 or self.albedo > 1.0:
-            raise WrongValueError('The elevation must be between 0.0 and 1.0')
+            raise WrongValueError('The albedo must be between 0.0 and 1.0')
 
     def read_configuration_nighttime_solar_radiation_ratio(self):
         s = self.config['General']['nighttime_solar_radiation_ratio']
