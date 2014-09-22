@@ -40,6 +40,7 @@ class FordoniaAppTestCase(TestCase):
                     "Time_step=10,0\n"
                     "Nominal_offset=0,0\n"
                     "Actual_offset=0,0\n"
+                    "Timezone=EET (UTC+0200)\n"
                     "\n"
                     "2014-06-16 14:50,14.1,\n"
                     "2014-06-16 15:00,15.0,\n"
@@ -146,11 +147,13 @@ class FordoniaAppTestCase(TestCase):
         t = Timeseries()
         with open(self.output_filenames[0]) as f:
             t.read_file(f)
+        self.assertEqual(t.timezone, 'EET (UTC+0200)')
         self.assertEqual(len(t), 1)
         self.assertAlmostEqual(t['2014-06-16 16:00'], 114.9, places=5)
         t = Timeseries()
         with open(self.output_filenames[1]) as f:
             t.read_file(f)
+        self.assertEqual(t.timezone, '')
         self.assertEqual(len(t), 1)
         self.assertAlmostEqual(t['2014-06-17 16:00'], 50.8167, places=5)
 

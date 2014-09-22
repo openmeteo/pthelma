@@ -1106,6 +1106,7 @@ class Timeseries(dict):
             return (aggregate_value, flag), missing, explicit_components
 
         result = Timeseries(time_step=target_step)
+        result.timezone = self.timezone
         missing = Timeseries(time_step=target_step)
         bounding_dates = self.bounding_dates()
         if not bounding_dates:
