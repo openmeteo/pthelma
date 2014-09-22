@@ -123,7 +123,7 @@ def h_integrate(mask, stations_layer, date, output_filename, date_fmt,
 
 class TzinfoFromString(tzinfo):
     """Create a tzinfo object from a string formatted as "+0000" or as
-       "XXX (+0000)".
+       "XXX (+0000)" or as "XXX (UTC+0000)".
     """
 
     def __init__(self, string):
@@ -137,6 +137,9 @@ class TzinfoFromString(tzinfo):
         i = s.find(')')
         i = len(s) if i < 0 else i
         s = s[:i]
+
+        # Remove any preceeding 'UTC' (as in "UTC+0200")
+        s = s[3:] if s.startswith('UTC') else s
 
         # s should be in +0000 format
         try:

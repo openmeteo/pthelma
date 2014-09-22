@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import shutil
 from six.moves import configparser
@@ -236,6 +236,33 @@ class HIntegrateTestCase(TestCase):
                                     [1.3828, 1.6671, 1.7336, 1.7662],
                                     [0.5400, 2.4000, 1.7954, 1.7504]])
         np.testing.assert_almost_equal(result, expected_result, decimal=4)
+
+
+class TzinfoFromStringTestCase(TestCase):
+
+    def test_simple(self):
+        atzinfo = TzinfoFromString('+0130')
+        self.assertEqual(atzinfo.offset, timedelta(hours=1, minutes=30))
+
+    def test_brackets(self):
+        atzinfo = TzinfoFromString('DUMMY (+0240)')
+        self.assertEqual(atzinfo.offset, timedelta(hours=2, minutes=40))
+
+    def test_brackets_with_utc(self):
+        atzinfo = TzinfoFromString('DUMMY (UTC+0350)')
+        self.assertEqual(atzinfo.offset, timedelta(hours=3, minutes=50))
+
+    def test_negative(self):
+        atzinfo = TzinfoFromString('DUMMY (UTC-0420)')
+        self.assertEqual(atzinfo.offset, -timedelta(hours=4, minutes=20))
+
+    def test_zero(self):
+        atzinfo = TzinfoFromString('DUMMY (UTC-0000)')
+        self.assertEqual(atzinfo.offset, timedelta(hours=0, minutes=0))
+
+    def test_wrong_input(self):
+        for s in ('DUMMY (GMT+0350)', '0150', '+01500'):
+            self.assertRaises(ValueError, TzinfoFromString, s)
 
 
 @skipIf(skip_osgeo, skip_osgeo_message)
