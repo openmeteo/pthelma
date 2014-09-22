@@ -9,6 +9,7 @@
   version 1.0.
 - Fordonia and bitia now store the time zone in their output files (if
   it has been specified in their input).
+- Experimental Mac OS X support.
 
 0.9.1 (2014-06-16)
 ------------------
