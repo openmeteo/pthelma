@@ -7,6 +7,8 @@
 - timeseries.datetime_from_iso() is now deprecated; use the "iso8601"
   module instead. timeseries.datetime_from_iso() will be removed in
   version 1.0.
+- Fordonia and bitia now store the time zone in their output files (if
+  it has been specified in their input).
 
 0.9.1 (2014-06-16)
 ------------------
