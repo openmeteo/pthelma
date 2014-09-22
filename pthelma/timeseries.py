@@ -63,9 +63,10 @@ class T_TIMESERIESLIST(Structure):
                ("n", c_int)]
 
 import platform
-dickinson = CDLL('dickinson.dll'
-                 if platform.system() == 'Windows'
-                 else 'libdickinson.so')
+dickinson = CDLL(
+    (platform.system() == 'Windows' and 'dickinson.dll') or
+    (platform.system().startswith('Darwin') and 'libdickinson.dylib') or
+    'libdickinson.so')
 
 dickinson.ts_get_item.restype = T_REC
 dickinson.ts_create.restype = c_void_p
