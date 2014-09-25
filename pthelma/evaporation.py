@@ -200,7 +200,6 @@ class GerardaApp(CliApp):
                                        'step_length':     None,
                                        'elevation':       None,
                                        'albedo':          None, 
-                                       # 0.23 , or  [np.array_ao1,..., np.array_a12] / directory
                                        'nighttime_solar_radiation_ratio': None,
                                        'unit_converter_temperature':      'x',
                                        'unit_converter_humidity':         'x',
@@ -269,7 +268,7 @@ class GerardaApp(CliApp):
                                   'and 8848')
 
     def read_configuration_albedo(self):
-        from ipdb;ipdb.set_trace()
+        # from ipdb;ipdb.set_trace()
         albedo_config = self.config['General']['albedo']
         try:
             if len(albedo_config) <= 1:
