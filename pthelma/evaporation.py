@@ -276,14 +276,13 @@ class GerardaApp(CliApp):
             else:
                 try:
                     months = " ".join(str(x) for x in range(1,13)).split()
-                    for month_index,albedo in zip(months,albedo_config:
-                        self.albedo = {month_index : self.get_number_or_grid(albedo)}
+                    self.albedo = { month_index:albedo for month_index,albedo in zip(months,albedo_config)}
                 except ValueError:
                     print "Got an empty albedo list or Got more albedo.tiff than 12 months!!"
 
             if self.albedo < 0.0 or self.albedo > 1.0:
                 raise WrongValueError('The albedo must be between 0.0 and 1.0')
-        else:
+        except:
             raise ConfigError("albedo parameter is not config")
 
 
