@@ -268,7 +268,6 @@ class GerardaApp(CliApp):
                                   'and 8848')
 
     def read_configuration_albedo(self):
-        from ipdb;ipdb.set_trace()
         # inputs : self.config['General']['albedo'] =  albedo_config
         #          albedo_config = '0.23'
         #                        = 'a.geotiff'
@@ -279,17 +278,16 @@ class GerardaApp(CliApp):
         #         config.albedo parameter  is valid for Gerarda use
         ##########################################################################
         s = self.config['General']['albedo'].split()
+        #import ipdb;ipdb.set_trace()
         if len(s) <=1:
-            self.albedo = self.get_number_or_grid(s)
+            s = ''.join(s)
+            self.albedo = self.get_number_or_grid(''.join(s))
             if self.albedo < 0.0 or self.albedo > 1.0:
                 raise WrongValueError('The albedo must be between 0.0 and 1.0')
         else:
-            for item in s:
-                self.albedo = self.get_number_or_grid(s)
-                if self.albedo < 0.0 or self.albedo > 1.0:
-                    raise WrongValueError('The albedo must be between 0.0 and 1.0')
-
-
+            self.albedo = [self.get_number_or_grid(s) for item in s]
+            if self.albedo < 0.0 or self.albedo > 1.0:
+                raise WrongValueError('The albedo must be between 0.0 and 1.0')
 
     def read_configuration_nighttime_solar_radiation_ratio(self):
         s = self.config['General']['nighttime_solar_radiation_ratio']
