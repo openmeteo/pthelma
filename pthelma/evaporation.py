@@ -268,29 +268,28 @@ class GerardaApp(CliApp):
                                   'and 8848')
 
     def read_configuration_albedo(self):
-        # from ipdb;ipdb.set_trace()
-        albedo_config = self.config['General']['albedo']
-        try:
-            if len(albedo_config) <= 1:
-                self.albedo = self.get_number_or_grid(albedo_config)
-            else:
-                try:
-                    months = " ".join(str(x) for x in range(1,13)).split()
-                    self.albedo = { month_index:albedo for month_index,albedo in zip(months,albedo_config)}
-                except ValueError:
-                    print "Got an empty albedo list or Got more albedo.tiff than 12 months!!"
-
+        from ipdb;ipdb.set_trace()
+        # inputs : self.config['General']['albedo'] =  albedo_config
+        #          albedo_config = '0.23'
+        #                        = 'a.geotiff'
+        #                        = 'a01.geotiff  a02.geotiff ... a12.geotiff'
+        #                        = '0.23 0.34 ... 0.74'
+        #                        = '0.23 a02.geotiff ... 0.74' 
+        # output:
+        #         config.albedo parameter  is valid for Gerarda use
+        ##########################################################################
+        s = self.config['General']['albedo'].split()
+        if len(s) <=1:
+            self.albedo = self.get_number_or_grid(s)
             if self.albedo < 0.0 or self.albedo > 1.0:
                 raise WrongValueError('The albedo must be between 0.0 and 1.0')
-        except:
-            raise ConfigError("albedo parameter is not config")
+        else:
+            for item in s:
+                self.albedo = self.get_number_or_grid(s)
+                if self.albedo < 0.0 or self.albedo > 1.0:
+                    raise WrongValueError('The albedo must be between 0.0 and 1.0')
 
 
-
-        self.albedo = self.get_number_or_grid(s)
-
-        if self.albedo < 0.0 or self.albedo > 1.0:
-            raise WrongValueError('The albedo must be between 0.0 and 1.0')
 
     def read_configuration_nighttime_solar_radiation_ratio(self):
         s = self.config['General']['nighttime_solar_radiation_ratio']
