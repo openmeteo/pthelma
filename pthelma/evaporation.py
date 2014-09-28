@@ -269,26 +269,29 @@ class GerardaApp(CliApp):
 
     def read_configuration_albedo(self):
         # inputs : self.config['General']['albedo'] =  albedo_config
-        #          albedo_config = '0.23'
-        #                        = 'a.geotiff'
-        #                        = 'a01.geotiff  a02.geotiff ... a12.geotiff'
-        #                        = '0.23 0.34 ... 0.74'
-        #                        = '0.23 a02.geotiff ... 0.74' 
+        #          albedo_config = 0.23
+        #                        = a.geotiff
+        #                        = a01.geotiff  a02.geotiff ... a12.geotiff'
+        #                        = 0.23 0.34 ... 0.74'
+        #                        = 0.23 a02.geotiff ... 0.74
         # output:
         #         config.albedo parameter  is valid for Gerarda use
         ##########################################################################
         s = self.config['General']['albedo'].split()
-        #import ipdb;ipdb.set_trace()
-        if len(s) <=1:
+        if len(s) <= 1:
+            #import ipdb;ipdb.set_trace()
             s = ''.join(s)
-            self.albedo = self.get_number_or_grid(''.join(s))
+            self.albedo = self.get_number_or_grid(s)
             if self.albedo < 0.0 or self.albedo > 1.0:
-                raise WrongValueError('The albedo must be between 0.0 and 1.0')
+                raise ValueError('The albedo must be between 0.0 and 1.0')
         else:
-            self.albedo = [self.get_number_or_grid(s) for item in s]
-            if self.albedo < 0.0 or self.albedo > 1.0:
-                raise WrongValueError('The albedo must be between 0.0 and 1.0')
-
+            if len(s) != 12:
+                raise ValueError("You must enter 12 albedo input values for seasonal albedo")
+            for input_albedo in s:
+                check_albedo = self.get_number_or_grid(input_albedo)
+                if check_albedo  < 0.0 or check_albedo > 1.0:
+                    raise ValueError('The albedo must be between 0.0 and 1.0')
+            
     def read_configuration_nighttime_solar_radiation_ratio(self):
         s = self.config['General']['nighttime_solar_radiation_ratio']
         a = self.get_number_or_grid(s)
