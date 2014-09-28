@@ -12,6 +12,7 @@ import numpy as np
 from osgeo import gdal, osr
 
 from pthelma.evaporation import GerardaApp, PenmanMonteith
+#from pthelma.evaporation import get_number_or_grid
 
 class SenegalTzinfo(tzinfo):
     """
