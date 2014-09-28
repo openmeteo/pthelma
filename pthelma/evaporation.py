@@ -268,12 +268,11 @@ class GerardaApp(CliApp):
                                   'and 8848')
 
     def read_configuration_albedo(self):
-        # inputs : self.config['General']['albedo'] =  albedo_config
-        #          albedo_config = 0.23
-        #                        = a.geotiff
-        #                        = a01.geotiff  a02.geotiff ... a12.geotiff'
-        #                        = 0.23 0.34 ... 0.74'
-        #                        = 0.23 a02.geotiff ... 0.74
+        # inputs : self.config['General']['albedo'] = 0.23                                                  
+        #                                           = a.geotiff
+        #                                           = a01.geotiff  a02.geotiff ... a12.geotiff
+        #                                           = 0.23 0.34 ... 0.74
+        #                                           = 0.23 a02.geotiff ... 0.74
         # output:
         #         config.albedo parameter  is valid for Gerarda use
         ##########################################################################
