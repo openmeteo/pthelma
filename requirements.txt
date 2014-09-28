@@ -1,0 +1,9 @@
+GDAL==1.9.1
+iso8601==0.1.10
+numpy==1.6.2
+pthelma==0.10a7
+pytz==2014.7
+requests==2.4.1
+simpletail==0.1.2
+six==1.8.0
+wsgiref==0.1.2
