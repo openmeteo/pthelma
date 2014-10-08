@@ -146,11 +146,11 @@ General parameters
    time steps or smaller.
 
 .. confval:: elevation
-             albedo
-             nighttime_solar_radiation_ratio
 
-   :confval:`elevation` is meters of the location above sea level.
-   :confval:`albedo` is the albedo (a number between 0 and 1).
+   Meters of the location above sea level; this can be either a number
+   or a GeoTIFF file with a digital elevation model.
+
+.. confval:: nighttime_solar_radiation_ratio
 
    In order to estimate the outgoing radiation, the ratio of incoming
    solar radiation to clear sky solar radiation is used as a
@@ -158,9 +158,27 @@ General parameters
    the night, in which case :confval:`nighttime_solar_radiation_ratio`
    is used as a rough approximation of that ratio. It should be a
    number between 0.4 and 0.8; see Allen et al. (1998), top of page
-   75.
+   75. It can be a number or a GeoTIFF file.
 
-   These three parameters can either be numbers or GeoTIFF files.
+.. confval:: albedo
+
+   A number between 0 and 1 or a GeoTIFF file with such numbers. It
+   can also be a list of twelve space-separated numbers and/or GeoTIFF
+   files, where the first is for January, the second for February, and
+   so on. For example::
+
+      albedo = albedo-jan.tif albedo-feb.tif albedo-mar.tif albedo-apr.tif
+               albedo-may.tif albedo-jun.tif albedo-jul.tif albedo-aug.tif
+               albedo-sep.tif 0.23           albedo-nov.tif albedo-dec.tif
+
+   Note that in the configuration file long lines can be wrapped by
+   indenting the additional lines. Also note that GeoTIFF files can be
+   mixed with numbers; in the above example, GeoTIFF files are
+   specified for all months except for October, which has a single
+   value of 0.23.
+
+   If a single number or GeoTIFF file is specified, it is used for all
+   the year.
 
 .. confval:: unit_converter
 

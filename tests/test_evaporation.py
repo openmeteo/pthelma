@@ -100,8 +100,10 @@ class PenmanMonteithTestCase(TestCase):
                               solar_radiation=2.450,
                               adatetime=datetime(2014, 10, 1, 15, 0,
                                                  tzinfo=senegal_tzinfo))
-        # Python 3 compatibility for Rounding behavior
-        # http://python3porting.com/differences.html
+        # The following two lines could be written more simply like this:
+        #     self.assertAlmostEqual(result, 0.63, places=2)
+        # However, it does not work properly on Python 3 because of a numpy
+        # issue.
         self.assertEqual(result.size, 1)
         self.assertAlmostEqual(result[0], 0.63, places=2)
 

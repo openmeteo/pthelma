@@ -32,14 +32,11 @@
 
    The class is initialized with the following parameters:
 
-   *albedo* (dimensionless) can be uniformly or seasonal distributed 
-   parameter; uniformly as a single scalar or array with albedo values,
-   seasonal as a monthly series of scalar or array albedo values.
-   
-   For example::
-
-      albedo = scalar or array (uniform)
-      albedo = scalar1 or array1 ... scalar12 or array12 (seasonal)
+   *albedo* is either a scalar or array, or a sequence of 12 scalars
+   or arrays. If it is a sequence, the first item is the albedo in
+   January, the second is for February, and so on. If it is a single
+   scalar or array, it is used for the entire year. The albedo is a
+   number between 0 and 1.
 
    In order to estimate the outgoing radiation, the ratio of incoming
    solar radiation to clear sky solar radiation is used as a

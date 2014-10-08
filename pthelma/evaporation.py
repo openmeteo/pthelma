@@ -47,7 +47,7 @@ class PenmanMonteith(object):
             mean_temperature=variables['temperature'],
             mean_relative_humidity=variables['humidity'],
             adatetime=adatetime
-            )
+        )
 
     def convert_units(self, **kwargs):
         result = {}
@@ -273,34 +273,21 @@ class GerardaApp(CliApp):
                                   'and 8848')
 
     def check_albedo_domain(self, albedo):
-        if isinstance(albedo, float):
-            if albedo < 0.0 or albedo > 1.0:
-                raise ValueError("""Albedo parameter must be
-                                    between 0.0 and 1.0""")
-        else:
-            # Check array.all()
-            if albedo.all() < 0.0 or albedo.all() > 1.0:
-                raise ValueError("""Albedo parameter must be
-                                     between 0.0 and 1.0""")
-        return albedo
+        value_to_test = albedo if isinstance(albedo, float) else albedo.all()
+        if value_to_test < 0.0 or value_to_test > 1.0:
+            raise ValueError('Albedo must be between 0.0 and 1.0')
 
     def read_configuration_albedo(self):
         s = self.config['General']['albedo'].split()
         if len(s) not in (1, 12):
-            raise ValueError("""Check albedo input parameter specifications docs,
-                                http://pthelma.readthedocs.org
-                                evaporation - Calculation of evaporation
-                                and transpiration""")
+            raise ValueError('Albedo must be either one item or 12 '
+                             'space-separated items')
         self.albedo = [self.get_number_or_grid(item)
                        for item in s]
+        for albedo in self.albedo:
+            self.check_albedo_domain(albedo)
         if len(s) == 1:
             self.albedo = self.albedo[0]
-            if self.albedo < 0 or self.albedo > 1.0:
-                raise ValueError("""Albedo parameter must be
-                                     between 0.0 and 1.0""")
-        else:
-            for albedo in self.albedo:
-                self.albedo = self.check_albedo_domain(albedo)
 
     def read_configuration_nighttime_solar_radiation_ratio(self):
         s = self.config['General']['nighttime_solar_radiation_ratio']
