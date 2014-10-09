@@ -45,7 +45,9 @@ class PenmanMonteith(object):
             psychrometric_constant=gamma,
             mean_wind_speed=variables['wind_speed'],
             mean_temperature=variables['temperature'],
-            mean_relative_humidity=variables['humidity'])
+            mean_relative_humidity=variables['humidity'],
+            adatetime=adatetime
+            )
 
     def convert_units(self, **kwargs):
         result = {}
@@ -111,7 +113,7 @@ class PenmanMonteith(object):
                         clear_sky_solar_radiation,
                         psychrometric_constant,
                         mean_wind_speed, mean_temperature,
-                        mean_relative_humidity):
+                        mean_relative_humidity, adatetime):
         """
         Calculates and returns the reference evapotranspiration according
         to Allen et al. (1998), eq. 53, p. 74.
@@ -126,7 +128,10 @@ class PenmanMonteith(object):
         avp = svp * mean_relative_humidity / 100.0  # Eq. 54, p. 74
 
         # Net incoming radiation; p. 51, eq. 38
-        rns = (1.0 - self.albedo) * incoming_solar_radiation
+        albedo = self.albedo[adatetime.month - 1] \
+            if self.albedo.__class__.__name__ in ('tuple', 'list') \
+            else self.albedo
+        rns = (1.0 - albedo) * incoming_solar_radiation
 
         # Net outgoing radiation
         rnl = self.get_net_outgoing_radiation(mean_temperature,
@@ -267,11 +272,35 @@ class GerardaApp(CliApp):
             raise WrongValueError('The elevation must be between -427 '
                                   'and 8848')
 
+    def check_albedo_domain(self, albedo):
+        if isinstance(albedo, float):
+            if albedo < 0.0 or albedo > 1.0:
+                raise ValueError("""Albedo parameter must be
+                                    between 0.0 and 1.0""")
+        else:
+            # Check array.all()
+            if albedo.all() < 0.0 or albedo.all() > 1.0:
+                raise ValueError("""Albedo parameter must be
+                                     between 0.0 and 1.0""")
+        return albedo
+
     def read_configuration_albedo(self):
-        s = self.config['General']['albedo']
-        self.albedo = self.get_number_or_grid(s)
-        if self.albedo < 0.0 or self.albedo > 1.0:
-            raise WrongValueError('The albedo must be between 0.0 and 1.0')
+        s = self.config['General']['albedo'].split()
+        if len(s) not in (1, 12):
+            raise ValueError("""Check albedo input parameter specifications docs,
+                                http://pthelma.readthedocs.org
+                                evaporation - Calculation of evaporation
+                                and transpiration""")
+        self.albedo = [self.get_number_or_grid(item)
+                       for item in s]
+        if len(s) == 1:
+            self.albedo = self.albedo[0]
+            if self.albedo < 0 or self.albedo > 1.0:
+                raise ValueError("""Albedo parameter must be
+                                     between 0.0 and 1.0""")
+        else:
+            for albedo in self.albedo:
+                self.albedo = self.check_albedo_domain(albedo)
 
     def read_configuration_nighttime_solar_radiation_ratio(self):
         s = self.config['General']['nighttime_solar_radiation_ratio']

@@ -32,7 +32,14 @@
 
    The class is initialized with the following parameters:
 
-   *albedo* is a scalar or array with the albedo (dimensionless).
+   *albedo* (dimensionless) can be uniformly or seasonal distributed 
+   parameter; uniformly as a single scalar or array with albedo values,
+   seasonal as a monthly series of scalar or array albedo values.
+   
+   For example::
+
+      albedo = scalar or array (uniform)
+      albedo = scalar1 or array1 ... scalar12 or array12 (seasonal)
 
    In order to estimate the outgoing radiation, the ratio of incoming
    solar radiation to clear sky solar radiation is used as a
