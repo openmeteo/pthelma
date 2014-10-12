@@ -184,13 +184,15 @@ class GerardaAppTestCase(TestCase):
         Saves value, which is an np array, to a GeoTIFF file whose name is
         based on variable.
         """
-        filename = os.path.join(self.tempdir, variable + '-0001.tif')
+        filename = os.path.join(self.tempdir, variable + '-' +
+                                self.timestamp.strftime('%Y-%m-%d-%H-%M%z') +
+                                '.tif')
         f = gdal.GetDriverByName('GTiff').Create(
             filename, 2, 1, 1, gdal.GDT_Float32)
         if not f:
             raise IOError('An error occured when trying to open ' + filename)
         try:
-            f.SetMetadataItem('TIMESTAMP', self.timestamp)
+            f.SetMetadataItem('TIMESTAMP', self.timestamp.isoformat())
             f.SetGeoTransform(self.geo_transform)
             f.SetProjection(self.wgs84.ExportToWkt())
             f.GetRasterBand(1).WriteArray(value)
@@ -209,7 +211,6 @@ class GerardaAppTestCase(TestCase):
         if not f:
             raise IOError('An error occured when trying to open ' + filename)
         try:
-            f.SetMetadataItem('TIMESTAMP', self.timestamp)
             f.SetGeoTransform(self.geo_transform)
             f.SetProjection(self.wgs84.ExportToWkt())
             f.GetRasterBand(1).WriteArray(value)
@@ -225,30 +226,12 @@ class GerardaAppTestCase(TestCase):
         self.savedcwd = os.getcwd()
 
         # Prepare data common to all input files
-        self.timestamp = datetime(2014, 10, 1, 15, 0, tzinfo=senegal_tzinfo
-                                  ).isoformat()
         self.geo_transform = (-16.25, 1.0, 0, 16.217, 0, 1.0)
         self.wgs84 = osr.SpatialReference()
         self.wgs84.ImportFromEPSG(4326)
 
         # Prepare sample albedo grid
         self.setup_sample_albedo_grid(np.array([[0.23, 0.44]]))
-
-        # Prepare input files
-        self.setup_input_file('temperature', np.array([[38, 28]]))
-        self.setup_input_file('humidity', np.array([[52, 42]]))
-        self.setup_input_file('wind_speed', np.array([[3.3, 2.3]]))
-        self.setup_input_file('pressure', np.array([[1013, 1013]]))
-        self.setup_input_file('solar_radiation', np.array([[681, 403]]))
-
-        # Also prepare input files without time zone, to test an error
-        # condition.
-        self.timestamp = datetime(2014, 10, 1, 15, 0).isoformat()
-        self.setup_input_file('temperature-notz', np.array([[38, 28]]))
-        self.setup_input_file('humidity-notz', np.array([[52, 42]]))
-        self.setup_input_file('wind_speed-notz', np.array([[3.3, 2.3]]))
-        self.setup_input_file('pressure-notz', np.array([[1013, 1013]]))
-        self.setup_input_file('solar_radiation-notz', np.array([[681, 403]]))
 
     def tearDown(self):
         os.chdir(self.savedcwd)
@@ -258,7 +241,6 @@ class GerardaAppTestCase(TestCase):
     def test_correct_configuration(self):
         with open(self.config_file, 'w') as f:
             f.write(textwrap.dedent('''\
-                [General]
                 base_dir = {self.tempdir}
                 albedo = 0.23
                 nighttime_solar_radiation_ratio = 0.8
@@ -266,14 +248,6 @@ class GerardaAppTestCase(TestCase):
                 step_length = 60
                 unit_converter_pressure = x / 10.0
                 unit_converter_solar_radiation = x * 3600 / 1e6
-
-                [Last]
-                temperature = temperature-0001.tif
-                humidity = humidity-0001.tif
-                wind_speed = wind_speed-0001.tif
-                pressure = pressure-0001.tif
-                solar_radiation = solar_radiation-0001.tif
-                result = evaporation-0001.tif
                 ''').format(self=self))
         application = GerardaApp()
         application.run(dry=True)
@@ -282,7 +256,6 @@ class GerardaAppTestCase(TestCase):
         # Missing step_length
         with open(self.config_file, 'w') as f:
             f.write(textwrap.dedent('''\
-                [General]
                 base_dir = {self.tempdir}
                 albedo = 0.23
                 nighttime_solar_radiation_ratio = 0.8
@@ -295,7 +268,6 @@ class GerardaAppTestCase(TestCase):
         # Missing albedo
         with open(self.config_file, 'w') as f:
             f.write(textwrap.dedent('''\
-                [General]
                 base_dir = {self.tempdir}
                 nighttime_solar_radiation_ratio = 0.8
                 elevation = 8
@@ -308,7 +280,6 @@ class GerardaAppTestCase(TestCase):
         # Missing elevation
         with open(self.config_file, 'w') as f:
             f.write(textwrap.dedent('''\
-                [General]
                 base_dir = {self.tempdir}
                 albedo = 0.23
                 nighttime_solar_radiation_ratio = 0.8
@@ -321,7 +292,6 @@ class GerardaAppTestCase(TestCase):
         # Missing nighttime_solar_radiation_ratio
         with open(self.config_file, 'w') as f:
             f.write(textwrap.dedent('''\
-                [General]
                 base_dir = {self.tempdir}
                 albedo = 0.23
                 elevation = 8
@@ -333,9 +303,16 @@ class GerardaAppTestCase(TestCase):
                                application.run)
 
     def test_execute_notz(self):
+        # Prepare input files without time zone
+        self.timestamp = datetime(2014, 10, 1, 15, 0)
+        self.setup_input_file('temperature-notz', np.array([[38, 28]]))
+        self.setup_input_file('humidity-notz', np.array([[52, 42]]))
+        self.setup_input_file('wind_speed-notz', np.array([[3.3, 2.3]]))
+        self.setup_input_file('pressure-notz', np.array([[1013, 1013]]))
+        self.setup_input_file('solar_radiation-notz', np.array([[681, 403]]))
+
         with open(self.config_file, 'w') as f:
             f.write(textwrap.dedent('''\
-                [General]
                 base_dir = {self.tempdir}
                 albedo = 0.23
                 nighttime_solar_radiation_ratio = 0.8
@@ -343,28 +320,21 @@ class GerardaAppTestCase(TestCase):
                 step_length = 60
                 unit_converter_pressure = x / 10.0
                 unit_converter_solar_radiation = x * 3600 / 1e6
-
-                [Last]
-                temperature = temperature-0001.tif
-                humidity = humidity-0001.tif
-                wind_speed = wind_speed-0001.tif
-                pressure = pressure-0001.tif
-                solar_radiation = solar_radiation-0001.tif
-                result = evaporation-0001.tif
+                temperature_prefix = temperature-notz
+                humidity_prefix = humidity-notz
+                wind_speed_prefix = wind_speed-notz
+                solar_radiation_prefix = solar_radiation-notz
+                pressure_prefix = pressure-notz
                 ''').format(self=self))
-        # Use input files without time zone in TIMESTAMP
-        with open(self.config_file) as f:
-            config = f.read()
-        config = config.replace('-0001', '-notz-0001')
-        with open(self.config_file, 'w') as f:
-            f.write(config)
 
         application = GerardaApp()
         application.read_command_line()
         application.read_configuration()
 
         # Verify the output file doesn't exist yet
-        result_filename = os.path.join(self.tempdir, 'evaporation-0001.tif')
+        result_filename = os.path.join(
+            self.tempdir, 'evaporation-{}.tif'.format(
+                self.timestamp.strftime('%Y-%m-%d-%H-%M%z')))
         self.assertFalse(os.path.exists(result_filename))
 
         # Execute
@@ -374,9 +344,22 @@ class GerardaAppTestCase(TestCase):
         self.assertFalse(os.path.exists(result_filename))
 
     def test_execute(self):
+        # Prepare input files
+        self.timestamp = datetime(2014, 10, 1, 15, 0, tzinfo=senegal_tzinfo)
+        self.setup_input_file('temperature', np.array([[38, 28]]))
+        self.setup_input_file('humidity', np.array([[52, 42]]))
+        self.setup_input_file('wind_speed', np.array([[3.3, 2.3]]))
+        self.setup_input_file('pressure', np.array([[1013, 1013]]))
+        self.setup_input_file('solar_radiation', np.array([[681, 403]]))
+
+        # Also setup an output file that has no corresponding input files
+        rogue_output_file = os.path.join(
+            self.tempdir, 'evaporation-2013-01-01-15-00-0100.tif')
+        with open(rogue_output_file, 'w') as f:
+            f.write('irrelevant contents')
+
         with open(self.config_file, 'w') as f:
             f.write(textwrap.dedent('''\
-                [General]
                 base_dir = {self.tempdir}
                 albedo = 0.23
                 nighttime_solar_radiation_ratio = 0.8
@@ -384,28 +367,28 @@ class GerardaAppTestCase(TestCase):
                 step_length = 60
                 unit_converter_pressure = x / 10.0
                 unit_converter_solar_radiation = x * 3600 / 1e6
-
-                [Last]
-                temperature = temperature-0001.tif
-                humidity = humidity-0001.tif
-                wind_speed = wind_speed-0001.tif
-                pressure = pressure-0001.tif
-                solar_radiation = solar_radiation-0001.tif
-                result = evaporation-0001.tif
                 ''').format(self=self))
         application = GerardaApp()
         application.read_command_line()
         application.read_configuration()
 
         # Verify the output file doesn't exist yet
-        result_filename = os.path.join(self.tempdir, 'evaporation-0001.tif')
+        result_filename = os.path.join(
+            self.tempdir, 'evaporation-{}.tif'.format(
+                self.timestamp.strftime('%Y-%m-%d-%H-%M%z')))
         self.assertFalse(os.path.exists(result_filename))
+
+        # Verify the rogue output file is still here
+        self.assertTrue(os.path.exists(rogue_output_file))
 
         # Execute
         application.run()
 
         # Check that it has created a file
         self.assertTrue(os.path.exists(result_filename))
+
+        # Check that the rogue output file is gone
+        self.assertFalse(os.path.exists(rogue_output_file))
 
         # Check that the created file is correct
         fp = gdal.Open(result_filename)
@@ -428,20 +411,11 @@ class GerardaAppTestCase(TestCase):
     def test_albedo_configuration_as_one_number(self):
         with open(self.config_file, 'w') as f:
             f.write(textwrap.dedent('''\
-                [General]
                 base_dir = {self.tempdir}
                 step_length = 60
                 albedo = 0.23
                 nighttime_solar_radiation_ratio = 0.8
                 elevation = 8
-
-                [Last]
-                temperature = temperature-0001.tif
-                humidity = humidity-0001.tif
-                wind_speed = wind_speed-0001.tif
-                pressure = pressure-0001.tif
-                solar_radiation = solar_radiation-0001.tif
-                result = evaporation-0001.tif
                 ''').format(self=self))
         application = GerardaApp()
         application.run(dry=True)
@@ -449,20 +423,11 @@ class GerardaAppTestCase(TestCase):
     def test_albedo_configuration_as_one_grid(self):
         with open(self.config_file, 'w') as f:
             f.write(textwrap.dedent('''\
-                [General]
                 base_dir = {self.tempdir}
                 step_length = 60
                 albedo = a0.tif
                 nighttime_solar_radiation_ratio = 0.8
                 elevation = 8
-
-                [Last]
-                temperature = temperature-0001.tif
-                humidity = humidity-0001.tif
-                wind_speed = wind_speed-0001.tif
-                pressure = pressure-0001.tif
-                solar_radiation = solar_radiation-0001.tif
-                result = evaporation-0001.tif
                 ''').format(self=self))
         application = GerardaApp()
         self.assertRaises(IOError, application.run, self)
@@ -470,20 +435,11 @@ class GerardaAppTestCase(TestCase):
     def test_single_albedo_with_wrong_domain_float_inputs(self):
         with open(self.config_file, 'w') as f:
             f.write(textwrap.dedent('''\
-                [General]
                 base_dir = {self.tempdir}
                 step_length = 60
                 albedo = 2
                 nighttime_solar_radiation_ratio = 0.8
                 elevation = 8
-
-                [Last]
-                temperature = temperature-0001.tif
-                humidity = humidity-0001.tif
-                wind_speed = wind_speed-0001.tif
-                pressure = pressure-0001.tif
-                solar_radiation = solar_radiation-0001.tif
-                result = evaporation-0001.tif
                 ''').format(self=self))
         application = GerardaApp()
         self.assertRaises(ValueError, application.run, self)
@@ -491,21 +447,12 @@ class GerardaAppTestCase(TestCase):
     def test_seasonal_albedo_configuration_as_12_numbers(self):
         with open(self.config_file, 'w') as f:
             f.write(textwrap.dedent('''\
-                [General]
                 base_dir = {self.tempdir}
                 step_length = 60
                 albedo = 0.10 0.23 0.34 0.24 0.45 0.46
                          0.34 0.12 0.14 0.78 0.78 0.12
                 nighttime_solar_radiation_ratio = 0.8
                 elevation = 8
-
-                [Last]
-                temperature = temperature-0001.tif
-                humidity = humidity-0001.tif
-                wind_speed = wind_speed-0001.tif
-                pressure = pressure-0001.tif
-                solar_radiation = solar_radiation-0001.tif
-                result = evaporation-0001.tif
                 ''').format(self=self))
         application = GerardaApp()
         application.run(dry=True)
@@ -513,21 +460,12 @@ class GerardaAppTestCase(TestCase):
     def test_seasonal_albedo_configuration_as_12_grids(self):
         with open(self.config_file, 'w') as f:
             f.write(textwrap.dedent('''\
-                [General]
                 base_dir = {self.tempdir}
                 step_length = 60
                 albedo = a01.tif a02.tif a03.tif a04.tif a05.tif a06.tif
                          a07.tif a08.tif a09.tif a10.tif a11.tif a12.tif
                 nighttime_solar_radiation_ratio = 0.8
                 elevation = 8
-
-                [Last]
-                temperature = temperature-0001.tif
-                humidity = humidity-0001.tif
-                wind_speed = wind_speed-0001.tif
-                pressure = pressure-0001.tif
-                solar_radiation = solar_radiation-0001.tif
-                result = evaporation-0001.tif
                 ''').format(self=self))
         application = GerardaApp()
         self.assertRaises(IOError, application.run, self)
@@ -535,21 +473,12 @@ class GerardaAppTestCase(TestCase):
     def test_seasonal_albedo_configuration_as_mix_numbers_and_grids(self):
         with open(self.config_file, 'w') as f:
             f.write(textwrap.dedent('''\
-                [General]
                 base_dir = {self.tempdir}
                 step_length = 60
                 albedo = 0.23 a02.tif a03.tif a04.tif a05.tif a06.tif
                          a07.tif a08.tif a09.tiff a10.tif a11.tif a12.tif
                 nighttime_solar_radiation_ratio = 0.8
                 elevation = 8
-
-                [Last]
-                temperature = temperature-0001.tif
-                humidity = humidity-0001.tif
-                wind_speed = wind_speed-0001.tif
-                pressure = pressure-0001.tif
-                solar_radiation = solar_radiation-0001.tif
-                result = evaporation-0001.tif
                 ''').format(self=self))
         application = GerardaApp()
         self.assertRaises(IOError, application.run, self)
@@ -557,20 +486,11 @@ class GerardaAppTestCase(TestCase):
     def test_seasonal_albedo_configuration_with_not_enough_arguments(self):
         with open(self.config_file, 'w') as f:
             f.write(textwrap.dedent('''\
-                [General]
                 base_dir = {self.tempdir}
                 step_length = 60
                 albedo = a01.tiff a02.tiff a11.tiff a12.tiff
                 nighttime_solar_radiation_ratio = 0.8
                 elevation = 8
-
-                [Last]
-                temperature = temperature-0001.tif
-                humidity = humidity-0001.tif
-                wind_speed = wind_speed-0001.tif
-                pressure = pressure-0001.tif
-                solar_radiation = solar_radiation-0001.tif
-                result = evaporation-0001.tif
                 ''').format(self=self))
         application = GerardaApp()
         self.assertRaises(ValueError, application.run, self)
@@ -578,21 +498,12 @@ class GerardaAppTestCase(TestCase):
     def test_seasonal_albedo_with_wrong_domain_mixin_inputs(self):
         with open(self.config_file, 'w') as f:
             f.write(textwrap.dedent('''\
-                [General]
                 base_dir = {self.tempdir}
                 step_length = 60
                 albedo = 1 2 0.34 0.24 0.45 0.4
                         0.34 0.12 a00.tif 0.78 0.78 2
                 nighttime_solar_radiation_ratio = 0.8
                 elevation = 8
-
-                [Last]
-                temperature = temperature-0001.tif
-                humidity = humidity-0001.tif
-                wind_speed = wind_speed-0001.tif
-                pressure = pressure-0001.tif
-                solar_radiation = solar_radiation-0001.tif
-                result = evaporation-0001.tif
                 ''').format(self=self))
         application = GerardaApp()
         self.assertRaises(ValueError, application.run, self)
@@ -600,68 +511,41 @@ class GerardaAppTestCase(TestCase):
     def test_run_app_seasonal_albedo_with_float_sample_inputs(self):
         with open(self.config_file, 'w') as f:
             f.write(textwrap.dedent('''\
-                [General]
                 base_dir = {self.tempdir}
                 step_length = 60
                 albedo = 0.10 0.23 0.34 0.24 0.45 0.46
                          0.34 0.12 0.14 0.78 0.78 0.12
                 nighttime_solar_radiation_ratio = 0.8
                 elevation = 8
-
-                [Last]
-                temperature = temperature-0001.tif
-                humidity = humidity-0001.tif
-                wind_speed = wind_speed-0001.tif
-                pressure = pressure-0001.tif
-                solar_radiation = solar_radiation-0001.tif
-                result = evaporation-0001.tif
                 ''').format(self=self))
 
         application = GerardaApp()
-        application.run()
+        application.run(dry=True)
 
     def test_run_app_with_seasonal_albedo_with_grid_sample_inputs(self):
         with open(self.config_file, 'w') as f:
             f.write(textwrap.dedent('''\
-                [General]
                 base_dir = {self.tempdir}
                 step_length = 60
                 albedo = a00.tif a00.tif a00.tif a00.tif a00.tif a00.tif
                          a00.tif a00.tif a00.tif a00.tif a00.tif a00.tif
                 nighttime_solar_radiation_ratio = 0.8
                 elevation = 8
-
-                [Last]
-                temperature = temperature-0001.tif
-                humidity = humidity-0001.tif
-                wind_speed = wind_speed-0001.tif
-                pressure = pressure-0001.tif
-                solar_radiation = solar_radiation-0001.tif
-                result = evaporation-0001.tif
                 ''').format(self=self))
 
         application = GerardaApp()
-        application.run()
+        application.run(dry=True)
 
     def test_run_app_with_seasonal_albedo_with_mix_sample_inputs(self):
         with open(self.config_file, 'w') as f:
             f.write(textwrap.dedent('''\
-                [General]
                 base_dir = {self.tempdir}
                 step_length = 60
                 albedo = a00.tif 0.23 a00.tif a00.tif a00.tif a00.tif
                          a00.tif a00.tif 0.23 a00.tif 0.23 a00.tif
                 nighttime_solar_radiation_ratio = 0.8
                 elevation = 8
-
-                [Last]
-                temperature = temperature-0001.tif
-                humidity = humidity-0001.tif
-                wind_speed = wind_speed-0001.tif
-                pressure = pressure-0001.tif
-                solar_radiation = solar_radiation-0001.tif
-                result = evaporation-0001.tif
                 ''').format(self=self))
 
         application = GerardaApp()
-        application.run()
+        application.run(dry=True)

@@ -5,8 +5,10 @@ import sys
 import traceback
 
 import six
+from six import StringIO
 from six.moves import configparser
-from six.moves.configparser import RawConfigParser, NoOptionError
+from six.moves.configparser import RawConfigParser, NoOptionError, \
+    MissingSectionHeaderError
 
 
 class InvalidOptionError(configparser.Error):
@@ -55,9 +57,13 @@ class CliApp(object):
 
         # Read config
         cp = RawConfigParser()
-        if six.PY2:
-            cp.read_file = cp.readfp
-        cp.read_file(open(self.args.config_file))
+        cp.read_file = cp.readfp if six.PY2 else cp.read_file
+        try:
+            cp.read_file(open(self.args.config_file))
+        except MissingSectionHeaderError:
+            # No section headers? Assume the [General] section is implied.
+            configuration = '[General]\n' + open(self.args.config_file).read()
+            cp.read_file(StringIO(configuration))
 
         # Convert config to dictionary (for Python 2.7 compatibility)
         self.config = {}

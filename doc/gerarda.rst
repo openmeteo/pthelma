@@ -68,7 +68,6 @@ explanatory comments that follow it:
 
 .. code-block:: ini
 
-   [General]
    loglevel = INFO
    logfile = C:\Somewhere\gerarda.log
    base_dir = C:\Somewhere
@@ -79,22 +78,6 @@ explanatory comments that follow it:
    unit_converter_pressure = x / 10.0
    unit_converter_solar_radiation = x * 3600 / 1e6
 
-   [Last]
-   temperature = temperature-0001.tif
-   humidity = humidity-0001.tif
-   wind_speed = wind_speed-0001.tif
-   pressure = pressure-0001.tif
-   solar_radiation = solar_radiation-0001.tif
-   result = evaporation-0001.tif
-
-   [Last-but-one]
-   temperature = temperature-0002.tif
-   humidity = humidity-0002.tif
-   wind_speed = wind_speed-0002.tif
-   pressure = pressure-0002.tif
-   solar_radiation = solar_radiation-0002.tif
-   result = evaporation-0002.tif
-
 With the above configuration file, ``gerarda`` will log information in
 the file specified by :confval:`logfile`. It will calculate hourly
 evaporation (:confval:`step_length`) at the specified
@@ -104,23 +87,26 @@ be GeoTIFF files instead of numbers). For some variables, the input
 files are in different units than the default ones (hPa instead of kPa
 for pressure, W/m² instead of MJ/m²/h for solar radiation) and need to
 be converted (:confval:`unit_converter`). The calculation is performed
-twice, for two distinct sets of files that are in :confval:`base_dir`.
-The output is written to a GeoTIFF file specified with
-:confval:`result`.
-The calculation is performed only if that file does
-not already exist, or if at least one of the input files has a later
-modification time.
+once for each one of the sets of files that are in
+:confval:`base_dir`; for example, if inside `base_dir` there are files
+`temperature-2014-10-12-18-00+0200.tif`,
+`humidity-2014-10-12-18-00+0200.tif`, and so on (including variables
+named `wind_speed`, `pressure`, and `solar_radiation`), there will be
+a resulting file `evaporation-2014-10-12-18-00+0200.tif`; if there are
+files for other dates, there will be a result for them as well.  The
+calculation is performed only if the resulting file does not already
+exist, or if at least one of the input files has a later modification
+time.  If there are any `evaporation-....tif` files without
+corresponding input files, they will be deleted.
 
 CONFIGURATION FILE REFERENCE
 ============================
 
-The configuration file has the format of INI files. There is a
-``[General]`` section with general parameters, and any number of other
-sections, which we will call "file set sections", each file set
-section referring to a set of files.
+The configuration file has the format of INI files, but without
+sections.
 
-General parameters
-------------------
+Parameters
+----------
 
 .. confval:: loglevel
 
@@ -134,10 +120,9 @@ General parameters
 
 .. confval:: base_dir
 
-   Optional. ``gerarda`` will change directory to this directory, so
-   any relative filenames will be relative to this directory. If
-   unspecified, relative filenames will be relative to the directory
-   from which ``gerarda`` was started.
+   The directory in which ``gerarda`` will look for input files and
+   write output files.  If unspecified, it is the directory from which
+   ``gerarda`` was started.
 
 .. confval:: step_length
 
@@ -207,22 +192,24 @@ General parameters
    Use 32.0 rather than 32, and so on, in order to ensure that the
    calculations will be performed in floating point.
 
-File set parameters
--------------------
+.. confval:: temperature_prefix
+             humidity_prefix
+             wind_speed_prefix
+             pressure_prefix
+             solar_radiation_prefix
+             evaporation_prefix
 
-.. confval:: temperature
-             humidity
-             wind_speed
-             pressure
-             solar_radiation
+   Optional. `gerarda` assumes that the input files are
+   named :samp:`{variable}-{date}.tif`, where *variable* one of
+   `temperature`, `humidity`, `wind_speed`, `pressure` and
+   `solar_radiation`, and, similarly, for the output file *variable*
+   is `evaporation`. With these parameters these names can be changed;
+   for example::
 
-   The pathnames to the GeoTIFF files that hold the input variables.
+      humidity_prefix = hum
 
-.. confval:: result
-
-   The pathname to which the output will be written.  The calculation
-   is performed only if that file does not already exist, or if at
-   least one of the input files has a later modification time.
+   In that case, the humidity files are going to have a name similar
+   to `hum-2014-10-12-18-00+0200.tif`.
 
 REFERENCES
 ==========

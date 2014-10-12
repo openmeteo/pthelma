@@ -1,4 +1,5 @@
 from datetime import timedelta
+from glob import glob
 import math
 from math import cos, pi, sin
 import os
@@ -200,26 +201,25 @@ class PenmanMonteith(object):
 class GerardaApp(CliApp):
     name = 'gerarda'
     description = 'Calculate evapotranspiration'
-                          # Section     Option            Default
-    config_file_options = {'General': {'base_dir':        None,
-                                       'step_length':     None,
-                                       'elevation':       None,
-                                       'albedo':          None,
-                                       'nighttime_solar_radiation_ratio': None,
-                                       'unit_converter_temperature':      'x',
-                                       'unit_converter_humidity':         'x',
-                                       'unit_converter_wind_speed':       'x',
-                                       'unit_converter_pressure':         'x',
-                                       'unit_converter_solar_radiation':  'x',
-                                       },
-                           'other':   {'temperature':     None,
-                                       'humidity':        None,
-                                       'wind_speed':      None,
-                                       'pressure':        None,
-                                       'solar_radiation': None,
-                                       'result':          None,
-                                       },
-                           }
+    config_file_options = {'General': {
+        # Option                           Default
+        'base_dir':                        None,
+        'step_length':                     None,
+        'elevation':                       None,
+        'albedo':                          None,
+        'nighttime_solar_radiation_ratio': None,
+        'unit_converter_temperature':      'x',
+        'unit_converter_humidity':         'x',
+        'unit_converter_wind_speed':       'x',
+        'unit_converter_pressure':         'x',
+        'unit_converter_solar_radiation':  'x',
+        'temperature_prefix':              'temperature',
+        'humidity_prefix':                 'humidity',
+        'wind_speed_prefix':               'wind_speed',
+        'pressure_prefix':                 'pressure',
+        'solar_radiation_prefix':          'solar_radiation',
+        'evaporation_prefix':              'evaporation',
+    }}
 
     def read_configuration(self):
         super(GerardaApp, self).read_configuration()
@@ -232,10 +232,6 @@ class GerardaApp(CliApp):
         self.read_configuration_elevation()
         self.read_configuration_albedo()
         self.read_configuration_nighttime_solar_radiation_ratio()
-        if len(self.config) <= 1:
-            raise WrongValueError(
-                'Configuration file must contain at least one section '
-                'other than General')
 
     def read_configuration_step_length(self):
         s = self.config['General']['step_length']
@@ -317,17 +313,16 @@ class GerardaApp(CliApp):
         """
         Retrieve geographical stuff into self.latitude, self.longitude,
         self.width, self.height, self.geo_transform, self.projection. We do
-        this by picking up a random variable (temperature) from a random
-        configuraton section and extracting the data from the GeoTIFF file.
-        Elsewhere other GeoTIFF files are checked for consistency with this
-        data.
+        this by retrieving the data from self.geographical_reference_file,
+        which our caller should have set to one arbitrary from the available
+        input files.  Elsewhere other GeoTIFF files are checked for consistency
+        with this data.
         """
         # Read data from GeoTIFF file
-        self.asection = next((x for x in self.config if x != 'General'))
-        filename = self.config[self.asection]['temperature']
-        fp = gdal.Open(filename)
+        fp = gdal.Open(self.geographical_reference_file)
         if fp is None:
-            raise IOError('An error occured when trying to open ' + filename)
+            raise IOError('An error occured when trying to open '
+                          + self.geographical_reference_file)
         self.width, self.height = fp.RasterXSize, fp.RasterYSize
         self.geo_transform = fp.GetGeoTransform()
         self.projection = osr.SpatialReference()
@@ -363,36 +358,74 @@ class GerardaApp(CliApp):
         self.longitude, self.latitude = np.meshgrid(longitudes, latitudes)
 
     def execute(self):
+        # List all input temperature files
+        pattern = self.config['General']['temperature_prefix'] + '-*.tif'
+        temperature_files = glob(pattern)
+
+        # Remove the prefix from the start and the .tif from the end, leaving
+        # only the date.
+        prefix_len = len(self.config['General']['temperature_prefix'])
+        timestamps = [item[prefix_len + 1:-4] for item in temperature_files]
+
+        # Arbitrarily use the first temperature file to extract location and
+        # other geographical stuff. Elsewhere consistency of such data from all
+        # other files with this file will be checked.
+        self.geographical_reference_file = temperature_files[0]
         self.get_coordinates()
+
         self.penman_monteith = PenmanMonteith(
             self.albedo, self.nighttime_solar_radiation_ratio, self.elevation,
             self.latitude, self.longitude, self.step, self.unit_converters)
-        sections = (x for x in self.config if x != 'General')
-        for section in sections:
-            self.process_section(section)
+        for timestamp in timestamps:
+            self.process_timestamp(timestamp)
+        self.remove_extra_evaporation_files(timestamps)
 
-    def process_section(self, section):
+    def remove_extra_evaporation_files(self, timestamps):
+        """
+        Remove evaporation files for which no input files exist.
+        """
+        pattern = self.config['General']['evaporation_prefix'] + '-*.tif'
+        evaporation_files = glob(pattern)
+        prefix_len = len(self.config['General']['evaporation_prefix'])
+        for filename in evaporation_files:
+            if filename[prefix_len + 1:-4] not in timestamps:
+                os.unlink(filename)
+
+    def timestamp_from_filename(self, s):
+        """
+        Convert a timestamp from its filename format (e.g.
+        2014-10-01-15-00-0100) to its iso format (e.g. 2014-10-01 15:00-0100).
+        """
+        first_hyphen = s.find('-')
+        if first_hyphen < 0:
+            return s
+        second_hyphen = s.find('-', first_hyphen + 1)
+        if second_hyphen < 0:
+            return s
+        third_hyphen = s.find('-', second_hyphen + 1)
+        if third_hyphen < 0:
+            return s
+        fourth_hyphen = s.find('-', third_hyphen + 1)
+        chars = list(s)
+        chars[third_hyphen] = ' '
+        if fourth_hyphen > 0:
+            chars[fourth_hyphen] = ':'
+        return ''.join(chars)
+
+    def process_timestamp(self, timestamp):
         input_data = {'temperature': None, 'humidity': None,
                       'wind_speed': None, 'pressure': None,
                       'solar_radiation': None}
-        timestamp = None
         for variable in input_data:
             # Open file
-            filename = self.config[section][variable]
+            filename_prefix = self.config['General'][variable + '_prefix']
+            filename = filename_prefix + '-' + timestamp + '.tif'
             fp = gdal.Open(filename)
             if fp is None:
                 raise IOError('An error occured when trying to open {}'
                               .format(filename))
 
-            # Get timestamp and verify consistency
-            timestamp1 = fp.GetMetadata()['TIMESTAMP']
-            timestamp = timestamp or timestamp1
-            if timestamp != timestamp1:
-                raise Exception('Not all input files have the same '
-                                'timestamp (configuration section: {})'
-                                .format(section))
-
-            # Also verify consistency of geographical data
+            # Verify consistency of geographical data
             consistent = all(
                 (self.width == fp.RasterXSize,
                  self.height == fp.RasterYSize,
@@ -401,8 +434,9 @@ class GerardaApp(CliApp):
             if not consistent:
                 raise Exception('Not all input files have the same '
                                 'width, height, geo_transform and projection '
-                                '(offending items: {}/temperature and {}/{})'
-                                .format(self.asection, section, variable))
+                                '(offending items: {} and {})'
+                                .format(self.geographical_reference_file,
+                                        filename))
 
             # Read array
             input_data[variable] = fp.GetRasterBand(1).ReadAsArray()
@@ -410,16 +444,17 @@ class GerardaApp(CliApp):
             # Close file
             fp = None
 
-        input_data['adatetime'] = iso8601.parse_date(timestamp,
-                                                     default_timezone=None)
+        input_data['adatetime'] = iso8601.parse_date(
+            self.timestamp_from_filename(timestamp), default_timezone=None)
         if input_data['adatetime'].tzinfo is None:
-            raise Exception('The TIMESTAMP in the input files does not '
+            raise Exception('The time stamp in the input files does not '
                             'have a time zone specified.')
 
         result = self.penman_monteith.calculate(**input_data)
 
         # Create destination data source
-        output_filename = self.config[section]['result']
+        output_filename = self.config['General']['evaporation_prefix'] \
+            + '-' + timestamp + '.tif'
         output = gdal.GetDriverByName('GTiff').Create(
             output_filename, self.width, self.height, 1,
             gdal.GDT_Float32)
@@ -427,7 +462,8 @@ class GerardaApp(CliApp):
             raise IOError('An error occured when trying to open {}'.format(
                 output_filename))
         try:
-            output.SetMetadataItem('TIMESTAMP', timestamp)
+            output.SetMetadataItem('TIMESTAMP',
+                                   input_data['adatetime'].isoformat())
             output.SetGeoTransform(self.geo_transform)
             output.SetProjection(self.projection.ExportToWkt())
             output.GetRasterBand(1).WriteArray(result)
