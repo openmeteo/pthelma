@@ -11,7 +11,7 @@ from pthelma.timeseries import TimeStep, Timeseries, IntervalType
 class FordoniaApp(CliApp):
     name = 'fordonia'
     description = 'Aggregate time series'
-                          # Section     Option            Default
+    #                       Section     Option            Default
     config_file_options = {'General': {'base_dir':        None,
                                        'target_step':     None,
                                        'nominal_offset':  '0,0',

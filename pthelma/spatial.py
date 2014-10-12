@@ -166,7 +166,7 @@ class TzinfoFromString(tzinfo):
 class BitiaApp(CliApp):
     name = 'bitia'
     description = 'Perform spatial integration'
-                        # Section          Option            Default
+    #                     Section          Option            Default
     config_file_options = {'General': {'mask':             None,
                                        'epsg':             None,
                                        'output_dir':       None,

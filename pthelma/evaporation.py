@@ -12,8 +12,8 @@ from pthelma.cliapp import CliApp, WrongValueError
 
 
 class PenmanMonteith(object):
-    sigma = 2.043e-10  # Modified Stefan-Boltzmann constant (Allen et al.,
-                       # 1998, end of p. 74)
+    # Modified Stefan-Boltzmann constant (Allen et al., 1998, end of p. 74)
+    sigma = 2.043e-10
 
     def __init__(self, albedo, nighttime_solar_radiation_ratio, elevation,
                  latitude, longitude, step_length, unit_converters={}):

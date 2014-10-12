@@ -209,8 +209,8 @@ class HIntegrateTestCase(TestCase):
                     "2014-04-22 13:00,1.84,\n"
                     "2014-04-22 13:10,7.63,\n")
         with open(self.filenames[3], 'w') as f:
-             # This station is missing the date required,
-             # so it should not be taken into account
+            # This station is missing the date required,
+            # so it should not be taken into account
             f.write("Location=19.66480 0.15560 2100\n"  # GGRS87=17000 17000
                     "\n"
                     "2014-04-22 12:50,9.70,\n"
@@ -562,9 +562,12 @@ class BitiaAppTestCase(TestCase):
         full_prefix = os.path.join(
             self.output_dir,
             application.config['General']['filename_prefix'])
-        self.assertTrue(os.path.exists(full_prefix + '-2014-04-30-15-00+0200.tif'))
-        self.assertTrue(os.path.exists(full_prefix + '-2014-04-30-14-00+0200.tif'))
-        self.assertTrue(os.path.exists(full_prefix + '-2014-04-30-13-00+0200.tif'))
+        self.assertTrue(os.path.exists(
+            full_prefix + '-2014-04-30-15-00+0200.tif'))
+        self.assertTrue(os.path.exists(
+            full_prefix + '-2014-04-30-14-00+0200.tif'))
+        self.assertTrue(os.path.exists(
+            full_prefix + '-2014-04-30-13-00+0200.tif'))
 
         # Check the timestamp in the last file
         fp = gdal.Open(full_prefix + '-2014-04-30-15-00+0200.tif')

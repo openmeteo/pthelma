@@ -22,7 +22,7 @@ class WrongValueError(configparser.Error):
 class CliApp(object):
     name = 'Replace me'
     description = 'Replace me'
-                               # Section     Option            Default
+    #                            Section     Option            Default
     base_config_file_options = {'General': {'logfile':         '',
                                             'loglevel':        'WARNING',
                                             },

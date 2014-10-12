@@ -163,9 +163,9 @@ class Datafile(object):
         self.logger.info('Appending %d records' % (len(ts_to_append)))
         if len(ts_to_append):
             self.logger.info('First appended record: %s' %
-                            (ts_to_append.items()[0][0].isoformat()))
+                             (ts_to_append.items()[0][0].isoformat()))
             self.logger.info('Last appended record:  %s' %
-                            (ts_to_append.items()[-1][0].isoformat()))
+                             (ts_to_append.items()[-1][0].isoformat()))
         self._append_records_to_database(ts_to_append)
 
     def _append_records_to_database(self, ts_to_append):
@@ -568,9 +568,10 @@ class Datafile_wdat5(Datafile):
         r['hiRainRate'] = rate / 25.4 if self.rain_unit == 'inch' else rate
 
         # Wind speed
-        convert_wind_speed = lambda x: (x / 10.0
-                                        if self.wind_speed_unit == 'mph'
-                                        else x / 10.0 * 1609.344 / 3600)
+        def convert_wind_speed(x):
+            return (x / 10.0 if self.wind_speed_unit == 'mph'
+                    else x / 10.0 * 1609.344 / 3600)
+
         r['windSpeed'] = convert_wind_speed(r['windSpeed'])
         r['hiWindSpeed'] = convert_wind_speed(r['hiWindSpeed'])
 

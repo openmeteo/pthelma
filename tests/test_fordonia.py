@@ -1,7 +1,6 @@
 from copy import copy
 import os
 import shutil
-from six import StringIO
 from six.moves import configparser
 import sys
 import tempfile
