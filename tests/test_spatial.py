@@ -228,9 +228,9 @@ class HIntegrateTestCase(TestCase):
         h_integrate(mask=self.mask,
                     stations_layer=self.stations_layer,
                     date=datetime(2014, 4, 22, 13, 0),
-                    output_filename=os.path.join(self.tempdir, 'test.tif'),
+                    output_filename_prefix=os.path.join(self.tempdir, 'test'),
                     date_fmt='%Y-%m-%d %H:%M%z', funct=idw, kwargs={})
-        f = gdal.Open(os.path.join(self.tempdir, 'test.tif'))
+        f = gdal.Open(os.path.join(self.tempdir, 'test-2014-04-22-13-00.tif'))
         result = f.GetRasterBand(1).ReadAsArray()
         expected_result = np.array([[1.5088, 1.6064, np.nan, 1.7237],
                                     [1.3828, 1.6671, 1.7336, 1.7662],
@@ -308,7 +308,7 @@ class BitiaAppTestCase(TestCase):
                 epsg = 2100
                 output_dir = {0.output_dir}
                 filename_prefix = rainfall
-                files_to_produce = 24
+                number_of_files = 24
                 method = idw
                 files = {0.filenames[0]}
                         {0.filenames[1]}
@@ -334,7 +334,7 @@ class BitiaAppTestCase(TestCase):
                 files = myfile
                 ''').format(self))
         application = BitiaApp()
-        self.assertRaisesRegex(configparser.Error, 'files_to_produce',
+        self.assertRaisesRegex(configparser.Error, 'number_of_files',
                                application.run)
 
     def test_wrong_configuration2(self):
@@ -345,7 +345,7 @@ class BitiaAppTestCase(TestCase):
                 epsg = 2100
                 output_dir = {0.output_dir}
                 filename_prefix = rainfall
-                files_to_produce = 24
+                number_of_files = 24
                 method = idw
                 files = myfile
                 nonexistent_option = irrelevant
@@ -362,7 +362,7 @@ class BitiaAppTestCase(TestCase):
                 epsg = 81122
                 output_dir = {0.output_dir}
                 filename_prefix = rainfall
-                files_to_produce = 24
+                number_of_files = 24
                 method = idw
                 files = myfile
                 ''').format(self))
@@ -370,20 +370,73 @@ class BitiaAppTestCase(TestCase):
         self.assertRaisesRegex(WrongValueError, 'epsg=81122',
                                application.run)
 
-    def test_last_date(self):
-        application = BitiaApp()
-        application.read_command_line()
-        application.read_configuration()
-        with open(application.files[0], 'a') as f:
+    def test_get_last_dates(self):
+        filename = os.path.join(self.tempdir, 'timeseries.hts')
+        with open(filename, 'w') as f:
             f.write(textwrap.dedent('''\
                 2014-04-30 11:00,18.3,
                 2014-04-30 12:00,19.3,
                 2014-04-30 13:00,20.4,
                 2014-04-30 14:00,21.4,
                 '''))
-        tz = TzinfoFromString('+0200')
-        self.assertEquals(application.last_date,
-                          datetime(2014, 4, 30, 14, 0, tzinfo=tz))
+        application = BitiaApp()
+        with open(filename) as f:
+            self.assertEquals(application.get_last_dates(filename, 2),
+                              [datetime(2014, 4, 30, 13, 0),
+                               datetime(2014, 4, 30, 14, 0)])
+            f.seek(0)
+            self.assertEquals(application.get_last_dates(filename, 20),
+                              [datetime(2014, 4, 30, 11, 0),
+                               datetime(2014, 4, 30, 12, 0),
+                               datetime(2014, 4, 30, 13, 0),
+                               datetime(2014, 4, 30, 14, 0)])
+
+    def test_dates_to_calculate(self):
+        application = BitiaApp()
+        application.read_command_line()
+        application.read_configuration()
+        with open(self.filenames[0], 'w') as f:
+            f.write(textwrap.dedent('''\
+                2014-04-30 11:00,18.3,
+                2014-04-30 13:00,20.4,
+                2014-04-30 14:00,21.4,
+                2014-04-30 15:00,22.4,
+                '''))
+        with open(self.filenames[1], 'w') as f:
+            f.write(textwrap.dedent('''\
+                2014-04-30 11:00,18.3,
+                2014-04-30 12:00,19.3,
+                2014-04-30 13:00,20.4,
+                2014-04-30 14:00,21.4,
+                '''))
+
+        # Check for number_of_files=24
+        dates = []
+        for d in application.dates_to_calculate:
+            dates.append(d)
+        self.assertEquals(dates, [datetime(2014, 4, 30, 11, 0),
+                                  datetime(2014, 4, 30, 12, 0),
+                                  datetime(2014, 4, 30, 13, 0),
+                                  datetime(2014, 4, 30, 14, 0),
+                                  datetime(2014, 4, 30, 15, 0)])
+
+        # Check for number_of_files=2
+        application.config['General']['number_of_files'] = 2
+        dates = []
+        for d in application.dates_to_calculate:
+            dates.append(d)
+        self.assertEquals(dates, [datetime(2014, 4, 30, 14, 0),
+                                  datetime(2014, 4, 30, 15, 0)])
+
+        # Check for number_of_files=4
+        application.config['General']['number_of_files'] = 4
+        dates = []
+        for d in application.dates_to_calculate:
+            dates.append(d)
+        self.assertEquals(dates, [datetime(2014, 4, 30, 12, 0),
+                                  datetime(2014, 4, 30, 13, 0),
+                                  datetime(2014, 4, 30, 14, 0),
+                                  datetime(2014, 4, 30, 15, 0)])
 
     def test_date_fmt(self):
         application = BitiaApp()
@@ -432,58 +485,40 @@ class BitiaAppTestCase(TestCase):
             f.write('Time_step=60,0\n\n')
         self.assertRaises(WrongValueError, lambda: application.date_fmt)
 
-    def get_file_timestamp(self, filename):
-        fp = gdal.Open(filename)
-        timestamp = fp.GetMetadata()['TIMESTAMP']
-        fp = None
-        return timestamp
-
-    def create_file_with_timestamp(self, filename, timestamp):
-        output = gdal.GetDriverByName('GTiff').Create(filename, 640, 480, 1,
-                                                      gdal.GDT_Float32)
-        if not output:
-            raise IOError('Could not create ' + filename)
-        output.SetMetadataItem('TIMESTAMP', timestamp)
-        output = None
-
-    def test_rename_existing_files(self):
+    def test_delete_obsolete_files(self):
         application = BitiaApp()
         application.read_command_line()
         application.read_configuration()
 
-        # Annual time step
-        for filename in application.files:
-            with open(filename, 'w') as f:
-                f.write('Time_step=0,12\n\n')
-
         # Create three files
         prefix = application.config['General']['filename_prefix']
-        filename1 = os.path.join(self.output_dir, '{}-0000.tif'.format(prefix))
-        filename2 = os.path.join(self.output_dir, '{}-0001.tif'.format(prefix))
-        filename3 = os.path.join(self.output_dir, '{}-0002.tif'.format(prefix))
-        self.create_file_with_timestamp(filename1, '2014')
-        self.create_file_with_timestamp(filename2, '2013')
-        self.create_file_with_timestamp(filename3, '2012')
+        filename1 = os.path.join(self.output_dir, '{}-1.tif'.format(prefix))
+        filename2 = os.path.join(self.output_dir, '{}-2.tif'.format(prefix))
+        filename3 = os.path.join(self.output_dir, '{}-3.tif'.format(prefix))
+        with open(filename1, 'w'):
+            pass
+        with open(filename2, 'w'):
+            pass
+        with open(filename3, 'w'):
+            pass
 
         # Just to make sure we didn't screw up above, check
         self.assertTrue(os.path.exists(filename1))
         self.assertTrue(os.path.exists(filename2))
         self.assertTrue(os.path.exists(filename3))
 
-        # Execute for files_to_produce = 3 and check
-        application.config['General']['files_to_produce'] = 3
-        application.rename_existing_files('2015')
+        # Execute for number_of_files = 2 and check
+        application.config['General']['number_of_files'] = 2
+        application.delete_obsolete_files()
         self.assertFalse(os.path.exists(filename1))
-        self.assertEquals(self.get_file_timestamp(filename2), '2014')
-        self.assertEquals(self.get_file_timestamp(filename3), '2013')
-        self.assertEquals(len(os.listdir(self.output_dir)), 2)
+        self.assertTrue(os.path.exists(filename2))
+        self.assertTrue(os.path.exists(filename3))
 
         # Re-execute; nothing should have changed
-        application.rename_existing_files('2015')
+        application.delete_obsolete_files()
         self.assertFalse(os.path.exists(filename1))
-        self.assertEquals(self.get_file_timestamp(filename2), '2014')
-        self.assertEquals(self.get_file_timestamp(filename3), '2013')
-        self.assertEquals(len(os.listdir(self.output_dir)), 2)
+        self.assertTrue(os.path.exists(filename2))
+        self.assertTrue(os.path.exists(filename3))
 
     def test_execute(self):
         application = BitiaApp()
@@ -520,19 +555,19 @@ class BitiaAppTestCase(TestCase):
         mask = None
 
         # Execute
-        application.config['General']['files_to_produce'] = 3
+        application.config['General']['number_of_files'] = 3
         application.execute()
 
         # Check that it has created three files
         full_prefix = os.path.join(
             self.output_dir,
             application.config['General']['filename_prefix'])
-        self.assertTrue(os.path.exists(full_prefix + '-0000.tif'))
-        self.assertTrue(os.path.exists(full_prefix + '-0001.tif'))
-        self.assertTrue(os.path.exists(full_prefix + '-0002.tif'))
+        self.assertTrue(os.path.exists(full_prefix + '-2014-04-30-15-00+0200.tif'))
+        self.assertTrue(os.path.exists(full_prefix + '-2014-04-30-14-00+0200.tif'))
+        self.assertTrue(os.path.exists(full_prefix + '-2014-04-30-13-00+0200.tif'))
 
-        # Check the timestamp in the first file
-        fp = gdal.Open(full_prefix + '-0000.tif')
+        # Check the timestamp in the last file
+        fp = gdal.Open(full_prefix + '-2014-04-30-15-00+0200.tif')
         timestamp = fp.GetMetadata()['TIMESTAMP']
         fp = None
         self.assertEqual(timestamp, '2014-04-30 15:00+0200')

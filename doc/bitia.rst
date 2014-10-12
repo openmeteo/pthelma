@@ -70,7 +70,7 @@ explanatory comments that follow it:
     epsg = 2100
     output_dir = C:\Somewhere\BitiaOutput
     filename_prefix = rainfall
-    files_to_produce = 24
+    number_of_output_files = 24
     method = idw
     alpha = 1
     files = C:\Somewhere\inputfile1.hts
@@ -82,14 +82,11 @@ the file specified by :confval:`logfile`.  :confval:`mask` defines the
 study area, whose co-ordinates are in the reference system specified
 by :confval:`epsg`.  The output is GeoTIFF files in
 :confval:`output_dir`, prefixed with :confval:`filename_prefix`. In
-this example, the output files will be named
-:file:`C:\\Somewhere\\BitiaOutput\\rainfall-XXXX.tif`, where XXXX is
-from 0000 to 0023. 24 output files will be produced in total
-(:confval:`files_to_produce`), and the old ones will be removed.  The
-file ending in 0000 will correspond to the latest time available from
-the data; the one ending in 0001 will correspond to one time step
-before; and so on. The files will be renamed if new data becomes
-available, and missing ones will be recreated.  The integration method
+this example, the output files will be named something like
+:file:`C:\\Somewhere\\BitiaOutput\\rainfall-2014-04-29-15-00.tif`.
+Only the most recent 24 (:confval:`number_of_output_files`) output
+files will be kept, and older ones will automatically be deleted;
+these 24 files will be recreated if missing. The integration method
 will be :confval:`idw` with :confval:`alpha` = 1.  The spatial
 integration will be performed given the three time series specified in
 :confval:`files`.
@@ -130,19 +127,23 @@ General parameters
 
    Output files are GeoTIFF files placed in :confval:`output_dir` and
    having the specified :confval:`filename_prefix`. After the prefix
-   there follows a hyphen and four digits.
+   there follows a hyphen and then the date in format
+   YYYY-MM-DD-HH-mm, however some parts of the date may be missing;
+   for daily time series, the hour and minutes are missing; for
+   monthly, the date is also missing; for annual, the month is also
+   missing.
 
    These GeoTIFF files contain a single band with the calculated
    result. 
    
-.. confval:: files_to_produce
+.. confval:: number_of_output_files
 
-   The number of files to produce. ``bitia`` performs spatial
+   The number of files to produce and keep. ``bitia`` performs spatial
    integration for the last available timestamp, for the last-but-one,
-   and so on, until there are :confval:`files_to_produce` files (or
-   less if the time series don't have enough records). If any files
-   already exist, they are not recalculated. Old files in excess of
-   :confval:`files_to_produce` are deleted.
+   and so on, until there are :confval:`number_of_output_files` files
+   (or less if the time series don't have enough records). If any
+   files already exist, they are not recalculated. Older files in
+   excess of :confval:`number_of_output_files` are deleted.
 
 .. confval:: method
              alpha

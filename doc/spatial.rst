@@ -53,21 +53,21 @@
    Creates and returns an :class:`ogr.Layer` with stations as its
    points.
 
-   *files* is a sequence of filenames; each file must be a timeseries
-   in :ref:`file format <fileformat>` that includes the Location
-   header.  This function transform the co-ordinates so that they are
-   in the reference system specified by *epsg* (an integer), and
-   creates a layer in the specified ogr *data_source* whose features
-   are points; as many points as there are stations/timeseries; each
-   point is also given a *filename* attribute.
+   *filenames* is a sequence of filenames; each file must be a
+   timeseries in :ref:`file format <fileformat>` that includes the
+   Location header.  This function transform the co-ordinates so that
+   they are in the reference system specified by *epsg* (an integer),
+   and creates a layer in the specified ogr *data_source* whose
+   features are points; as many points as there are
+   stations/timeseries; each point is also given a *filename*
+   attribute.
 
-.. function:: h_integrate(filenames, mask, stations_layer, date, output_filename, date_fmt, funct, kwargs)
+.. function:: h_integrate(mask, stations_layer, date, output_filename_prefix, date_fmt, funct, kwargs)
 
-   Given an area mask, a list of cached time series, and a layer with
-   stations, performs spatial integration and writes the result to a
-   tif file. The *h* in the name signifies that this is a high level
-   function, in contrast to :func:`integrate()`, which does the actual
-   job.
+   Given an area mask and a layer with stations, performs spatial
+   integration and writes the result to a GeoTIFF file. The *h* in the
+   name signifies that this is a high level function, in contrast to
+   :func:`integrate()`, which does the actual job.
 
    *mask* is a raster with the area of study, in the form accepted by
    :func:`integrate()`.  *stations_layer* is an :class:`ogr.Layer`
@@ -75,17 +75,18 @@
    :func:`create_ogr_layer_from_timeseries()`; *mask* and
    *stations_layer* must be in the same co-ordinate reference system.
    *date* is a :class:`~datetime.datetime` object specifying the date
-   and time for which we are to perform integration.  The output goes
-   to *output_filename*; if it already exists, the function returns
-   immediately without doing anything. The attribute TIMESTAMP is
-   written in the file, with *date* as its value, formatted by
-   :func:`datetime.strftime()` with the format *date_fmt*; if the file
-   already exists, the function returns immediately without doing
-   anything. *funct* and *kwargs* are passed to :func:`integrate()`.
+   and time for which we are to perform integration.  The filename of
+   the resulting file has the form
+   :samp:`{output_filename_prefix}-{d}.tif`, where *d* is the *date*
+   formatted by :func:`datetime.strftime()` with the format
+   *date_fmt*; however, if *date_fmt* contains spaces or colons, they
+   are converted to hyphens. If the file already exists, the function
+   returns immediately without doing anything. *funct* and *kwargs*
+   are passed to :func:`integrate()`.
 
-   If some of the time series in *filenames* don't have *date*, they
-   are not taken into account in the integration. If no time series
-   has *date*, the function does nothing.
+   If some of the time series referenced in *stations_layer* don't
+   have *date*, they are not taken into account in the integration. If
+   no time series has *date*, the function does nothing.
 
 .. class:: BitiaApp
 
