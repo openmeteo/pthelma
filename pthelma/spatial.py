@@ -45,8 +45,7 @@ def integrate(dataset, data_layer, target_band, funct, kwargs={}):
         point = ogr.Geometry(ogr.wkbPoint)
         point.AddPoint(x, y)
         return funct(point, data_layer, **kwargs)
-    interpolate = np.vectorize(interpolate_one_point,
-                               otypes=[np.float32, np.float32, np.bool])
+    interpolate = np.vectorize(interpolate_one_point, otypes=[np.float32])
 
     # Make the calculation
     target_band.WriteArray(interpolate(xarray, yarray, mask))
