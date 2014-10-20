@@ -9,7 +9,7 @@ User documentation
 
    user/install
    user/bitia
-   user/fordonia
+   user/aggregate
    user/gerarda
    user/loggertodb
    user/enhydris_cache

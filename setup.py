@@ -96,7 +96,7 @@ kwargs = {
     'author_email': "anthony@itia.ntua.gr",
     'packages': find_packages(),
     'scripts': ['bin/loggertodb', 'bin/bitia', 'bin/enhydris_cache',
-                'bin/fordonia', 'bin/gerarda'],
+                'bin/aggregate', 'bin/gerarda'],
     'test_suite': "tests",
     'install_requires': installation_requirements,
     'options': {'py2exe': {'includes': ['pyodbc',
@@ -138,7 +138,7 @@ if len(sys.argv) >= 2 and sys.argv[1] == 'py2exe':
 
     # Specify program executable
     kwargs['console'] = ['bin/loggertodb', 'bin/enhydris_cache',
-                         'bin/fordonia']
+                         'bin/aggregate']
 
     # python-requests' cacert.pem.
     # First, we need to add cacert.pem to the bundle. That's the easy part.

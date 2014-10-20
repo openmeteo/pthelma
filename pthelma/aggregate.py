@@ -8,8 +8,8 @@ from pthelma.cliapp import CliApp, WrongValueError
 from pthelma.timeseries import TimeStep, Timeseries, IntervalType
 
 
-class FordoniaApp(CliApp):
-    name = 'fordonia'
+class AggregateApp(CliApp):
+    name = 'aggregate'
     description = 'Aggregate time series'
     #                       Section     Option            Default
     config_file_options = {'General': {'base_dir':        None,
@@ -26,7 +26,7 @@ class FordoniaApp(CliApp):
                            }
 
     def read_configuration(self):
-        super(FordoniaApp, self).read_configuration()
+        super(AggregateApp, self).read_configuration()
 
         # Make some checks
         self.check_configuration_missing_allowed()

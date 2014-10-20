@@ -6,8 +6,8 @@ Installation
 
 .. highlight:: bash
 
-loggertodb, enhydris_cache, and fordonia on Windows
-===================================================
+loggertodb, enhydris_cache, and aggregate on Windows
+====================================================
 
 Download and execute the Windows executable installer
 (``pthelma-X.Y.Z-setup.exe``) from
