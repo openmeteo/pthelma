@@ -95,8 +95,8 @@ kwargs = {
     'author': "Antonis Christofides",
     'author_email': "anthony@itia.ntua.gr",
     'packages': find_packages(),
-    'scripts': ['bin/loggertodb', 'bin/bitia', 'bin/pond', 'bin/fordonia',
-                'bin/gerarda'],
+    'scripts': ['bin/loggertodb', 'bin/bitia', 'bin/enhydris_cache',
+                'bin/fordonia', 'bin/gerarda'],
     'test_suite': "tests",
     'install_requires': installation_requirements,
     'options': {'py2exe': {'includes': ['pyodbc',
@@ -137,7 +137,8 @@ if len(sys.argv) >= 2 and sys.argv[1] == 'py2exe':
                                   vcredist_filename])]
 
     # Specify program executable
-    kwargs['console'] = ['bin/loggertodb', 'bin/pond', 'bin/fordonia']
+    kwargs['console'] = ['bin/loggertodb', 'bin/enhydris_cache',
+                         'bin/fordonia']
 
     # python-requests' cacert.pem.
     # First, we need to add cacert.pem to the bundle. That's the easy part.

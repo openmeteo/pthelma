@@ -1,6 +1,6 @@
-====
-pond
-====
+==============
+enhydris_cache
+==============
 
 ------------------------------------------------------
 Local filesystem cache of data from an Enhydris server
@@ -11,32 +11,29 @@ Local filesystem cache of data from an Enhydris server
 SYNOPSIS
 ========
 
-``pond [--traceback] config_file``
+``enhydris_cache [--traceback] config_file``
 
 DESCRIPTION AND QUICK START
 ===========================
 
-``pond`` downloads data from Enhydris and stores them locally in the
-file system.  The details of its operation are specified in the
-configuration file specified on the command line.
-
-(The name ``pond`` comes from the fact that water snakes like Enhydris
-normally live in lakes, but they can tempoorarily visit ponds.)
+``enhydris_cache`` downloads data from Enhydris and stores them
+locally in the file system.  The details of its operation are
+specified in the configuration file specified on the command line.
 
 Installation
 ------------
 
-To install ``pond``, see :ref:`install`.
+To install ``enhydris_cache``, see :ref:`install`.
 
 How to run it
 -------------
 
 First, you need to create a configuration file with a text editor such
 as ``vim``, ``emacs``, ``notepad``, or whatever. Create such a file
-and name it, for example, :file:`/var/tmp/pond.conf`, or, on
-Windows, something like :file:`C:\\Users\\user\\pond.conf` , with
-the following contents (the contents don't matter at this stage, just
-copy and paste them from below):
+and name it, for example, :file:`/var/tmp/enhydris_cache.conf`, or, on
+Windows, something like :file:`C:\\Users\\user\\enhydris_cache.conf` ,
+with the following contents (the contents don't matter at this stage,
+just copy and paste them from below):
 
     [General]
     loglevel = INFO
@@ -45,11 +42,11 @@ Then, open a command prompt and give it this command:
 
 **Unix/Linux**::
 
-    pond /var/tmp/pond.conf
+    enhydris_cache /var/tmp/enhydris_cache.conf
 
 **Windows**::
 
-    C:\Program Files\Pthelma\pond.exe C:\Users\user\pond.conf
+    C:\Program Files\Pthelma\enhydris_cache.exe C:\Users\user\enhydris_cache.conf
 
 (the details may differ; for example, in 64-bit Windows, it may be
 :file:`C:\\Program Files (x86)` instead of :file:`C:\\Program Files`.)
@@ -67,7 +64,7 @@ explanatory comments that follow it:
 
     [General]
     loglevel = INFO
-    logfile = C:\Somewhere\pond.log
+    logfile = C:\Somewhere\enhydris_cache.log
     cache_dir = C:\Somewhere\EnhydrisCache
 
     [ntua]
@@ -87,12 +84,13 @@ explanatory comments that follow it:
     id = 8765
     file = arta.hts
 
-With the above configuration file, ``pond`` will log information in
-the file specified by :confval:`logfile`. It will download time series
-from Enhydris and store them in the specified files; these can be
-absolute or relative pathnames; if they are relative, they will be
-stored in the directory specified by :confval:`cache_dir`. In this
-example, the local files will be :file:`C:\\Somewhere\\ntua.hts`,
+With the above configuration file, ``enhydris_cache`` will log
+information in the file specified by :confval:`logfile`. It will
+download time series from Enhydris and store them in the specified
+files; these can be absolute or relative pathnames; if they are
+relative, they will be stored in the directory specified by
+:confval:`cache_dir`. In this example, the local files will be
+:file:`C:\\Somewhere\\ntua.hts`,
 :file:`C:\\SomewhereElse\\nedontas.hts`, and
 :file:`C:\\Somewhere\\arta.hts`.
 
@@ -119,10 +117,10 @@ General parameters
 
 .. confval:: cache_dir
 
-   Optional. ``pond`` will change directory to this directory, so any
-   relative filenames will be relative to this directory. If
-   unspecified, relative filenames will be relative to the directory
-   from which ``pond`` was started.
+   Optional. ``enhydris_cache`` will change directory to this
+   directory, so any relative filenames will be relative to this
+   directory. If unspecified, relative filenames will be relative to
+   the directory from which ``enhydris_cache`` was started.
 
 Time series sections
 --------------------
@@ -155,15 +153,15 @@ The name of the section is ignored.
 AUTHOR AND COPYRIGHT
 ====================
 
-``pond`` was written by Antonis Christofides,
+``enhydris_cache`` was written by Antonis Christofides,
 anthony@itia.ntua.gr.
 
 | Copyright (C) 2014 TEI of Epirus
 
-``pond`` is free software; you can redistribute it and/or modify it
-under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 3 of the License, or (at
-your option) any later version.
+``enhydris_cache`` is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License as
+published by the Free Software Foundation; either version 3 of the
+License, or (at your option) any later version.
 
 This program is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; without even the implied warranty of

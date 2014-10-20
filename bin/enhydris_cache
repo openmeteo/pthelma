@@ -1,0 +1,7 @@
+#!/usr/bin/env python
+
+from pthelma.enhydris_cache import EnhydrisCacheApp
+
+if __name__ == "__main__":
+    application = EnhydrisCacheApp()
+    application.run()

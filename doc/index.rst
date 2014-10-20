@@ -12,7 +12,7 @@ User documentation
    user/fordonia
    user/gerarda
    user/loggertodb
-   user/pond
+   user/enhydris_cache
 
 Developer documentation
 -----------------------

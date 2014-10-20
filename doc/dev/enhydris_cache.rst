@@ -23,10 +23,11 @@
       Downloads everything that has not already been downloaded (or all
       the time series if nothing is in the cache).
 
-.. class:: PondApp
+.. class:: EnhydrisCacheApp
 
-   This class contains the :doc:`../user/pond` command-line application.
-   The :file:`pond` executable does little other than this::
+   This class contains the :doc:`../user/enhydris_cache` command-line
+   application.  The :file:`enhydris_cache` executable does little
+   other than this::
 
-      application = PondApp()
+      application = EnhydrisCacheApp()
       application.run()
