@@ -1,6 +1,6 @@
-=====
-bitia
-=====
+==========
+spatialize
+==========
 
 -----------------------------------------
 Spatial integration of point measurements
@@ -11,28 +11,28 @@ Spatial integration of point measurements
 SYNOPSIS
 ========
 
-``bitia [--traceback] config_file``
+``spatialize [--traceback] config_file``
 
 DESCRIPTION AND QUICK START
 ===========================
 
-``bitia`` gets the data of time series from files and performs spatial
-integration, storing the result in ``tif`` files.  The details of its
-operation are specified in the configuration file specified on the
-command line.
+``spatialize`` gets the data of time series from files and performs
+spatial integration, storing the result in ``tif`` files.  The details
+of its operation are specified in the configuration file specified on
+the command line.
 
 Installation
 ------------
 
-To install ``bitia``, see :ref:`install`.
+To install ``spatialize``, see :ref:`install`.
 
 How to run it
 -------------
 
 First, you need to create a configuration file with a text editor such
 as ``vim``, ``emacs``, ``notepad``, or whatever. Create such a file
-and name it, for example, :file:`/var/tmp/bitia.conf`, or, on
-Windows, something like :file:`C:\\Users\\user\\bitia.conf` , with
+and name it, for example, :file:`/var/tmp/spatialize.conf`, or, on
+Windows, something like :file:`C:\\Users\\user\\spatialize.conf` , with
 the following contents (the contents don't matter at this stage, just
 copy and paste them from below):
 
@@ -43,11 +43,11 @@ Then, open a command prompt and give it this command:
 
 **Unix/Linux**::
 
-    bitia /var/tmp/bitia.conf
+    spatialize /var/tmp/spatialize.conf
 
 **Windows**::
 
-    C:\Program Files\Pthelma\bitia.exe C:\Users\user\bitia.conf
+    C:\Program Files\Pthelma\spatialize.exe C:\Users\user\spatialize.conf
 
 (the details may differ; for example, in 64-bit Windows, it may be
 :file:`C:\\Program Files (x86)` instead of :file:`C:\\Program Files`.)
@@ -65,10 +65,10 @@ explanatory comments that follow it:
 
     [General]
     loglevel = INFO
-    logfile = C:\Somewhere\bitia.log
+    logfile = C:\Somewhere\spatialize.log
     mask = C:\Somewhere\mask.tif
     epsg = 2100
-    output_dir = C:\Somewhere\BitiaOutput
+    output_dir = C:\Somewhere\SpatializeOutput
     filename_prefix = rainfall
     number_of_output_files = 24
     method = idw
@@ -77,13 +77,13 @@ explanatory comments that follow it:
             C:\Somewhere\inputfile2.hts
             C:\Somewhere\inputfile3.hts
 
-With the above configuration file, ``bitia`` will log information in
-the file specified by :confval:`logfile`.  :confval:`mask` defines the
-study area, whose co-ordinates are in the reference system specified
-by :confval:`epsg`.  The output is GeoTIFF files in
+With the above configuration file, ``spatialize`` will log information
+in the file specified by :confval:`logfile`.  :confval:`mask` defines
+the study area, whose co-ordinates are in the reference system
+specified by :confval:`epsg`.  The output is GeoTIFF files in
 :confval:`output_dir`, prefixed with :confval:`filename_prefix`. In
 this example, the output files will be named something like
-:file:`C:\\Somewhere\\BitiaOutput\\rainfall-2014-04-29-15-00.tif`.
+:file:`C:\\Somewhere\\SpatializeOutput\\rainfall-2014-04-29-15-00.tif`.
 Only the most recent 24 (:confval:`number_of_output_files`) output
 files will be kept, and older ones will automatically be deleted;
 these 24 files will be recreated if missing. The integration method
@@ -113,13 +113,13 @@ General parameters
 .. confval:: mask
 
    A GeoTIFF file defining the study area. It must contain a single
-   band, whose nonzero cells comprise the area. ``bitia`` will
+   band, whose nonzero cells comprise the area. ``spatialize`` will
    interpolate a value in each of these cells.
 
 .. confval:: epsg
 
    An integer specifying the co-ordinate reference system (CRS) used
-   by :confval:`mask`. ``bitia`` will transform the co-ordinates of
+   by :confval:`mask`. ``spatialize`` will transform the co-ordinates of
    the stations to that CRS before performing the integration.
 
 .. confval:: output_dir
@@ -138,12 +138,13 @@ General parameters
    
 .. confval:: number_of_output_files
 
-   The number of files to produce and keep. ``bitia`` performs spatial
-   integration for the last available timestamp, for the last-but-one,
-   and so on, until there are :confval:`number_of_output_files` files
-   (or less if the time series don't have enough records). If any
-   files already exist, they are not recalculated. Older files in
-   excess of :confval:`number_of_output_files` are deleted.
+   The number of files to produce and keep. ``spatialize`` performs
+   spatial integration for the last available timestamp, for the
+   last-but-one, and so on, until there are
+   :confval:`number_of_output_files` files (or less if the time series
+   don't have enough records). If any files already exist, they are
+   not recalculated. Older files in excess of
+   :confval:`number_of_output_files` are deleted.
 
 .. confval:: method
              alpha
@@ -161,13 +162,13 @@ General parameters
 AUTHOR AND COPYRIGHT
 ====================
 
-``bitia`` was written by Antonis Christofides,
+``spatialize`` was written by Antonis Christofides,
 anthony@itia.ntua.gr.
 
 | Copyright (C) 2014 TEI of Epirus
 
-``bitia`` is free software; you can redistribute it and/or modify it
-under the terms of the GNU General Public License as published by
+``spatialize`` is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 3 of the License, or (at
 your option) any later version.
 

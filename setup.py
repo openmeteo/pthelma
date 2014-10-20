@@ -95,7 +95,7 @@ kwargs = {
     'author': "Antonis Christofides",
     'author_email': "anthony@itia.ntua.gr",
     'packages': find_packages(),
-    'scripts': ['bin/loggertodb', 'bin/bitia', 'bin/enhydris_cache',
+    'scripts': ['bin/loggertodb', 'bin/spatialize', 'bin/enhydris_cache',
                 'bin/aggregate', 'bin/gerarda'],
     'test_suite': "tests",
     'install_requires': installation_requirements,

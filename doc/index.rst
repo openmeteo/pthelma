@@ -8,7 +8,7 @@ User documentation
    :maxdepth: 1
 
    user/install
-   user/bitia
+   user/spatialize
    user/aggregate
    user/gerarda
    user/loggertodb

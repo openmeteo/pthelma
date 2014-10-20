@@ -162,8 +162,8 @@ class TzinfoFromString(tzinfo):
         return timedelta(0)
 
 
-class BitiaApp(CliApp):
-    name = 'bitia'
+class SpatializeApp(CliApp):
+    name = 'spatialize'
     description = 'Perform spatial integration'
     #                     Section          Option            Default
     config_file_options = {'General': {'mask':             None,
@@ -178,7 +178,7 @@ class BitiaApp(CliApp):
                            }
 
     def read_configuration(self):
-        super(BitiaApp, self).read_configuration()
+        super(SpatializeApp, self).read_configuration()
         self.files = self.config['General']['files'].split('\n')
         self.check_configuration_method()
         self.check_configuration_epsg()

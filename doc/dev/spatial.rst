@@ -88,11 +88,11 @@
    have *date*, they are not taken into account in the integration. If
    no time series has *date*, the function does nothing.
 
-.. class:: BitiaApp
+.. class:: SpatializeApp
 
-   This class contains the :doc:`../user/bitia` command-line
-   application. The :file:`bitia` executable does little other than
+   This class contains the :doc:`../user/spatialize` command-line
+   application. The :file:`spatialize` executable does little other than
    this::
 
-      application = BitiaApp()
+      application = SpatializeApp()
       application.run()

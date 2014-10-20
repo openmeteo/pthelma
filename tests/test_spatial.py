@@ -10,8 +10,9 @@ from unittest import TestCase, skipIf
 if sys.platform != 'win32':
     import numpy as np
     from osgeo import ogr, gdal
-    from pthelma.spatial import BitiaApp, create_ogr_layer_from_timeseries, \
-        h_integrate, idw, integrate, WrongValueError
+    from pthelma.spatial import SpatializeApp, \
+        create_ogr_layer_from_timeseries, h_integrate, idw, integrate, \
+        WrongValueError
     skip_osgeo = False
     skip_osgeo_message = ''
 else:
@@ -266,10 +267,10 @@ class TzinfoFromStringTestCase(TestCase):
 
 
 @skipIf(skip_osgeo, skip_osgeo_message)
-class BitiaAppTestCase(TestCase):
+class SpatializeAppTestCase(TestCase):
 
     def __init__(self, *args, **kwargs):
-        super(BitiaAppTestCase, self).__init__(*args, **kwargs)
+        super(SpatializeAppTestCase, self).__init__(*args, **kwargs)
 
         # Python 2.7 compatibility
         try:
@@ -280,11 +281,11 @@ class BitiaAppTestCase(TestCase):
     def setUp(self):
         self.tempdir = tempfile.mkdtemp()
         self.output_dir = os.path.join(self.tempdir, 'output')
-        self.config_file = os.path.join(self.tempdir, 'bitia.conf')
+        self.config_file = os.path.join(self.tempdir, 'spatialize.conf')
         os.mkdir(self.output_dir)
         self.mask_file = os.path.join(self.tempdir, 'mask.tif')
         self.saved_argv = sys.argv
-        sys.argv = ['bitia', '--traceback', self.config_file]
+        sys.argv = ['spatialize', '--traceback', self.config_file]
 
         # Create two time series
         self.filenames = [os.path.join(self.tempdir, x)
@@ -319,7 +320,7 @@ class BitiaAppTestCase(TestCase):
         sys.argv = self.saved_argv
 
     def test_correct_configuration(self):
-        application = BitiaApp()
+        application = SpatializeApp()
         application.run(dry=True)
 
     def test_wrong_configuration1(self):
@@ -333,7 +334,7 @@ class BitiaAppTestCase(TestCase):
                 method = idw
                 files = myfile
                 ''').format(self))
-        application = BitiaApp()
+        application = SpatializeApp()
         self.assertRaisesRegex(configparser.Error, 'number_of_files',
                                application.run)
 
@@ -350,7 +351,7 @@ class BitiaAppTestCase(TestCase):
                 files = myfile
                 nonexistent_option = irrelevant
                 ''').format(self))
-        application = BitiaApp()
+        application = SpatializeApp()
         self.assertRaisesRegex(configparser.Error, 'nonexistent_option',
                                application.run)
 
@@ -366,7 +367,7 @@ class BitiaAppTestCase(TestCase):
                 method = idw
                 files = myfile
                 ''').format(self))
-        application = BitiaApp()
+        application = SpatializeApp()
         self.assertRaisesRegex(WrongValueError, 'epsg=81122',
                                application.run)
 
@@ -379,7 +380,7 @@ class BitiaAppTestCase(TestCase):
                 2014-04-30 13:00,20.4,
                 2014-04-30 14:00,21.4,
                 '''))
-        application = BitiaApp()
+        application = SpatializeApp()
         with open(filename) as f:
             self.assertEquals(application.get_last_dates(filename, 2),
                               [datetime(2014, 4, 30, 13, 0),
@@ -392,7 +393,7 @@ class BitiaAppTestCase(TestCase):
                                datetime(2014, 4, 30, 14, 0)])
 
     def test_dates_to_calculate(self):
-        application = BitiaApp()
+        application = SpatializeApp()
         application.read_command_line()
         application.read_configuration()
         with open(self.filenames[0], 'w') as f:
@@ -439,7 +440,7 @@ class BitiaAppTestCase(TestCase):
                                   datetime(2014, 4, 30, 15, 0)])
 
     def test_date_fmt(self):
-        application = BitiaApp()
+        application = SpatializeApp()
         application.read_command_line()
         application.read_configuration()
 
@@ -486,7 +487,7 @@ class BitiaAppTestCase(TestCase):
         self.assertRaises(WrongValueError, lambda: application.date_fmt)
 
     def test_delete_obsolete_files(self):
-        application = BitiaApp()
+        application = SpatializeApp()
         application.read_command_line()
         application.read_configuration()
 
@@ -521,7 +522,7 @@ class BitiaAppTestCase(TestCase):
         self.assertTrue(os.path.exists(filename3))
 
     def test_execute(self):
-        application = BitiaApp()
+        application = SpatializeApp()
         application.read_command_line()
         application.read_configuration()
 
