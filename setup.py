@@ -96,7 +96,7 @@ kwargs = {
     'author_email': "anthony@itia.ntua.gr",
     'packages': find_packages(),
     'scripts': ['bin/loggertodb', 'bin/spatialize', 'bin/enhydris_cache',
-                'bin/aggregate', 'bin/gerarda'],
+                'bin/aggregate', 'bin/vaporize'],
     'test_suite': "tests",
     'install_requires': installation_requirements,
     'options': {'py2exe': {'includes': ['pyodbc',

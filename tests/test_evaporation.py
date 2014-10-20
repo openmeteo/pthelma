@@ -11,7 +11,7 @@ from unittest import TestCase
 import numpy as np
 from osgeo import gdal, osr
 
-from pthelma.evaporation import GerardaApp, PenmanMonteith
+from pthelma.evaporation import VaporizeApp, PenmanMonteith
 
 
 class SenegalTzinfo(tzinfo):
@@ -168,10 +168,10 @@ class PenmanMonteithTestCase(TestCase):
         self.assertAlmostEqual(result, 0.63, places=2)
 
 
-class GerardaAppTestCase(TestCase):
+class VaporizeAppTestCase(TestCase):
 
     def __init__(self, *args, **kwargs):
-        super(GerardaAppTestCase, self).__init__(*args, **kwargs)
+        super(VaporizeAppTestCase, self).__init__(*args, **kwargs)
 
         # Python 2.7 compatibility
         try:
@@ -220,9 +220,9 @@ class GerardaAppTestCase(TestCase):
 
     def setUp(self):
         self.tempdir = tempfile.mkdtemp()
-        self.config_file = os.path.join(self.tempdir, 'gerarda.conf')
+        self.config_file = os.path.join(self.tempdir, 'vaporize.conf')
         self.saved_argv = copy(sys.argv)
-        sys.argv = ['gerarda', '--traceback', self.config_file]
+        sys.argv = ['vaporize', '--traceback', self.config_file]
         self.savedcwd = os.getcwd()
 
         # Prepare data common to all input files
@@ -249,7 +249,7 @@ class GerardaAppTestCase(TestCase):
                 unit_converter_pressure = x / 10.0
                 unit_converter_solar_radiation = x * 3600 / 1e6
                 ''').format(self=self))
-        application = GerardaApp()
+        application = VaporizeApp()
         application.run(dry=True)
 
     def test_wrong_configuration(self):
@@ -261,7 +261,7 @@ class GerardaAppTestCase(TestCase):
                 nighttime_solar_radiation_ratio = 0.8
                 elevation = 8
                 ''').format(self=self))
-        application = GerardaApp()
+        application = VaporizeApp()
         self.assertRaisesRegex(configparser.Error, 'step_length',
                                application.run)
 
@@ -273,7 +273,7 @@ class GerardaAppTestCase(TestCase):
                 elevation = 8
                 step_length = 60
                 ''').format(self=self))
-        application = GerardaApp()
+        application = VaporizeApp()
         self.assertRaisesRegex(configparser.Error, 'albedo',
                                application.run)
 
@@ -285,7 +285,7 @@ class GerardaAppTestCase(TestCase):
                 nighttime_solar_radiation_ratio = 0.8
                 step_length = 60
                 ''').format(self=self))
-        application = GerardaApp()
+        application = VaporizeApp()
         self.assertRaisesRegex(configparser.Error, 'elevation',
                                application.run)
 
@@ -297,7 +297,7 @@ class GerardaAppTestCase(TestCase):
                 elevation = 8
                 step_length = 60
                 ''').format(self=self))
-        application = GerardaApp()
+        application = VaporizeApp()
         self.assertRaisesRegex(configparser.Error,
                                'nighttime_solar_radiation_ratio',
                                application.run)
@@ -327,7 +327,7 @@ class GerardaAppTestCase(TestCase):
                 pressure_prefix = pressure-notz
                 ''').format(self=self))
 
-        application = GerardaApp()
+        application = VaporizeApp()
         application.read_command_line()
         application.read_configuration()
 
@@ -368,7 +368,7 @@ class GerardaAppTestCase(TestCase):
                 unit_converter_pressure = x / 10.0
                 unit_converter_solar_radiation = x * 3600 / 1e6
                 ''').format(self=self))
-        application = GerardaApp()
+        application = VaporizeApp()
         application.read_command_line()
         application.read_configuration()
 
@@ -417,7 +417,7 @@ class GerardaAppTestCase(TestCase):
                 nighttime_solar_radiation_ratio = 0.8
                 elevation = 8
                 ''').format(self=self))
-        application = GerardaApp()
+        application = VaporizeApp()
         application.run(dry=True)
 
     def test_albedo_configuration_as_one_grid(self):
@@ -429,7 +429,7 @@ class GerardaAppTestCase(TestCase):
                 nighttime_solar_radiation_ratio = 0.8
                 elevation = 8
                 ''').format(self=self))
-        application = GerardaApp()
+        application = VaporizeApp()
         self.assertRaises(IOError, application.run, self)
 
     def test_single_albedo_with_wrong_domain_float_inputs(self):
@@ -441,7 +441,7 @@ class GerardaAppTestCase(TestCase):
                 nighttime_solar_radiation_ratio = 0.8
                 elevation = 8
                 ''').format(self=self))
-        application = GerardaApp()
+        application = VaporizeApp()
         self.assertRaises(ValueError, application.run, self)
 
     def test_seasonal_albedo_configuration_as_12_numbers(self):
@@ -454,7 +454,7 @@ class GerardaAppTestCase(TestCase):
                 nighttime_solar_radiation_ratio = 0.8
                 elevation = 8
                 ''').format(self=self))
-        application = GerardaApp()
+        application = VaporizeApp()
         application.run(dry=True)
 
     def test_seasonal_albedo_configuration_as_12_grids(self):
@@ -467,7 +467,7 @@ class GerardaAppTestCase(TestCase):
                 nighttime_solar_radiation_ratio = 0.8
                 elevation = 8
                 ''').format(self=self))
-        application = GerardaApp()
+        application = VaporizeApp()
         self.assertRaises(IOError, application.run, self)
 
     def test_seasonal_albedo_configuration_as_mix_numbers_and_grids(self):
@@ -480,7 +480,7 @@ class GerardaAppTestCase(TestCase):
                 nighttime_solar_radiation_ratio = 0.8
                 elevation = 8
                 ''').format(self=self))
-        application = GerardaApp()
+        application = VaporizeApp()
         self.assertRaises(IOError, application.run, self)
 
     def test_seasonal_albedo_configuration_with_not_enough_arguments(self):
@@ -492,7 +492,7 @@ class GerardaAppTestCase(TestCase):
                 nighttime_solar_radiation_ratio = 0.8
                 elevation = 8
                 ''').format(self=self))
-        application = GerardaApp()
+        application = VaporizeApp()
         self.assertRaises(ValueError, application.run, self)
 
     def test_seasonal_albedo_with_wrong_domain_mixin_inputs(self):
@@ -505,7 +505,7 @@ class GerardaAppTestCase(TestCase):
                 nighttime_solar_radiation_ratio = 0.8
                 elevation = 8
                 ''').format(self=self))
-        application = GerardaApp()
+        application = VaporizeApp()
         self.assertRaises(ValueError, application.run, self)
 
     def test_run_app_seasonal_albedo_with_float_sample_inputs(self):
@@ -519,7 +519,7 @@ class GerardaAppTestCase(TestCase):
                 elevation = 8
                 ''').format(self=self))
 
-        application = GerardaApp()
+        application = VaporizeApp()
         application.run(dry=True)
 
     def test_run_app_with_seasonal_albedo_with_grid_sample_inputs(self):
@@ -533,7 +533,7 @@ class GerardaAppTestCase(TestCase):
                 elevation = 8
                 ''').format(self=self))
 
-        application = GerardaApp()
+        application = VaporizeApp()
         application.run(dry=True)
 
     def test_run_app_with_seasonal_albedo_with_mix_sample_inputs(self):
@@ -547,5 +547,5 @@ class GerardaAppTestCase(TestCase):
                 elevation = 8
                 ''').format(self=self))
 
-        application = GerardaApp()
+        application = VaporizeApp()
         application.run(dry=True)

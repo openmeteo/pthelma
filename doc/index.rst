@@ -10,7 +10,7 @@ User documentation
    user/install
    user/spatialize
    user/aggregate
-   user/gerarda
+   user/vaporize
    user/loggertodb
    user/enhydris_cache
 

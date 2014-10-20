@@ -93,13 +93,13 @@
       interval that ends at *adatetime*, which must be a timezone-aware
       :class:`~datetime.datetime` object.
 
-.. class:: GerardaApp
+.. class:: VaporizeApp
 
-   This class contains the :doc:`../user/gerarda` command-line
-   application. The :file:`gerarda` executable does little other than
+   This class contains the :doc:`../user/vaporize` command-line
+   application. The :file:`vaporize` executable does little other than
    this::
 
-      application = GerardaApp()
+      application = VaporizeApp()
       application.run()
 
 

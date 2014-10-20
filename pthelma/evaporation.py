@@ -198,8 +198,8 @@ class PenmanMonteith(object):
         return numerator / denominator
 
 
-class GerardaApp(CliApp):
-    name = 'gerarda'
+class VaporizeApp(CliApp):
+    name = 'vaporize'
     description = 'Calculate evapotranspiration'
     config_file_options = {'General': {
         # Option                           Default
@@ -222,7 +222,7 @@ class GerardaApp(CliApp):
     }}
 
     def read_configuration(self):
-        super(GerardaApp, self).read_configuration()
+        super(VaporizeApp, self).read_configuration()
 
         self.read_configuration_step_length()
         self.read_configuration_unit_converters()
@@ -242,7 +242,7 @@ class GerardaApp(CliApp):
         except ValueError:
             raise WrongValueError(
                 '"{}" is not an appropriate time step; in this version of '
-                'gerarda, the step must be an integer number of minutes '
+                'vaporize, the step must be an integer number of minutes '
                 'smaller than or equal to 60.'.format(s))
         self.step = timedelta(minutes=minutes)
 
