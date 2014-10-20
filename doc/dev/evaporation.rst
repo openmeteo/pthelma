@@ -95,8 +95,9 @@
 
 .. class:: GerardaApp
 
-   This class contains the :doc:`gerarda` command-line application. The
-   :file:`gerarda` executable does little other than this::
+   This class contains the :doc:`../user/gerarda` command-line
+   application. The :file:`gerarda` executable does little other than
+   this::
 
       application = GerardaApp()
       application.run()

@@ -25,8 +25,8 @@
 
 .. class:: PondApp
 
-   This class contains the :doc:`pond` command-line application. The
-   :file:`pond` executable does little other than this::
+   This class contains the :doc:`../user/pond` command-line application.
+   The :file:`pond` executable does little other than this::
 
       application = PondApp()
       application.run()

@@ -90,8 +90,9 @@
 
 .. class:: BitiaApp
 
-   This class contains the :doc:`bitia` command-line application. The
-   :file:`bitia` executable does little other than this::
+   This class contains the :doc:`../user/bitia` command-line
+   application. The :file:`bitia` executable does little other than
+   this::
 
       application = BitiaApp()
       application.run()
