@@ -80,13 +80,22 @@
    :samp:`{output_filename_prefix}-{d}.tif`, where *d* is the *date*
    formatted by :func:`datetime.strftime()` with the format
    *date_fmt*; however, if *date_fmt* contains spaces or colons, they
-   are converted to hyphens. If the file already exists, the function
-   returns immediately without doing anything. *funct* and *kwargs*
-   are passed to :func:`integrate()`.
+   are converted to hyphens.  *funct* and *kwargs* are passed to
+   :func:`integrate()`.
 
    If some of the time series referenced in *stations_layer* don't
    have *date*, they are not taken into account in the integration. If
    no time series has *date*, the function does nothing.
+
+   The function stores in the output file a gdal metadata item that
+   records the list of input files from which the output has been
+   calculated. This can be the same as the list of files in
+   *stations_layer*, but it can be less if some of these files do not
+   include *date*. If the output file already exists, the function
+   examines the recorded list and checks whether it has been
+   calculated from all available data (occasionally more data becomes
+   available between subsequent runs); if yes, the function returns
+   without doing anything.
 
 .. class:: SpatializeApp
 

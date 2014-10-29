@@ -75,20 +75,66 @@ def create_ogr_layer_from_timeseries(filenames, epsg, data_source):
     return layer
 
 
+def _needs_calculation(output_filename, date, stations_layer):
+    """
+    Used by h_integrate to check whether the output file needs to be calculated
+    or not. It does not need to be calculated if it already exists and has been
+    calculated from all available data.
+    """
+    # Return immediately if output file does not exist
+    if not os.path.exists(output_filename):
+        return True
+
+    # Get list of files which were used to calculate the output file
+    fp = gdal.Open(output_filename)
+    if fp is None:
+        raise IOError('An error occured when trying to open {}'
+                      .format(output_filename))
+    try:
+        actual_input_files = fp.GetMetadataItem('INPUT_FILES')
+        if actual_input_files is None:
+            raise IOError('{} does not contain the metadata item INPUT_FILES'
+                          .format(output_filename))
+    finally:
+        fp = None  # Close file
+    actual_input_files = set(actual_input_files.split('\n'))
+
+    # Get list of files available for calculating the output file
+    stations_layer.ResetReading()
+    available_input_files = set(
+        [station.GetField('filename') for station in stations_layer
+         if os.path.exists(station.GetField('filename'))])
+
+    # Which of these files have not been used?
+    unused_files = available_input_files - actual_input_files
+
+    # For each one of these files, check whether it has newly available data.
+    # Upon finding one that does, the verdict is made: return True
+    for filename in unused_files:
+        t = Timeseries()
+        with open(filename) as f:
+            t.read_file(f)
+        value = t.get(date, float('NaN'))
+        if not isnan(value):
+            return True
+
+    # We were unable to find data that had not already been used
+    return False
+
+
 def h_integrate(mask, stations_layer, date, output_filename_prefix, date_fmt,
                 funct, kwargs):
-    # Return immediately if output file already exists
     date_fmt_for_filename = date.strftime(date_fmt).replace(' ', '-').replace(
         ':', '-')
     output_filename = '{}-{}.tif'.format(output_filename_prefix,
                                          date.strftime(date_fmt_for_filename))
-    if os.path.exists(output_filename):
+    if not _needs_calculation(output_filename, date, stations_layer):
         return
 
     # Read the time series values and add the 'value' attribute to
     # stations_layer
     stations_layer.CreateField(ogr.FieldDefn('value', ogr.OFTReal))
-    found_value = False
+    input_files = []
     stations_layer.ResetReading()
     for station in stations_layer:
         filename = station.GetField('filename')
@@ -97,9 +143,10 @@ def h_integrate(mask, stations_layer, date, output_filename_prefix, date_fmt,
             t.read_file(f)
         value = t.get(date, float('NaN'))
         station.SetField('value', value)
-        found_value = found_value or (not isnan(value))
+        if not isnan(value):
+            input_files.append(filename)
         stations_layer.SetFeature(station)
-    if not found_value:
+    if not input_files:
         return
 
     # Create destination data source
@@ -110,6 +157,7 @@ def h_integrate(mask, stations_layer, date, output_filename_prefix, date_fmt,
         raise IOError('An error occured when trying to open {}'.format(
             output_filename))
     output.SetMetadataItem('TIMESTAMP', date.strftime(date_fmt))
+    output.SetMetadataItem('INPUT_FILES', '\n'.join(input_files))
 
     try:
         # Set geotransform and projection in the output data source

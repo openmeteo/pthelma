@@ -5,6 +5,7 @@ from six.moves import configparser
 import sys
 import tempfile
 import textwrap
+from time import sleep
 from unittest import TestCase, skipIf
 
 if sys.platform != 'win32':
@@ -192,7 +193,7 @@ class HIntegrateTestCase(TestCase):
         self.filenames = [os.path.join(self.tempdir, x)
                           for x in ('ts1', 'ts2', 'ts3', 'ts4')]
         with open(self.filenames[0], 'w') as f:
-            f.write("Location=19.55729 0.04733 2100\n"  # GGRS87=5000 5000
+            f.write("Location=19.557285 0.0473312 2100\n"  # GGRS87=5000 5000
                     "\n"
                     "2014-04-22 12:50,5.03,\n"
                     "2014-04-22 13:00,0.54,\n"
@@ -226,17 +227,67 @@ class HIntegrateTestCase(TestCase):
         shutil.rmtree(self.tempdir)
 
     def test_h_integrate(self):
+        output_filename_prefix = os.path.join(self.tempdir, 'test')
+        result_filename = output_filename_prefix + '-2014-04-22-13-00.tif'
         h_integrate(mask=self.mask,
                     stations_layer=self.stations_layer,
                     date=datetime(2014, 4, 22, 13, 0),
-                    output_filename_prefix=os.path.join(self.tempdir, 'test'),
+                    output_filename_prefix=output_filename_prefix,
                     date_fmt='%Y-%m-%d %H:%M%z', funct=idw, kwargs={})
-        f = gdal.Open(os.path.join(self.tempdir, 'test-2014-04-22-13-00.tif'))
+        f = gdal.Open(result_filename)
         result = f.GetRasterBand(1).ReadAsArray()
         expected_result = np.array([[1.5088, 1.6064, np.nan, 1.7237],
                                     [1.3828, 1.6671, 1.7336, 1.7662],
                                     [0.5400, 2.4000, 1.7954, 1.7504]])
         np.testing.assert_almost_equal(result, expected_result, decimal=4)
+        f = None
+
+        # Wait long enough to make sure that, if we write to a file, its
+        # modification time will be distinguishable from the modification time
+        # of any file that has been written to so far (how long we need to wait
+        # depends on the file system, so we use a test file).
+        mtime_test_file = os.path.join(self.tempdir, 'test_mtime')
+        with open(mtime_test_file, 'w') as f:
+            f.write('hello, world')
+        reference_mtime = os.path.getmtime(mtime_test_file)
+        while os.path.getmtime(mtime_test_file) - reference_mtime < 0.001:
+            sleep(0.001)
+            with open(mtime_test_file, 'w') as f:
+                f.write('hello, world')
+
+        # Try re-calculating the output; the output file should not be touched
+        # at all.
+        result_mtime = os.path.getmtime(result_filename)
+        h_integrate(mask=self.mask,
+                    stations_layer=self.stations_layer,
+                    date=datetime(2014, 4, 22, 13, 0),
+                    output_filename_prefix=output_filename_prefix,
+                    date_fmt='%Y-%m-%d %H:%M%z', funct=idw, kwargs={})
+        self.assertEqual(os.path.getmtime(result_filename), result_mtime)
+
+        # Now change one of the input files so that it contains new data that
+        # can be used in the same calculation, and try recalculating. This time
+        # the file should be recalculated.
+        with open(self.filenames[3], 'w') as f:
+            f.write("Location=19.66480 0.15560 2100\n"  # GGRS87=17000 17000
+                    "\n"
+                    "2014-04-22 12:50,9.70,\n"
+                    "2014-04-22 13:00,4.70,\n"
+                    "2014-04-22 13:10,7.63,\n")
+        h_integrate(mask=self.mask,
+                    stations_layer=self.stations_layer,
+                    date=datetime(2014, 4, 22, 13, 0),
+                    output_filename_prefix=output_filename_prefix,
+                    date_fmt='%Y-%m-%d %H:%M%z', funct=idw, kwargs={})
+        self.assertGreater(os.path.getmtime(result_filename),
+                           result_mtime + 0.0009)
+        expected_result = np.array([[2.6736, 3.1053, np.nan, 2.5166],
+                                    [2.3569, 3.5775, 2.9512, 2.3596],
+                                    [0.5400, 2.4000, 2.5377, 2.3779]])
+        f = gdal.Open(result_filename)
+        result = f.GetRasterBand(1).ReadAsArray()
+        np.testing.assert_almost_equal(result, expected_result, decimal=4)
+        f = None
 
 
 class TzinfoFromStringTestCase(TestCase):
