@@ -8,11 +8,11 @@ User documentation
    :maxdepth: 1
 
    user/install
-   user/spatialize
    user/aggregate
-   user/vaporize
-   user/loggertodb
    user/enhydris_cache
+   user/loggertodb
+   user/spatialize
+   user/vaporize
 
 Developer documentation
 -----------------------
