@@ -18,7 +18,7 @@
 .. |ET_ci| replace:: ET\ :sub:`c,i`
 .. |DP_i| replace:: DP\ :sub:`i`
 
-.. class:: SoilWaterBalance(fc, wp, rd, kc, p, precipitation, evapotranspiration, rd_factor=1)
+.. class:: SoilWaterBalance(fc, wp, rd, kc, p, precipitation, evapotranspiration, irrigation_efficiency, rd_factor=1)
 
    Calculates soil water balance. The init parameters provide values
    for some of the attributes (see below). The heart of the class is
@@ -31,10 +31,13 @@
       evapotranspiration series; provided at class initialization
       time.
 
-
    .. attribute:: fc
 
       The field capacity, provided at class initialization time.
+
+   .. attribute:: irrigation_efficiency
+
+      Irrigation method efficiency factor, provided at class initialization.
 
    .. attribute:: kc
    
@@ -107,8 +110,10 @@
 
          |D_ri| = |D_ri-1| - |P_i| - |IR_ni| + |ET_ci|
 
+      |ET_ci| is calculated using crop coefficient approach by multiplying :attr:`evapotranspiration` by  crop coefficient :attr:`kc`.
+
       The essential simplifying assumption of this method is that each
-      time we irrigate we reach field capacity (i.e. zero depletion)
+      time we irrigate we reach field capacity (i.e. zero depletion).
       Therefore, at the last irrigation date we have i=1 and |D_r1|\
       =0. The equation then becomes:
 
@@ -132,7 +137,13 @@
       so, since the *initial_soil_moisture* is given, |D_r1| is also
       known.
 
-      The method returns the root zone depletion for *end_date*.
+      The method returns the root zone depletion for *end_date* in millimeters (mm).
       :attr:`precipitation` and :attr:`evaporation` must have non-null
       records for all days from the day following *start_date* to
       *end_date*.
+
+   .. method:: irrigation_water_amount(start_date, initial_soil_moisture, end_date)
+
+      This method calculates irrigation water needs based on :attr:`root_zone_depletion` and  :attr:`irrigation_efficiency` factor (i.e. drip, sprinkler).
+
+      The method returns irrigation water needs for *end_date* in millimeters (mm).
