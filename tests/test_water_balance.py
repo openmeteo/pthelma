@@ -49,7 +49,7 @@ class SoilWaterBalanceTestCase(TestCase):
 
         swb = SoilWaterBalance(0.5, 1, 0.5, 0.75,
                                1, precipitation, evapotranspiration, 1.2, 1)
-        depletion = swb.root_zone_depletion(datetime(2014, 11, 01), 100,
+        depletion = swb.root_zone_depletion(datetime(2014, 11, 1), 100,
                                             datetime(2014, 11, 10))
         self.assertAlmostEqual(depletion, 79.6)
 
@@ -65,6 +65,6 @@ class SoilWaterBalanceTestCase(TestCase):
 
         swb = SoilWaterBalance(0.5, 1, 0.5, 0.75, 1,
                                precipitation, evapotranspiration, 1.2, 1)
-        iwa = swb.irrigation_water_amount(datetime(2014, 11, 01),
+        iwa = swb.irrigation_water_amount(datetime(2014, 11, 1),
                                           100, datetime(2014, 11, 10))
         self.assertAlmostEqual(iwa, 66.3333333)
