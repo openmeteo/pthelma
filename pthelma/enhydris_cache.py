@@ -73,10 +73,10 @@ class TimeseriesCache(object):
         ts1.append(ts2)
 
 
-class PondApp(CliApp):
-    name = 'pond'
+class EnhydrisCacheApp(CliApp):
+    name = 'enhydris_cache'
     description = 'Local filesystem cache of Enhydris data'
-                          # Section     Option      Default
+    #                       Section     Option      Default
     config_file_options = {'General': {'cache_dir': os.getcwd()
                                        },
                            'other':   {'base_url':  None,
@@ -88,7 +88,7 @@ class PondApp(CliApp):
                            }
 
     def read_configuration(self):
-        super(PondApp, self).read_configuration()
+        super(EnhydrisCacheApp, self).read_configuration()
 
         # Convert all sections but 'General' into a list of time series
         self.timeseries_group = []
@@ -100,7 +100,8 @@ class PondApp(CliApp):
             try:
                 item['id'] = int(item['id'])
             except ValueError:
-                raise WrongValueError('"{}" is not a valid integer'.format(item['id']))
+                raise WrongValueError(
+                    '"{}" is not a valid integer'.format(item['id']))
             self.timeseries_group.append(item)
 
     def execute(self):

@@ -1,7 +1,6 @@
 from copy import copy
 import os
 import shutil
-from six import StringIO
 from six.moves import configparser
 import sys
 import tempfile
@@ -9,14 +8,14 @@ import textwrap
 from unittest import TestCase
 
 from pthelma.cliapp import WrongValueError
-from pthelma.fordonia import FordoniaApp
+from pthelma.aggregate import AggregateApp
 from pthelma.timeseries import Timeseries
 
 
-class FordoniaAppTestCase(TestCase):
+class AggregateAppTestCase(TestCase):
 
     def __init__(self, *args, **kwargs):
-        super(FordoniaAppTestCase, self).__init__(*args, **kwargs)
+        super(AggregateAppTestCase, self).__init__(*args, **kwargs)
 
         # Python 2.7 compatibility
         try:
@@ -26,9 +25,9 @@ class FordoniaAppTestCase(TestCase):
 
     def setUp(self):
         self.tempdir = tempfile.mkdtemp()
-        self.config_file = os.path.join(self.tempdir, 'fordonia.conf')
+        self.config_file = os.path.join(self.tempdir, 'aggregate.conf')
         self.saved_argv = copy(sys.argv)
-        sys.argv = ['fordonia', '--traceback', self.config_file]
+        sys.argv = ['aggregate', '--traceback', self.config_file]
         self.savedcwd = os.getcwd()
 
         # Create two time series
@@ -93,7 +92,7 @@ class FordoniaAppTestCase(TestCase):
         sys.argv = copy(self.saved_argv)
 
     def test_correct_configuration(self):
-        application = FordoniaApp()
+        application = AggregateApp()
         application.run(dry=True)
 
     def test_wrong_configuration(self):
@@ -102,7 +101,7 @@ class FordoniaAppTestCase(TestCase):
                 [General]
                 base_dir = mydir
                 '''))
-        application = FordoniaApp()
+        application = AggregateApp()
         self.assertRaisesRegex(configparser.Error, 'target_step',
                                application.run)
 
@@ -113,7 +112,7 @@ class FordoniaAppTestCase(TestCase):
                 target_step = 60, 0
                 nonexistent_option = irrelevant
                 '''))
-        application = FordoniaApp()
+        application = AggregateApp()
         self.assertRaisesRegex(configparser.Error, 'nonexistent_option',
                                application.run)
 
@@ -123,12 +122,12 @@ class FordoniaAppTestCase(TestCase):
                 base_dir = mydir
                 target_step = 60, 80
                 '''))
-        application = FordoniaApp()
+        application = AggregateApp()
         self.assertRaisesRegex(WrongValueError, 'appropriate time step',
                                application.run)
 
     def test_execute(self):
-        application = FordoniaApp()
+        application = AggregateApp()
         application.read_command_line()
         application.read_configuration()
 
@@ -158,7 +157,7 @@ class FordoniaAppTestCase(TestCase):
         self.assertAlmostEqual(t['2014-06-17 16:00'], 50.8167, places=5)
 
     def test_execute_error_message(self):
-        application = FordoniaApp()
+        application = AggregateApp()
         application.read_command_line()
         application.read_configuration()
 

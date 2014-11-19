@@ -1,6 +1,6 @@
-=======
-gerarda
-=======
+========
+vaporize
+========
 
 -----------------------
 Evaporation calculation
@@ -11,12 +11,12 @@ Evaporation calculation
 SYNOPSIS
 ========
 
-``gerarda [--traceback] config_file``
+``vaporize [--traceback] config_file``
 
 DESCRIPTION AND QUICK START
 ===========================
 
-``gerarda`` reads GeoTIFF files with temperature, humidity, solar
+``vaporize`` reads GeoTIFF files with temperature, humidity, solar
 radiation, pressure and wind speed, and produces a GeoTIFF file with
 evapotranspiration calculated with the Penman-Monteith method. The
 details of its operation are specified in the configuration file
@@ -29,15 +29,15 @@ indicating which equations it uses.
 Installation
 ------------
 
-To install ``gerarda``, see :ref:`install`.
+To install ``vaporize``, see :ref:`install`.
 
 How to run it
 -------------
 
 First, you need to create a configuration file with a text editor such
 as ``vim``, ``emacs``, ``notepad``, or whatever. Create such a file
-and name it, for example, :file:`/var/tmp/gerarda.conf`, or, on
-Windows, something like :file:`C:\\Users\\user\\gerarda.conf`, with
+and name it, for example, :file:`/var/tmp/vaporize.conf`, or, on
+Windows, something like :file:`C:\\Users\\user\\vaporize.conf`, with
 the following contents (the contents don't matter at this stage, just
 copy and paste them from below)::
 
@@ -48,11 +48,11 @@ Then, open a command prompt and give it this command:
 
 **Unix/Linux**::
 
-    gerarda /var/tmp/gerarda.conf
+    vaporize /var/tmp/vaporize.conf
 
 **Windows**::
 
-    C:\Program Files\Pthelma\gerarda.exe C:\Users\user\gerarda.conf
+    C:\Program Files\Pthelma\vaporize.exe C:\Users\user\vaporize.conf
 
 (the details may differ; for example, in 64-bit Windows, it may be
 :file:`C:\\Program Files (x86)` instead of :file:`C:\\Program Files`.)
@@ -68,9 +68,8 @@ explanatory comments that follow it:
 
 .. code-block:: ini
 
-   [General]
    loglevel = INFO
-   logfile = C:\Somewhere\gerarda.log
+   logfile = C:\Somewhere\vaporize.log
    base_dir = C:\Somewhere
    albedo = 0.23
    nighttime_solar_radiation_ratio = 0.8
@@ -79,23 +78,7 @@ explanatory comments that follow it:
    unit_converter_pressure = x / 10.0
    unit_converter_solar_radiation = x * 3600 / 1e6
 
-   [Last]
-   temperature = temperature-0001.tif
-   humidity = humidity-0001.tif
-   wind_speed = wind_speed-0001.tif
-   pressure = pressure-0001.tif
-   solar_radiation = solar_radiation-0001.tif
-   result = evaporation-0001.tif
-
-   [Last-but-one]
-   temperature = temperature-0002.tif
-   humidity = humidity-0002.tif
-   wind_speed = wind_speed-0002.tif
-   pressure = pressure-0002.tif
-   solar_radiation = solar_radiation-0002.tif
-   result = evaporation-0002.tif
-
-With the above configuration file, ``gerarda`` will log information in
+With the above configuration file, ``vaporize`` will log information in
 the file specified by :confval:`logfile`. It will calculate hourly
 evaporation (:confval:`step_length`) at the specified
 :confval:`elevation` with the specified :confval:`albedo` and
@@ -104,23 +87,26 @@ be GeoTIFF files instead of numbers). For some variables, the input
 files are in different units than the default ones (hPa instead of kPa
 for pressure, W/m² instead of MJ/m²/h for solar radiation) and need to
 be converted (:confval:`unit_converter`). The calculation is performed
-twice, for two distinct sets of files that are in :confval:`base_dir`.
-The output is written to a GeoTIFF file specified with
-:confval:`result`.
-The calculation is performed only if that file does
-not already exist, or if at least one of the input files has a later
-modification time.
+once for each one of the sets of files that are in
+:confval:`base_dir`; for example, if inside `base_dir` there are files
+`temperature-2014-10-12-18-00+0200.tif`,
+`humidity-2014-10-12-18-00+0200.tif`, and so on (including variables
+named `wind_speed`, `pressure`, and `solar_radiation`), there will be
+a resulting file `evaporation-2014-10-12-18-00+0200.tif`; if there are
+files for other dates, there will be a result for them as well.  The
+calculation is performed only if the resulting file does not already
+exist, or if at least one of the input files has a later modification
+time.  If there are any `evaporation-....tif` files without
+corresponding input files, they will be deleted.
 
 CONFIGURATION FILE REFERENCE
 ============================
 
-The configuration file has the format of INI files. There is a
-``[General]`` section with general parameters, and any number of other
-sections, which we will call "file set sections", each file set
-section referring to a set of files.
+The configuration file has the format of INI files, but without
+sections.
 
-General parameters
-------------------
+Parameters
+----------
 
 .. confval:: loglevel
 
@@ -134,23 +120,22 @@ General parameters
 
 .. confval:: base_dir
 
-   Optional. ``gerarda`` will change directory to this directory, so
-   any relative filenames will be relative to this directory. If
-   unspecified, relative filenames will be relative to the directory
-   from which ``gerarda`` was started.
+   The directory in which ``vaporize`` will look for input files and
+   write output files.  If unspecified, it is the directory from which
+   ``vaporize`` was started.
 
 .. confval:: step_length
 
    An integer indicating the number of minutes in
-   the time step. In this version, ``gerarda`` can only handle hourly
+   the time step. In this version, ``vaporize`` can only handle hourly
    time steps or smaller.
 
 .. confval:: elevation
-             albedo
-             nighttime_solar_radiation_ratio
 
-   :confval:`elevation` is meters of the location above sea level.
-   :confval:`albedo` is the albedo (a number between 0 and 1).
+   Meters of the location above sea level; this can be either a number
+   or a GeoTIFF file with a digital elevation model.
+
+.. confval:: nighttime_solar_radiation_ratio
 
    In order to estimate the outgoing radiation, the ratio of incoming
    solar radiation to clear sky solar radiation is used as a
@@ -158,9 +143,27 @@ General parameters
    the night, in which case :confval:`nighttime_solar_radiation_ratio`
    is used as a rough approximation of that ratio. It should be a
    number between 0.4 and 0.8; see Allen et al. (1998), top of page
-   75.
+   75. It can be a number or a GeoTIFF file.
 
-   These three parameters can either be numbers or GeoTIFF files.
+.. confval:: albedo
+
+   A number between 0 and 1 or a GeoTIFF file with such numbers. It
+   can also be a list of twelve space-separated numbers and/or GeoTIFF
+   files, where the first is for January, the second for February, and
+   so on. For example::
+
+      albedo = albedo-jan.tif albedo-feb.tif albedo-mar.tif albedo-apr.tif
+               albedo-may.tif albedo-jun.tif albedo-jul.tif albedo-aug.tif
+               albedo-sep.tif 0.23           albedo-nov.tif albedo-dec.tif
+
+   Note that in the configuration file long lines can be wrapped by
+   indenting the additional lines. Also note that GeoTIFF files can be
+   mixed with numbers; in the above example, GeoTIFF files are
+   specified for all months except for October, which has a single
+   value of 0.23.
+
+   If a single number or GeoTIFF file is specified, it is used for all
+   the year.
 
 .. confval:: unit_converter
 
@@ -189,22 +192,24 @@ General parameters
    Use 32.0 rather than 32, and so on, in order to ensure that the
    calculations will be performed in floating point.
 
-File set parameters
--------------------
+.. confval:: temperature_prefix
+             humidity_prefix
+             wind_speed_prefix
+             pressure_prefix
+             solar_radiation_prefix
+             evaporation_prefix
 
-.. confval:: temperature
-             humidity
-             wind_speed
-             pressure
-             solar_radiation
+   Optional. `vaporize` assumes that the input files are
+   named :samp:`{variable}-{date}.tif`, where *variable* one of
+   `temperature`, `humidity`, `wind_speed`, `pressure` and
+   `solar_radiation`, and, similarly, for the output file *variable*
+   is `evaporation`. With these parameters these names can be changed;
+   for example::
 
-   The pathnames to the GeoTIFF files that hold the input variables.
+      humidity_prefix = hum
 
-.. confval:: result
-
-   The pathname to which the output will be written.  The calculation
-   is performed only if that file does not already exist, or if at
-   least one of the input files has a later modification time.
+   In that case, the humidity files are going to have a name similar
+   to `hum-2014-10-12-18-00+0200.tif`.
 
 REFERENCES
 ==========
@@ -216,11 +221,11 @@ paper no. 56, 1998.
 AUTHOR AND COPYRIGHT
 ====================
 
-``gerarda`` was written by Antonis Christofides, anthony@itia.ntua.gr.
+``vaporize`` was written by Antonis Christofides, anthony@itia.ntua.gr.
 
 | Copyright (C) 2014 TEI of Epirus
 
-``gerarda`` is free software; you can redistribute it and/or modify it
+``vaporize`` is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
 Free Software Foundation; either version 3 of the License, or (at your
 option) any later version.

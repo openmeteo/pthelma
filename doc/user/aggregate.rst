@@ -1,6 +1,6 @@
-========
-fordonia
-========
+=========
+aggregate
+=========
 
 -----------------------
 Time series aggregation
@@ -11,12 +11,12 @@ Time series aggregation
 SYNOPSIS
 ========
 
-``fordonia [--traceback] config_file``
+``aggregate [--traceback] config_file``
 
 DESCRIPTION AND QUICK START
 ===========================
 
-``fordonia`` gets the data of time series from files and creates time
+``aggregate`` gets the data of time series from files and creates time
 series of a larger time step, storing the result in files.  The
 details of its operation are specified in the configuration file
 specified on the command line.
@@ -24,15 +24,15 @@ specified on the command line.
 Installation
 ------------
 
-To install ``fordonia``, see :ref:`install`.
+To install ``aggregate``, see :ref:`install`.
 
 How to run it
 -------------
 
 First, you need to create a configuration file with a text editor such
 as ``vim``, ``emacs``, ``notepad``, or whatever. Create such a file
-and name it, for example, :file:`/var/tmp/fordonia.conf`, or, on
-Windows, something like :file:`C:\\Users\\user\\fordonia.conf`, with
+and name it, for example, :file:`/var/tmp/aggregate.conf`, or, on
+Windows, something like :file:`C:\\Users\\user\\aggregate.conf`, with
 the following contents (the contents don't matter at this stage, just
 copy and paste them from below)::
 
@@ -43,11 +43,11 @@ Then, open a command prompt and give it this command:
 
 **Unix/Linux**::
 
-    fordonia /var/tmp/fordonia.conf
+    aggregate /var/tmp/aggregate.conf
 
 **Windows**::
 
-    C:\Program Files\Pthelma\fordonia.exe C:\Users\user\fordonia.conf
+    C:\Program Files\Pthelma\aggregate.exe C:\Users\user\aggregate.conf
 
 (the details may differ; for example, in 64-bit Windows, it may be
 :file:`C:\\Program Files (x86)` instead of :file:`C:\\Program Files`.)
@@ -65,7 +65,7 @@ explanatory comments that follow it:
 
     [General]
     loglevel = INFO
-    logfile = C:\Somewhere\fordonia.log
+    logfile = C:\Somewhere\aggregate.log
     base_dir = C:\Somewhere
     target_step = 60,0
 
@@ -79,7 +79,7 @@ explanatory comments that follow it:
     target_file = rainfall-hourly.hts
     interval_type = sum
 
-With the above configuration file, ``fordonia`` will log information in
+With the above configuration file, ``aggregate`` will log information in
 the file specified by :confval:`logfile`. It will aggregate the
 specified time series into hourly (60 minutes, 0 months). The
 filenames specified with :confval:`source_file` and
@@ -110,10 +110,10 @@ General parameters
 
 .. confval:: base_dir
 
-   Optional. ``fordonia`` will change directory to this directory, so
+   Optional. ``aggregate`` will change directory to this directory, so
    any relative filenames will be relative to this directory. If
    unspecified, relative filenames will be relative to the directory
-   from which ``fordonia`` was started.
+   from which ``aggregate`` was started.
 
 .. confval:: target_step
 
@@ -193,7 +193,7 @@ The name of the section is ignored.
 
    The filename of the target file, which will be written in
    :ref:`file format <fileformat>`; it must be absolute or relative to
-   :confval:`base_dir`. In this version of ``fordonia``, all the
+   :confval:`base_dir`. In this version of ``aggregate``, all the
    aggregation is repeated even if it or part of it has been done in
    the past, and the file is entirely overwritten if it already
    exists.
@@ -208,12 +208,12 @@ The name of the section is ignored.
 AUTHOR AND COPYRIGHT
 ====================
 
-``fordonia`` was written by Antonis Christofides,
+``aggregate`` was written by Antonis Christofides,
 anthony@itia.ntua.gr.
 
 | Copyright (C) 2014 TEI of Epirus
 
-``fordonia`` is free software; you can redistribute it and/or modify
+``aggregate`` is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 3 of the License, or (at
 your option) any later version.

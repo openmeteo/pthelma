@@ -95,6 +95,9 @@
       system, use `self.logger`, which is a :class:`logging.Logger`
       object.
 
+      If an application defines only the *General* section, then in
+      configuration files the `[General]` line may be omitted.
+
       In the :attr:`config_file_options` dictionary, a key's value can
       be the string :const:`'nocheck'` instead of a dictionary; this
       signals to not check the contents of that section for validity.

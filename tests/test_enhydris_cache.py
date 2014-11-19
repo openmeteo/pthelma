@@ -11,7 +11,7 @@ from six import StringIO
 from six.moves import configparser
 
 from pthelma import enhydris_api
-from pthelma.enhydris_cache import PondApp, TimeseriesCache
+from pthelma.enhydris_cache import EnhydrisCacheApp, TimeseriesCache
 from pthelma.timeseries import Timeseries
 
 
@@ -150,10 +150,10 @@ class TimeseriesCacheTestCase(TestCase):
 
 @skipUnless(os.getenv('PTHELMA_TEST_ENHYDRIS_API'),
             'set PTHELMA_TEST_ENHYDRIS_API')
-class PondAppTestCase(TestCase):
+class EnhydrisCacheAppTestCase(TestCase):
 
     def __init__(self, *args, **kwargs):
-        super(PondAppTestCase, self).__init__(*args, **kwargs)
+        super(EnhydrisCacheAppTestCase, self).__init__(*args, **kwargs)
 
         # Python 2.7 compatibility
         try:
@@ -163,9 +163,9 @@ class PondAppTestCase(TestCase):
 
     def setUp(self):
         self.tempdir = tempfile.mkdtemp()
-        self.config_file = os.path.join(self.tempdir, 'pond.conf')
+        self.config_file = os.path.join(self.tempdir, 'enhydris_cache.conf')
         self.saved_argv = sys.argv
-        sys.argv = ['pond', '--traceback', self.config_file]
+        sys.argv = ['enhydris_cache', '--traceback', self.config_file]
         self.savedcwd = os.getcwd()
 
         # Create two stations, each one with a time series
@@ -229,7 +229,7 @@ class PondAppTestCase(TestCase):
         sys.argv = self.saved_argv
 
     def test_correct_configuration(self):
-        application = PondApp()
+        application = EnhydrisCacheApp()
         application.run(dry=True)
 
     def test_wrong_configuration1(self):
@@ -239,7 +239,7 @@ class PondAppTestCase(TestCase):
                 cache_dir = {self.tempdir}
                 nonexistent_option = irrelevant
                 ''').format(self=self))
-        application = PondApp()
+        application = EnhydrisCacheApp()
         self.assertRaisesRegex(configparser.Error, 'nonexistent_option',
                                application.run)
 
@@ -253,7 +253,7 @@ class PondAppTestCase(TestCase):
                 id = 5432
                 file = file1
                 ''').format(self=self))
-        application = PondApp()
+        application = EnhydrisCacheApp()
         self.assertRaisesRegex(configparser.Error, 'base_url',
                                application.run)
 
@@ -268,12 +268,12 @@ class PondAppTestCase(TestCase):
                 id = non-numeric
                 file = file1
                 ''').format(self=self))
-        application = PondApp()
+        application = EnhydrisCacheApp()
         self.assertRaisesRegex(configparser.Error, 'id',
                                application.run)
 
     def test_execute(self):
-        application = PondApp()
+        application = EnhydrisCacheApp()
         application.read_command_line()
         application.read_configuration()
 

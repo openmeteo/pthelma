@@ -366,18 +366,18 @@ class TestWdat5(TestCase):
                 enhydris_api.delete_model(self.base_url, self.cookies,
                                           'Timeseries', parm['ts_id'])
 
-    def check_config_test(self):
-        self.assertRaises(ConfigurationError, Datafile_WDAT5,
+    def test_check_config(self):
+        self.assertRaises(ConfigurationError, Datafile_wdat5,
                           self.base_url, self.cookies, {})
-        self.assertRaises(ConfigurationError, Datafile_WDAT5,
+        self.assertRaises(ConfigurationError, Datafile_wdat5,
                           self.base_url, self.cookies,
                           {'filename': 'hello', 'outsidetemp': '0',
                            'datafile_format': 'irrelevant',
                            'nonexistent_config_option': True})
         # Call it correctly and expect it doesn't raise anything
-        self.Datafile_WDAT5(self.base_url, self.cookies,
-                            {'filename': 'hello', 'outsidetemp': '0',
-                             'datafile_format': 'irrelevant'})
+        Datafile_wdat5(self.base_url, self.cookies,
+                       {'filename': 'hello', 'outsidetemp': '0',
+                        'datafile_format': 'irrelevant'})
 
     def test_upload(self):
         # Initial upload of the stuff in the "1" directory
@@ -652,7 +652,7 @@ class LoggertodbAppTestCase(TestCase):
         try:
             app.run()
             self.assertTrue(False)
-        except SystemExit as e:
+        except SystemExit:
             self.assertTrue('nonexistent.conf' in stderr.getvalue())
         finally:
             sys.stderr = orig_stderr

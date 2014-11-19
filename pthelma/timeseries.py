@@ -19,13 +19,11 @@ GNU General Public License for more details.
 """
 
 from calendar import monthrange
-from codecs import BOM_UTF8
 from ctypes import CDLL, c_int, c_longlong, c_double, c_char, c_char_p, \
     byref, Structure, c_void_p, POINTER, string_at
 from datetime import datetime, timedelta
 import math
 from math import sin, cos, atan2, pi
-from os import SEEK_SET
 import random
 import re
 import zlib
@@ -63,9 +61,10 @@ class T_TIMESERIESLIST(Structure):
                ("n", c_int)]
 
 import platform
-dickinson = CDLL('dickinson.dll'
-                 if platform.system() == 'Windows'
-                 else 'libdickinson.so')
+dickinson = CDLL(
+    (platform.system() == 'Windows' and 'dickinson.dll') or
+    (platform.system().startswith('Darwin') and 'libdickinson.dylib') or
+    'libdickinson.so')
 
 dickinson.ts_get_item.restype = T_REC
 dickinson.ts_create.restype = c_void_p
@@ -468,8 +467,8 @@ class Timeseries(dict):
         if index_c < 0:
             raise KeyError(
                 'No such record: ' + (isoformat_nosecs(key, ' ')
-                if isinstance(key, datetime)
-                else key))
+                                      if isinstance(key, datetime)
+                                      else key))
         dickinson.ts_delete_item(self.ts_handle, index_c)
 
     def __contains__(self, key):
@@ -519,8 +518,8 @@ class Timeseries(dict):
         if index_c < 0:
             raise KeyError(
                 'No such record: ' + (isoformat_nosecs(key, ' ')
-                if isinstance(key, datetime)
-                else key))
+                                      if isinstance(key, datetime)
+                                      else key))
         arec = dickinson.ts_get_item(self.ts_handle, index_c)
         if arec.null == 1:
             value = float('NaN')
@@ -917,9 +916,9 @@ class Timeseries(dict):
         i = 0
         if pos is not None:
             if pos < 0 or pos >= dickinson.ts_length(self.ts_handle):
-                raise IndexError("Index (%d) out of "
-                                 "bounds (%d, %d)" % (pos, 0,
-                                 dickinson.ts_length(self.ts_handle) - 1,))
+                raise IndexError(
+                    "Index (%d) out of bounds (%d, %d)" % (
+                        pos, 0, dickinson.ts_length(self.ts_handle) - 1,))
             i = pos
         while i < dickinson.ts_length(self.ts_handle):
             rec = dickinson.ts_get_item(self.ts_handle, c_int(i))

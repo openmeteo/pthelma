@@ -7,12 +7,12 @@ User documentation
 .. toctree::
    :maxdepth: 1
 
-   install
-   bitia
-   fordonia
-   gerarda
-   loggertodb
-   pond
+   user/install
+   user/aggregate
+   user/enhydris_cache
+   user/loggertodb
+   user/spatialize
+   user/vaporize
 
 Developer documentation
 -----------------------
@@ -22,23 +22,24 @@ Well-maintained modules:
 .. toctree::
    :maxdepth: 1
 
-   cliapp
-   enhydris_api
-   enhydris_cache
-   evaporation
-   meteologger
-   spatial
-   timeseries
+   dev/cliapp
+   dev/enhydris_api
+   dev/enhydris_cache
+   dev/evaporation
+   dev/meteologger
+   dev/spatial
+   dev/timeseries
+   dev/water_balance
 
 Modules that need some work but should work:
 
 .. toctree::
    :maxdepth: 1
 
-   cplot
-   curves
-   meteocalcs
-   tsprocess
+   dev/cplot
+   dev/curves
+   dev/meteocalcs
+   dev/tsprocess
 
 Miscellaneous
 -------------

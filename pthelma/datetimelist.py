@@ -28,8 +28,10 @@ import iso8601
 from pthelma.timeseries import (isoformat_nosecs,
     _DT_BASE, _datetime_to_time_t, _time_t_to_datetime,)
 
-dickinson = CDLL('dickinson.dll' if platform.system()=='Windows'
-                                                    else 'libdickinson.so')
+dickinson = CDLL(
+    (platform.system() == 'Windows' and 'dickinson.dll') or
+    (platform.system().startswith('Darwin') and 'libdickinson.dylib') or
+    'libdickinson.so')
 
 dickinson.dl_get_item.restype = c_longlong
 dickinson.dl_create.restype = c_void_p

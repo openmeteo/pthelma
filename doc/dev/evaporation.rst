@@ -32,7 +32,11 @@
 
    The class is initialized with the following parameters:
 
-   *albedo* is a scalar or array with the albedo (dimensionless).
+   *albedo* is either a scalar or array, or a sequence of 12 scalars
+   or arrays. If it is a sequence, the first item is the albedo in
+   January, the second is for February, and so on. If it is a single
+   scalar or array, it is used for the entire year. The albedo is a
+   number between 0 and 1.
 
    In order to estimate the outgoing radiation, the ratio of incoming
    solar radiation to clear sky solar radiation is used as a
@@ -89,12 +93,13 @@
       interval that ends at *adatetime*, which must be a timezone-aware
       :class:`~datetime.datetime` object.
 
-.. class:: GerardaApp
+.. class:: VaporizeApp
 
-   This class contains the :doc:`gerarda` command-line application. The
-   :file:`gerarda` executable does little other than this::
+   This class contains the :doc:`../user/vaporize` command-line
+   application. The :file:`vaporize` executable does little other than
+   this::
 
-      application = GerardaApp()
+      application = VaporizeApp()
       application.run()
 
 

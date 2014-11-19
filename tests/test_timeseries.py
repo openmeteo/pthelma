@@ -481,6 +481,7 @@ class _Test_datetime_utilities(TestCase):
         self.assertEquals(add_months_to_datetime(dt, -48),
                           datetime(2008, 2, 29, 13, 10))
 
+
 class _Test_strip_trailing_zeros(TestCase):
 
     def test1(self):
