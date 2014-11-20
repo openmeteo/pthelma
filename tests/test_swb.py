@@ -5,7 +5,7 @@ from unittest import TestCase
 from six import StringIO
 
 from pthelma.timeseries import Timeseries, TimeStep
-from pthelma.water_balance import SoilWaterBalance
+from pthelma.swb import SoilWaterBalance
 
 
 precipitation_test_timeseries = textwrap.dedent("""\
@@ -63,8 +63,8 @@ class SoilWaterBalanceTestCase(TestCase):
         instring = StringIO(evapotranspiration_test_timeseries)
         evapotranspiration.read_file(instring)
 
-        swb = SoilWaterBalance(0.5, 1, 0.5, 0.75, 1,
-                               precipitation, evapotranspiration, 1.2, 1)
-        iwa = swb.irrigation_water_amount(datetime(2014, 11, 01),
-                                          100, datetime(2014, 11, 10))
+        swb_model = SoilWaterBalance(0.5, 1, 0.5, 0.75, 1,
+                                     precipitation, evapotranspiration, 1.2, 1)
+        iwa = swb_model.irrigation_water_amount(datetime(2014, 11, 01),
+                                                100, datetime(2014, 11, 10))
         self.assertAlmostEqual(iwa, 66.3333333)
