@@ -264,7 +264,7 @@ class VaporizeApp(CliApp):
     def read_configuration_elevation(self):
         s = self.config['General']['elevation']
         self.elevation = self.get_number_or_grid(s)
-        if self.elevation < -427 or self.elevation > 8848:
+        if np.any(self.elevation < -427) or np.any(self.elevation > 8848):
             raise WrongValueError('The elevation must be between -427 '
                                   'and 8848')
 

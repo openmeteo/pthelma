@@ -179,14 +179,14 @@ class VaporizeAppTestCase(TestCase):
         except AttributeError:
             self.assertRaisesRegex = self.assertRaisesRegexp
 
-    def setup_input_file(self, variable, value):
+    def setup_input_file(self, variable, value, with_date=True):
         """
         Saves value, which is an np array, to a GeoTIFF file whose name is
         based on variable.
         """
-        filename = os.path.join(self.tempdir, variable + '-' +
-                                self.timestamp.strftime('%Y-%m-%d-%H-%M%z') +
-                                '.tif')
+        filename = variable if not with_date else \
+            variable + '-' + self.timestamp.strftime('%Y-%m-%d-%H-%M%z')
+        filename = os.path.join(self.tempdir, filename + '.tif')
         f = gdal.GetDriverByName('GTiff').Create(
             filename, 2, 1, 1, gdal.GDT_Float32)
         if not f:
@@ -389,6 +389,64 @@ class VaporizeAppTestCase(TestCase):
 
         # Check that the rogue output file is gone
         self.assertFalse(os.path.exists(rogue_output_file))
+
+        # Check that the created file is correct
+        fp = gdal.Open(result_filename)
+        timestamp = fp.GetMetadata()['TIMESTAMP']
+        self.assertEqual(timestamp, '2014-10-01T15:00:00-01:00')
+        self.assertEqual(fp.RasterXSize, 2)
+        self.assertEqual(fp.RasterYSize, 1)
+        self.assertEqual(fp.GetGeoTransform(), self.geo_transform)
+        # We can't just compare fp.GetProjection() to self.wgs84.ExportToWkt(),
+        # because sometimes there are minor differences in the formatting or in
+        # the information contained in the WKT.
+        self.assertTrue(fp.GetProjection().startswith('GEOGCS["WGS 84",'))
+        self.assertTrue(fp.GetProjection().endswith('AUTHORITY["EPSG","4326"]]'
+                                                    ))
+        np.testing.assert_almost_equal(fp.GetRasterBand(1).ReadAsArray(),
+                                       np.array([[0.63, 0.36]]),
+                                       decimal=2)
+        fp = None
+
+    def test_execute_with_dem(self):
+        """This is essentially the same as test_execute, but uses a GeoTIFF
+        with a DEM instead of a constant elevation. The numbers are the same,
+        however (all DEM gridpoints have the same value)."""
+
+        # Prepare input files
+        self.timestamp = datetime(2014, 10, 1, 15, 0, tzinfo=senegal_tzinfo)
+        self.setup_input_file('temperature', np.array([[38, 28]]))
+        self.setup_input_file('humidity', np.array([[52, 42]]))
+        self.setup_input_file('wind_speed', np.array([[3.3, 2.3]]))
+        self.setup_input_file('pressure', np.array([[1013, 1013]]))
+        self.setup_input_file('solar_radiation', np.array([[681, 403]]))
+        self.setup_input_file('dem', np.array([[8, 8]]), with_date=False)
+
+        with open(self.config_file, 'w') as f:
+            f.write(textwrap.dedent('''\
+                base_dir = {self.tempdir}
+                albedo = 0.23
+                nighttime_solar_radiation_ratio = 0.8
+                elevation = dem.tif
+                step_length = 60
+                unit_converter_pressure = x / 10.0
+                unit_converter_solar_radiation = x * 3600 / 1e6
+                ''').format(self=self))
+        application = VaporizeApp()
+        application.read_command_line()
+        application.read_configuration()
+
+        # Verify the output file doesn't exist yet
+        result_filename = os.path.join(
+            self.tempdir, 'evaporation-{}.tif'.format(
+                self.timestamp.strftime('%Y-%m-%d-%H-%M%z')))
+        self.assertFalse(os.path.exists(result_filename))
+
+        # Execute
+        application.run()
+
+        # Check that it has created a file
+        self.assertTrue(os.path.exists(result_filename))
 
         # Check that the created file is correct
         fp = gdal.Open(result_filename)
