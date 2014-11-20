@@ -259,7 +259,11 @@ class VaporizeApp(CliApp):
         input_file = gdal.Open(s)
         if input_file is None:
             raise IOError('An error occured when trying to open {}'.format(s))
-        return input_file.GetRasterBand(1).ReadAsArray()
+        result = input_file.GetRasterBand(1).ReadAsArray()
+        nodata = input_file.GetRasterBand(1).GetNoDataValue()
+        if nodata is not None:
+            result[result == nodata] = float('nan')
+        return result
 
     def read_configuration_elevation(self):
         s = self.config['General']['elevation']
@@ -439,7 +443,11 @@ class VaporizeApp(CliApp):
                                         filename))
 
             # Read array
-            input_data[variable] = fp.GetRasterBand(1).ReadAsArray()
+            array = fp.GetRasterBand(1).ReadAsArray()
+            nodata = fp.GetRasterBand(1).GetNoDataValue()
+            if nodata is not None:
+                array[array == nodata] = float('nan')
+            input_data[variable] = array
 
             # Close file
             fp = None
