@@ -30,8 +30,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
 Source: "dist\loggertodb.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "dist\pond.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "dist\fordonia.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\enhydris_cache.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\aggregate.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "dist\_ctypes.pyd"; DestDir: "{app}"; Flags: ignoreversion
 Source: "dist\_hashlib.pyd"; DestDir: "{app}"; Flags: ignoreversion
 Source: "dist\_socket.pyd"; DestDir: "{app}"; Flags: ignoreversion
@@ -51,8 +51,8 @@ Source: "dist\cacert.pem"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\loggertodb.exe"
-Name: "{group}\{#MyAppName}"; Filename: "{app}\pond.exe"
-Name: "{group}\{#MyAppName}"; Filename: "{app}\fordonia.exe"
+Name: "{group}\{#MyAppName}"; Filename: "{app}\enhydris_cache.exe"
+Name: "{group}\{#MyAppName}"; Filename: "{app}\aggregate.exe"
 
 [Run]
 Filename: "{app}\vcredist_x86.exe"; Parameters: "/q /norestart"
