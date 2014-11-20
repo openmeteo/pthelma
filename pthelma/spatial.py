@@ -218,7 +218,7 @@ class SpatializeApp(CliApp):
                                        'epsg':             None,
                                        'output_dir':       None,
                                        'filename_prefix':  None,
-                                       'number_of_files':  None,
+                                       'number_of_output_files':  None,
                                        'method':           None,
                                        'alpha':            '1',
                                        'files':            None,
@@ -289,10 +289,10 @@ class SpatializeApp(CliApp):
         Generator that yields the dates for which h_integrate should be run;
         this is the latest list of dates such that:
         * At least one of the time series has data
-        * The length of the list is the 'number_of_files' configuration option
-          (maybe less if the time series don't have enough data yet).
+        * The length of the list is the 'number_of_output_files' configuration
+          option (maybe less if the time series don't have enough data yet).
         """
-        n = int(self.config['General']['number_of_files'])
+        n = int(self.config['General']['number_of_output_files'])
         dates = set()
         for filename in self.files:
             dates |= set(self.get_last_dates(filename, n))
@@ -340,9 +340,9 @@ class SpatializeApp(CliApp):
     def delete_obsolete_files(self):
         """
         Delete all tif files produced in the past except the last N,
-        where N is the 'number_of_files' configuration option.
+        where N is the 'number_of_output_files' configuration option.
         """
-        n = int(self.config['General']['number_of_files'])
+        n = int(self.config['General']['number_of_output_files'])
         output_dir = self.config['General']['output_dir']
         filename_prefix = self.config['General']['filename_prefix']
         pattern = os.path.join(output_dir, '{}-*.tif'.format(filename_prefix))

@@ -360,7 +360,7 @@ class SpatializeAppTestCase(TestCase):
                 epsg = 2100
                 output_dir = {0.output_dir}
                 filename_prefix = rainfall
-                number_of_files = 24
+                number_of_output_files = 24
                 method = idw
                 files = {0.filenames[0]}
                         {0.filenames[1]}
@@ -386,7 +386,7 @@ class SpatializeAppTestCase(TestCase):
                 files = myfile
                 ''').format(self))
         application = SpatializeApp()
-        self.assertRaisesRegex(configparser.Error, 'number_of_files',
+        self.assertRaisesRegex(configparser.Error, 'number_of_output_files',
                                application.run)
 
     def test_wrong_configuration2(self):
@@ -397,7 +397,7 @@ class SpatializeAppTestCase(TestCase):
                 epsg = 2100
                 output_dir = {0.output_dir}
                 filename_prefix = rainfall
-                number_of_files = 24
+                number_of_output_files = 24
                 method = idw
                 files = myfile
                 nonexistent_option = irrelevant
@@ -414,7 +414,7 @@ class SpatializeAppTestCase(TestCase):
                 epsg = 81122
                 output_dir = {0.output_dir}
                 filename_prefix = rainfall
-                number_of_files = 24
+                number_of_output_files = 24
                 method = idw
                 files = myfile
                 ''').format(self))
@@ -462,7 +462,7 @@ class SpatializeAppTestCase(TestCase):
                 2014-04-30 14:00,21.4,
                 '''))
 
-        # Check for number_of_files=24
+        # Check for number_of_output_files=24
         dates = []
         for d in application.dates_to_calculate:
             dates.append(d)
@@ -472,16 +472,16 @@ class SpatializeAppTestCase(TestCase):
                                   datetime(2014, 4, 30, 14, 0),
                                   datetime(2014, 4, 30, 15, 0)])
 
-        # Check for number_of_files=2
-        application.config['General']['number_of_files'] = 2
+        # Check for number_of_output_files=2
+        application.config['General']['number_of_output_files'] = 2
         dates = []
         for d in application.dates_to_calculate:
             dates.append(d)
         self.assertEquals(dates, [datetime(2014, 4, 30, 14, 0),
                                   datetime(2014, 4, 30, 15, 0)])
 
-        # Check for number_of_files=4
-        application.config['General']['number_of_files'] = 4
+        # Check for number_of_output_files=4
+        application.config['General']['number_of_output_files'] = 4
         dates = []
         for d in application.dates_to_calculate:
             dates.append(d)
@@ -559,8 +559,8 @@ class SpatializeAppTestCase(TestCase):
         self.assertTrue(os.path.exists(filename2))
         self.assertTrue(os.path.exists(filename3))
 
-        # Execute for number_of_files = 2 and check
-        application.config['General']['number_of_files'] = 2
+        # Execute for number_of_output_files = 2 and check
+        application.config['General']['number_of_output_files'] = 2
         application.delete_obsolete_files()
         self.assertFalse(os.path.exists(filename1))
         self.assertTrue(os.path.exists(filename2))
@@ -607,7 +607,7 @@ class SpatializeAppTestCase(TestCase):
         mask = None
 
         # Execute
-        application.config['General']['number_of_files'] = 3
+        application.config['General']['number_of_output_files'] = 3
         application.execute()
 
         # Check that it has created three files
