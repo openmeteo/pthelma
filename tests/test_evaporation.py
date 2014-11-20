@@ -191,10 +191,25 @@ class VaporizeAppTestCase(TestCase):
             filename, 2, 1, 1, gdal.GDT_Float32)
         if not f:
             raise IOError('An error occured when trying to open ' + filename)
+
+        # Some tests verify that when some grid points have nodata they are
+        # ignored during the calculations. For such tests to properly work, the
+        # gdal nodata value must be a positive number and not very high. It must
+        # be positive because a square root might be taken, and if it were
+        # negative the result would be nan anyway. It must also not be very
+        # high, because it might be raised to the fourth power, resulting in
+        # overflow, which would in the end result in nan. But in such cases the
+        # result would be nan not because the gridpoints were ignored, but
+        # because they were taken into account but the result of the
+        # calculations happened to be nan.
+        nodata = 1e8
+
+        value[np.isnan(value)] = nodata
         try:
             f.SetMetadataItem('TIMESTAMP', self.timestamp.isoformat())
             f.SetGeoTransform(self.geo_transform)
             f.SetProjection(self.wgs84.ExportToWkt())
+            f.GetRasterBand(1).SetNoDataValue(nodata)
             f.GetRasterBand(1).WriteArray(value)
         finally:
             # Close the dataset
@@ -463,6 +478,64 @@ class VaporizeAppTestCase(TestCase):
                                                     ))
         np.testing.assert_almost_equal(fp.GetRasterBand(1).ReadAsArray(),
                                        np.array([[0.63, 0.36]]),
+                                       decimal=2)
+        fp = None
+
+    def test_execute_with_nodata(self):
+        """This is essentially the same as test_execute, but the gdal rasters
+        contain cells with nodata."""
+
+        # Prepare input files
+        self.timestamp = datetime(2014, 10, 1, 15, 0, tzinfo=senegal_tzinfo)
+        nan = float("nan")
+        self.setup_input_file('temperature', np.array([[38, nan]]))
+        self.setup_input_file('humidity', np.array([[52, nan]]))
+        self.setup_input_file('wind_speed', np.array([[3.3, 2.3]]))
+        self.setup_input_file('pressure', np.array([[1013, 1013]]))
+        self.setup_input_file('solar_radiation', np.array([[681, 403]]))
+        self.setup_input_file('dem', np.array([[8, nan]]), with_date=False)
+
+        with open(self.config_file, 'w') as f:
+            f.write(textwrap.dedent('''\
+                base_dir = {self.tempdir}
+                albedo = 0.23
+                nighttime_solar_radiation_ratio = 0.8
+                elevation = dem.tif
+                step_length = 60
+                unit_converter_pressure = x / 10.0
+                unit_converter_solar_radiation = x * 3600 / 1e6
+                ''').format(self=self))
+        application = VaporizeApp()
+        application.read_command_line()
+        application.read_configuration()
+
+        # Verify the output file doesn't exist yet
+        result_filename = os.path.join(
+            self.tempdir, 'evaporation-{}.tif'.format(
+                self.timestamp.strftime('%Y-%m-%d-%H-%M%z')))
+        self.assertFalse(os.path.exists(result_filename))
+
+        # Execute
+        application.run()
+
+        # Check that it has created a file
+        self.assertTrue(os.path.exists(result_filename))
+
+        # Check that the created file is correct
+        fp = gdal.Open(result_filename)
+        timestamp = fp.GetMetadata()['TIMESTAMP']
+        self.assertEqual(timestamp, '2014-10-01T15:00:00-01:00')
+        self.assertEqual(fp.RasterXSize, 2)
+        self.assertEqual(fp.RasterYSize, 1)
+        self.assertEqual(fp.GetGeoTransform(), self.geo_transform)
+        # We can't just compare fp.GetProjection() to self.wgs84.ExportToWkt(),
+        # because sometimes there are minor differences in the formatting or in
+        # the information contained in the WKT.
+        self.assertTrue(fp.GetProjection().startswith('GEOGCS["WGS 84",'))
+        self.assertTrue(fp.GetProjection().endswith('AUTHORITY["EPSG","4326"]]'
+                                                    ))
+        np.testing.assert_almost_equal(fp.GetRasterBand(1).ReadAsArray(),
+                                       np.array([[0.63, nan]]),
                                        decimal=2)
         fp = None
 
