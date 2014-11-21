@@ -30,6 +30,7 @@ Well-maintained modules:
    dev/spatial
    dev/timeseries
    dev/swb
+   dev/runoff
 
 Modules that need some work but should work:
 
