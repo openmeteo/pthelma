@@ -1,9 +1,9 @@
-.. _water_balance:
+.. _swb:
 
-:mod:`water_balance` --- Calculation of soil water balance
+:mod:`swb` --- Calculation of soil water balance
 ==========================================================
 
-.. module:: water_balance
+.. module:: swb
    :synopsis: Calculation of soil water balance
 .. moduleauthor:: Stavros Anastasiadis <anastasiadis.st00@gmail.com>
 .. sectionauthor:: Antonis Christofides <anthony@itia.ntua.gr>

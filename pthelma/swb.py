@@ -3,8 +3,8 @@ import datetime
 
 class SoilWaterBalance(object):
     """
-    class water_balance.SoilWaterBalance:
-        Calculates soil water balance. For more details, <link>
+    class swb.SoilWaterBalance:
+        Calculates soil water balance.
 
         Attributes:
             fc: The field capacity [mm]
