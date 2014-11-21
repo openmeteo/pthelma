@@ -2,7 +2,9 @@ from datetime import timedelta, tzinfo
 from glob import glob
 from math import isnan
 import os
+import struct
 
+from affine import Affine
 import iso8601
 import numpy as np
 from osgeo import ogr, osr, gdal
@@ -169,6 +171,56 @@ def h_integrate(mask, stations_layer, date, output_filename_prefix, date_fmt,
     finally:
         # Close the dataset
         output = None
+
+
+def extract_point_from_raster(point, data_source, band_number=1):
+    """Return floating-point value that corresponds to given point."""
+
+    # Convert point co-ordinates so that they are in same projection as raster
+    point_sr = point.GetSpatialReference()
+    raster_sr = osr.SpatialReference()
+    raster_sr.ImportFromWkt(data_source.GetProjection())
+    transform = osr.CoordinateTransformation(point_sr, raster_sr)
+    point.Transform(transform)
+
+    # Convert geographic co-ordinates to pixel co-ordinates
+    x, y = point.GetX(), point.GetY()
+    forward_transform = Affine.from_gdal(*data_source.GetGeoTransform())
+    reverse_transform = ~forward_transform
+    px, py = reverse_transform * (x, y)
+    px, py = int(px + 0.5), int(py + 0.5)
+
+    # Extract pixel value
+    band = data_source.GetRasterBand(band_number)
+    structval = band.ReadRaster(px, py, 1, 1, buf_type=gdal.GDT_Float32)
+    result = struct.unpack('f', structval)[0]
+    if result == band.GetNoDataValue():
+        result = float('nan')
+    return result
+
+
+def extract_point_timeseries_from_rasters(files, point):
+    """Return time series of point values from a set of rasters.
+
+    Arguments:
+    files: Sequence or set of rasters.
+    point: An OGR point.
+
+    The rasters must have TIMESTAMP metadata item. The function reads all
+    rasters, extracts the value at specified point, and returns all extracted
+    values as a Timeseries object.
+    """
+    result = Timeseries()
+    for f in files:
+        fp = gdal.Open(f)
+        try:
+            isostring = fp.GetMetadata()['TIMESTAMP']
+            timestamp = iso8601.parse_date(isostring, default_timezone=None)
+            value = extract_point_from_raster(point, fp)
+            result[timestamp] = value
+        finally:
+            fp = None
+    return result
 
 
 class TzinfoFromString(tzinfo):

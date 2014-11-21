@@ -105,3 +105,54 @@
 
       application = SpatializeApp()
       application.run()
+
+.. function:: extract_point_from_raster(point, data_source, band_number=1)
+
+   *data_source* is a GDAL raster, and *point* is an OGR point object.
+   The function returns the value of the pixel of the specified band
+   of *data_source* that is nearest to *point*.
+
+   *point* and *data_source* need not be in the same reference system,
+   but they must both have an appropriate spatial reference defined.
+
+.. function:: extract_point_timeseries_from_rasters(files, point)
+
+   Extracts and returns a :class:`~timeseries.Timeseries` object that
+   corresponds to the values of a specific point in several rasters.
+
+   *files* is a sequence or set of rasters, which should contain the
+   same variable in different times; for example, the rasters can be
+   representing spatial rainfall, each raster at a different time. The
+   ``TIMESTAMP`` GDAL metadata item of each raster must contain the
+   time in ISO 8601 format.
+
+   *point* is an OGR point object. It need not be in the same
+   reference system as *files*; however, the files must contain
+   spatial reference (projection) information, and so must *point*, so
+   that it is converted if necessary.
+
+   The function reads all rasters, extracts the value at the specified
+   point, assembles a :class:`~timeseries.Timeseries` object, and
+   returns it.
+
+   Usage example::
+
+      from glob import glob
+
+      from osgeo import ogr, osr
+
+      from pthelma.spatial import extract_point_timeseries_from_rasters
+
+      point = ogr.Geometry(ogr.wkbPoint)
+
+      # Specify that the point uses the WGS84 reference system
+      sr = osr.SpatialReference()
+      sr.ImportFromEPSG(4326)
+      point.AssignSpatialReference(sr)
+
+      # Point's co-ordinates (in WGS84 it's latitude and longitude)
+      point.AddPoint(23.78901, 37.98765)
+
+      files = glob('/var/cache/pthelma/spatial/rainfall*.tif')
+
+      ts = extract_point_timeseries_from_rasters(files, point)
