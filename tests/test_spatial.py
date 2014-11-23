@@ -11,6 +11,8 @@ import textwrap
 from time import sleep
 from unittest import TestCase, skipIf
 
+import iso8601
+
 if sys.platform != 'win32':
     import numpy as np
     from osgeo import ogr, osr, gdal
@@ -603,6 +605,33 @@ class SpatializeAppTestCase(TestCase):
                                   datetime(2014, 4, 30, 13, 0),
                                   datetime(2014, 4, 30, 14, 0),
                                   datetime(2014, 4, 30, 15, 0)])
+
+    def test_dates_to_calculate_error(self):
+        application = SpatializeApp()
+        application.read_command_line()
+        application.read_configuration()
+        with open(self.filenames[0], 'w') as f:
+            f.write(textwrap.dedent('''\
+                2014-04-30 11:00,18.3,
+                malformed date,20.4,
+                2014-04-30 14:00,21.4,
+                2014-04-30 15:00,22.4,
+                '''))
+        with open(self.filenames[1], 'w') as f:
+            f.write(textwrap.dedent('''\
+                2014-04-30 11:00,18.3,
+                2014-04-30 12:00,19.3,
+                2014-04-30 13:00,20.4,
+                2014-04-30 14:00,21.4,
+                '''))
+        error_message = "Unable to parse date string u'malformed date' (file "\
+            + self.filenames[0] + ", 3 lines from the end)"
+        try:
+            application.dates_to_calculate.next()
+        except iso8601.ParseError as e:
+            self.assertEqual(e.message, error_message)
+        else:
+            self.assertTrue(False, 'An exception should have been raised')
 
     def test_date_fmt(self):
         application = SpatializeApp()

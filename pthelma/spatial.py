@@ -1,4 +1,3 @@
-from datetime import timedelta, tzinfo
 from glob import glob
 from math import isnan
 import os
@@ -290,10 +289,10 @@ class SpatializeApp(CliApp):
                 try:
                     result.insert(0, iso8601.parse_date(
                         datestring, default_timezone=timezone))
-                except ValueError as e:
-                    raise ValueError(e.message +
-                                     ' (file {}, {} lines from the end)'
-                                     .format(filename, i))
+                except iso8601.ParseError as e:
+                    raise iso8601.ParseError(
+                        e.message + ' (file {}, {} lines from the end)'
+                        .format(filename, i + 1))
         return result
 
     @property
