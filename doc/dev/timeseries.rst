@@ -238,19 +238,24 @@ text in the ts_core directory in the repository.
       series.
 
    .. attribute:: Timeseries.unit
-
-   .. attribute:: Timeseries.title
-
-   .. attribute:: Timeseries.timezone
-
-   .. attribute:: Timeseries.variable
-
-   .. attribute:: Timeseries.comment
+                  Timeseries.title
+                  Timeseries.variable
+                  Timeseries.comment
 
       The above text attributes are informational and can hold
       anything at all; *comment*, in particular, may be multiline
       while the rest should not. They are set by :meth:`read_file` and
       used by :meth:`write_file`. Other than that, they are not used.
+
+   .. attribute:: Timeseries.timezone
+
+      This is a text attribute that can either be the empty string or
+      in the form "XXX (+0000)" where XXX is a time zone name and
+      +0000 is its offset from UTC. The Timeseries object is naive if
+      :attr:`timezone` is the empty string, and aware otherwise.
+      If the Timeseries object is indexed with a :class:`datetime`
+      object and both the index and the Timeseries object are aware,
+      then the time zones are taken into account.
 
    .. attribute:: Timeseries.precision
 

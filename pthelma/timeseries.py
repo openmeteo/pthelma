@@ -21,7 +21,7 @@ GNU General Public License for more details.
 from calendar import monthrange
 from ctypes import CDLL, c_int, c_longlong, c_double, c_char, c_char_p, \
     byref, Structure, c_void_p, POINTER, string_at
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, tzinfo
 import math
 from math import sin, cos, atan2, pi
 import random
@@ -173,6 +173,52 @@ def _date_diff(date1, date2):
         date2a = add_months_to_datetime(date2a, -1)
     diff_minutes = int((date1 - date2a).total_seconds()) / 60
     return (diff_months, diff_minutes)
+
+
+class TzinfoFromString(tzinfo):
+    """Create a tzinfo object from a string formatted as "+0000" or as
+       "XXX (+0000)" or as "XXX (UTC+0000)".
+    """
+
+    def __init__(self, string):
+        self.offset = None
+        self.name = ''
+        if not string:
+            return
+
+        # If string contains brackets, set tzname to whatever is before the
+        # brackets and retrieve the part inside the brackets.
+        i = string.find('(')
+        if i > 0:
+            self.name = string[:i].strip()
+        s = string[i + 1:]
+        i = s.find(')')
+        i = len(s) if i < 0 else i
+        s = s[:i]
+
+        # Remove any preceeding 'UTC' (as in "UTC+0200")
+        s = s[3:] if s.startswith('UTC') else s
+
+        # s should be in +0000 format
+        try:
+            if len(s) != 5:
+                raise ValueError()
+            sign = {'+': 1, '-': -1}[s[0]]
+            hours = int(s[1:3])
+            minutes = int(s[3:5])
+        except (ValueError, IndexError):
+            raise ValueError('Time zone {} is invalid'.format(string))
+
+        self.offset = sign * timedelta(hours=hours, minutes=minutes)
+
+    def utcoffset(self, dt):
+        return self.offset
+
+    def dst(self, dt):
+        return timedelta(0)
+
+    def tzname(self, dt):
+        return self.name
 
 
 def read_timeseries_tail_from_db(db, id):
@@ -472,8 +518,8 @@ class Timeseries(dict):
         return dickinson.ts_length(self.ts_handle)
 
     def __delitem__(self, key):
-        index_c = dickinson.ts_get_i(self.ts_handle,
-                                     c_longlong(_datetime_to_time_t(key)))
+        index_c = dickinson.ts_get_i(
+            self.ts_handle, c_longlong(self.__datetime_to_time_t(key)))
         if index_c < 0:
             raise KeyError(
                 'No such record: ' + (isoformat_nosecs(key, ' ')
@@ -482,15 +528,15 @@ class Timeseries(dict):
         dickinson.ts_delete_item(self.ts_handle, index_c)
 
     def __contains__(self, key):
-        index_c = dickinson.ts_get_i(self.ts_handle,
-                                     c_longlong(_datetime_to_time_t(key)))
+        index_c = dickinson.ts_get_i(
+            self.ts_handle, c_longlong(self.__datetime_to_time_t(key)))
         if index_c < 0:
             return False
         else:
             return True
 
     def __setitem__(self, key, value):
-        timestamp_c = c_longlong(_datetime_to_time_t(key))
+        timestamp_c = c_longlong(self.__datetime_to_time_t(key))
         index_c = dickinson.ts_get_i(self.ts_handle, timestamp_c)
         if isinstance(value, _Tsvalue):
             tsvalue = value
@@ -523,7 +569,7 @@ class Timeseries(dict):
                  not isinstance(key, six.text_type))
                 or len(key) < 4 or not key[0].isdigit()):
             raise KeyError(key)
-        timestamp_c = c_longlong(_datetime_to_time_t(key))
+        timestamp_c = c_longlong(self.__datetime_to_time_t(key))
         index_c = dickinson.ts_get_i(self.ts_handle, timestamp_c)
         if index_c < 0:
             raise KeyError(
@@ -539,6 +585,28 @@ class Timeseries(dict):
         flags = flags.split()
         return _Tsvalue(value, flags)
 
+    def __datetime_to_time_t(self, d):
+        """Return a time_t key for the time series.
+
+        d is an object that is being used as an index. If either d or the
+        Timeseries object is naive, any time zone information is ignored.  If
+        both are aware, the time zones of both are taken into account when
+        converting d to time_t.
+        """
+        if not self.timezone or not isinstance(d, datetime) or not is_aware(d):
+            # Either the Timeseries object or d is naive. In this case, ignore
+            # time zones altogether and convert d to time_t.
+            if isinstance(d, datetime):
+                d = d.replace(tzinfo = None)
+            return _datetime_to_time_t(d)
+        else:
+            # Both the Timeseries object and d are aware. However, the
+            # Timeseries object timestamps are always stored naively, so we
+            # must add the timeseries' utcoffset to d to make it
+            # consistent.
+            return _datetime_to_time_t(d) + TzinfoFromString(
+                self.timezone).utcoffset(None).seconds
+
     def delete_items(self, date1, date2):
         bd = self.bounding_dates()
         if not bd:
@@ -547,8 +615,8 @@ class Timeseries(dict):
             date1 = bd[0]
         if not date2:
             date2 = bd[1]
-        timestamp_c1 = c_longlong(_datetime_to_time_t(date1))
-        timestamp_c2 = c_longlong(_datetime_to_time_t(date2))
+        timestamp_c1 = c_longlong(self.__datetime_to_time_t(date1))
+        timestamp_c2 = c_longlong(self.__datetime_to_time_t(date2))
         p1 = dickinson.ts_get_next(self.ts_handle, timestamp_c1)
         p2 = dickinson.ts_get_prev(self.ts_handle, timestamp_c2)
         if p1 and p2:
@@ -601,9 +669,9 @@ class Timeseries(dict):
     def write(self, fp, start=None, end=None):
         errstr = c_char_p()
         start_date = c_longlong.in_dll(dickinson, "LONG_TIME_T_MIN") \
-            if start is None else c_longlong(_datetime_to_time_t(start))
+            if start is None else c_longlong(self.__datetime_to_time_t(start))
         end_date = c_longlong.in_dll(dickinson, "LONG_TIME_T_MAX") \
-            if end is None else c_longlong(_datetime_to_time_t(end))
+            if end is None else c_longlong(self.__datetime_to_time_t(end))
         text = dickinson.ts_write(
             self.ts_handle,
             c_int(self.precision if self.precision is not None else -9999),
@@ -943,7 +1011,7 @@ class Timeseries(dict):
         return a if pos is None else a[0]
 
     def index(self, date, downwards=False):
-        timestamp_c = c_longlong(_datetime_to_time_t(date))
+        timestamp_c = c_longlong(self.__datetime_to_time_t(date))
         if not downwards:
             pos = dickinson.ts_get_next_i(self.ts_handle, timestamp_c)
         else:
@@ -978,33 +1046,37 @@ class Timeseries(dict):
     def min(self, start_date=None, end_date=None):
         start_date = c_longlong.in_dll(dickinson, "LONG_TIME_T_MIN") \
             if start_date is None \
-            else c_longlong(_datetime_to_time_t(start_date))
+            else c_longlong(self.__datetime_to_time_t(start_date))
         end_date = c_longlong.in_dll(dickinson, "LONG_TIME_T_MAX") \
-            if end_date is None else c_longlong(_datetime_to_time_t(end_date))
+            if end_date is None \
+            else c_longlong(self.__datetime_to_time_t(end_date))
         return dickinson.ts_min(self.ts_handle, start_date, end_date)
 
     def max(self, start_date=None, end_date=None):
         start_date = c_longlong.in_dll(dickinson, "LONG_TIME_T_MIN") \
             if start_date is None \
-            else c_longlong(_datetime_to_time_t(start_date))
+            else c_longlong(self.__datetime_to_time_t(start_date))
         end_date = c_longlong.in_dll(dickinson, "LONG_TIME_T_MAX") \
-            if end_date is None else c_longlong(_datetime_to_time_t(end_date))
+            if end_date is None \
+            else c_longlong(self.__datetime_to_time_t(end_date))
         return dickinson.ts_max(self.ts_handle, start_date, end_date)
 
     def average(self, start_date=None, end_date=None):
         start_date = c_longlong.in_dll(dickinson, "LONG_TIME_T_MIN") \
             if start_date is None \
-            else c_longlong(_datetime_to_time_t(start_date))
+            else c_longlong(self.__datetime_to_time_t(start_date))
         end_date = c_longlong.in_dll(dickinson, "LONG_TIME_T_MAX") \
-            if end_date is None else c_longlong(_datetime_to_time_t(end_date))
+            if end_date is None \
+            else c_longlong(self.__datetime_to_time_t(end_date))
         return dickinson.ts_average(self.ts_handle, start_date, end_date)
 
     def sum(self, start_date=None, end_date=None):
         start_date = c_longlong.in_dll(dickinson, "LONG_TIME_T_MIN") \
             if start_date is None \
-            else c_longlong(_datetime_to_time_t(start_date))
+            else c_longlong(self.__datetime_to_time_t(start_date))
         end_date = c_longlong.in_dll(dickinson, "LONG_TIME_T_MAX") \
-            if end_date is None else c_longlong(_datetime_to_time_t(end_date))
+            if end_date is None \
+            else c_longlong(self.__datetime_to_time_t(end_date))
         return dickinson.ts_sum(self.ts_handle, start_date, end_date)
 
     def aggregate(self, target_step, missing_allowed=0.0, missing_flag="",
