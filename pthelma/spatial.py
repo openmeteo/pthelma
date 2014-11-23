@@ -281,10 +281,26 @@ class SpatializeApp(CliApp):
         timezone = TzinfoFromString(zonestr)
 
         result = []
+        previous_line_was_empty = False
         with ropen(filename) as fp:
             for i, line in enumerate(fp):
                 if i >= n:
                     break
+                line = line.strip()
+
+                # Ignore empty lines
+                if not line:
+                    previous_line_was_empty = True
+                    continue
+
+                # Is the line in the form of an ini file configuration line?
+                items = line.split('=')
+                if len(items) and (',' not in items[0]) \
+                        and previous_line_was_empty:
+                    break  # Yes; we reached the start of the file
+
+                previous_line_was_empty = False
+
                 datestring = line.split(',')[0]
                 try:
                     result.insert(0, iso8601.parse_date(
@@ -386,6 +402,7 @@ class SpatializeApp(CliApp):
         output_dir = self.config['General']['output_dir']
         filename_prefix = self.config['General']['filename_prefix']
         for date in self.dates_to_calculate:
+            self.logger.info('Processing date ' + date.isoformat())
             h_integrate(mask, stations_layer, date,
                         os.path.join(output_dir, filename_prefix),
                         self.date_fmt, funct, kwargs)
