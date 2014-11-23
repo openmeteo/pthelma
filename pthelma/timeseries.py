@@ -451,6 +451,16 @@ class Timeseries(dict):
         # method), and therefore we keep a copy of the required globals here.
         self.__dickinson = dickinson
 
+    def __repr__(self):
+        metastr = StringIO()
+        self.write_meta(metastr, version=3)
+        datastr = StringIO()
+        self.write(datastr)
+        lines = datastr.getvalue()[:-2].split('\r\n')
+        if len(lines) > 7:
+            lines = lines[:3] + ['...'] + lines[-3:]
+        return metastr.getvalue() + '\n' + '\n'.join(lines)
+
     def __del__(self):
         if self.ts_handle is None:
             return
@@ -730,7 +740,7 @@ class Timeseries(dict):
             self.read_meta(fp)
         self.read(fp)
 
-    def write_file(self, fp, version=2):
+    def write_meta(self, fp, version):
         if version == 2:
             fp.write(u("Version=2\r\n"))
         if self.unit:
@@ -782,6 +792,8 @@ class Timeseries(dict):
             if altitude is not None:
                 fp.write(fmt.format(altitude=altitude, asrid=asrid))
 
+    def write_file(self, fp, version=2):
+        self.write_meta(fp, version)
         fp.write("\r\n")
         self.write(fp)
 
