@@ -2,14 +2,16 @@ from datetime import timedelta, tzinfo
 from glob import glob
 from math import isnan
 import os
+import struct
 
+from affine import Affine
 import iso8601
 import numpy as np
 from osgeo import ogr, osr, gdal
 from simpletail import ropen
 
 from pthelma.cliapp import CliApp, WrongValueError
-from pthelma.timeseries import Timeseries
+from pthelma.timeseries import Timeseries, TzinfoFromString
 
 
 def idw(point, data_layer, alpha=1):
@@ -171,43 +173,54 @@ def h_integrate(mask, stations_layer, date, output_filename_prefix, date_fmt,
         output = None
 
 
-class TzinfoFromString(tzinfo):
-    """Create a tzinfo object from a string formatted as "+0000" or as
-       "XXX (+0000)" or as "XXX (UTC+0000)".
+def extract_point_from_raster(point, data_source, band_number=1):
+    """Return floating-point value that corresponds to given point."""
+
+    # Convert point co-ordinates so that they are in same projection as raster
+    point_sr = point.GetSpatialReference()
+    raster_sr = osr.SpatialReference()
+    raster_sr.ImportFromWkt(data_source.GetProjection())
+    transform = osr.CoordinateTransformation(point_sr, raster_sr)
+    point.Transform(transform)
+
+    # Convert geographic co-ordinates to pixel co-ordinates
+    x, y = point.GetX(), point.GetY()
+    forward_transform = Affine.from_gdal(*data_source.GetGeoTransform())
+    reverse_transform = ~forward_transform
+    px, py = reverse_transform * (x, y)
+    px, py = int(px + 0.5), int(py + 0.5)
+
+    # Extract pixel value
+    band = data_source.GetRasterBand(band_number)
+    structval = band.ReadRaster(px, py, 1, 1, buf_type=gdal.GDT_Float32)
+    result = struct.unpack('f', structval)[0]
+    if result == band.GetNoDataValue():
+        result = float('nan')
+    return result
+
+
+def extract_point_timeseries_from_rasters(files, point):
+    """Return time series of point values from a set of rasters.
+
+    Arguments:
+    files: Sequence or set of rasters.
+    point: An OGR point.
+
+    The rasters must have TIMESTAMP metadata item. The function reads all
+    rasters, extracts the value at specified point, and returns all extracted
+    values as a Timeseries object.
     """
-
-    def __init__(self, string):
-        if not string:
-            self.offset = None
-            return
-
-        # If string contains brackets, only take the part inside the brackets
-        i = string.find('(')
-        s = string[i + 1:]
-        i = s.find(')')
-        i = len(s) if i < 0 else i
-        s = s[:i]
-
-        # Remove any preceeding 'UTC' (as in "UTC+0200")
-        s = s[3:] if s.startswith('UTC') else s
-
-        # s should be in +0000 format
+    result = Timeseries()
+    for f in files:
+        fp = gdal.Open(f)
         try:
-            if len(s) != 5:
-                raise ValueError()
-            sign = {'+': 1, '-': -1}[s[0]]
-            hours = int(s[1:3])
-            minutes = int(s[3:5])
-        except (ValueError, IndexError):
-            raise ValueError('Time zone {} is invalid'.format(string))
-
-        self.offset = sign * timedelta(hours=hours, minutes=minutes)
-
-    def utcoffset(self, dt):
-        return self.offset
-
-    def dst(self, dt):
-        return timedelta(0)
+            isostring = fp.GetMetadata()['TIMESTAMP']
+            timestamp = iso8601.parse_date(isostring, default_timezone=None)
+            value = extract_point_from_raster(point, fp)
+            result[timestamp] = value
+        finally:
+            fp = None
+    return result
 
 
 class SpatializeApp(CliApp):

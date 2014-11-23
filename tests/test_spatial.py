@@ -1,6 +1,9 @@
 from datetime import datetime, timedelta
+from glob import glob
+import math
 import os
 import shutil
+from six import StringIO
 from six.moves import configparser
 import sys
 import tempfile
@@ -10,17 +13,15 @@ from unittest import TestCase, skipIf
 
 if sys.platform != 'win32':
     import numpy as np
-    from osgeo import ogr, gdal
-    from pthelma.spatial import SpatializeApp, \
-        create_ogr_layer_from_timeseries, h_integrate, idw, integrate, \
-        WrongValueError
+    from osgeo import ogr, osr, gdal
+    from pthelma.spatial import create_ogr_layer_from_timeseries, \
+        extract_point_from_raster, extract_point_timeseries_from_rasters, \
+        h_integrate, idw, integrate, SpatializeApp, WrongValueError
     skip_osgeo = False
     skip_osgeo_message = ''
 else:
     skip_osgeo = True
     skip_osgeo_message = 'Not available on Windows'
-
-from pthelma.spatial import TzinfoFromString
 
 
 def add_point_to_layer(layer, x, y, value):
@@ -290,31 +291,144 @@ class HIntegrateTestCase(TestCase):
         f = None
 
 
-class TzinfoFromStringTestCase(TestCase):
+def setup_input_file(filename, value, timestamp):
+    """Save value, which is an np array, to a GeoTIFF file."""
+    nodata = 1e8
+    value[np.isnan(value)] = nodata
+    f = gdal.GetDriverByName('GTiff').Create(
+        filename, 3, 3, 1, gdal.GDT_Float32)
+    if not f:
+        raise IOError('An error occured when trying to open ' + filename)
+    try:
+        f.SetMetadataItem('TIMESTAMP', timestamp.isoformat())
+        f.SetGeoTransform((22.0, 0.01, 0, 38.0, 0, -0.01))
+        wgs84 = osr.SpatialReference()
+        wgs84.ImportFromEPSG(4326)
+        f.SetProjection(wgs84.ExportToWkt())
+        f.GetRasterBand(1).SetNoDataValue(nodata)
+        f.GetRasterBand(1).WriteArray(value)
+    finally:
+        f = None
 
-    def test_simple(self):
-        atzinfo = TzinfoFromString('+0130')
-        self.assertEqual(atzinfo.offset, timedelta(hours=1, minutes=30))
 
-    def test_brackets(self):
-        atzinfo = TzinfoFromString('DUMMY (+0240)')
-        self.assertEqual(atzinfo.offset, timedelta(hours=2, minutes=40))
+@skipIf(skip_osgeo, skip_osgeo_message)
+class ExtractPointFromRasterTestCase(TestCase):
 
-    def test_brackets_with_utc(self):
-        atzinfo = TzinfoFromString('DUMMY (UTC+0350)')
-        self.assertEqual(atzinfo.offset, timedelta(hours=3, minutes=50))
+    def setUp(self):
+        self.tempdir = tempfile.mkdtemp()
 
-    def test_negative(self):
-        atzinfo = TzinfoFromString('DUMMY (UTC-0420)')
-        self.assertEqual(atzinfo.offset, -timedelta(hours=4, minutes=20))
+    def tearDown(self):
+        shutil.rmtree(self.tempdir)
 
-    def test_zero(self):
-        atzinfo = TzinfoFromString('DUMMY (UTC-0000)')
-        self.assertEqual(atzinfo.offset, timedelta(hours=0, minutes=0))
+    def test_extract_point_from_raster(self):
+        filename = os.path.join(self.tempdir, 'test_raster')
+        nan = float('nan')
+        setup_input_file(
+            filename,
+            np.array([[1.1, nan, 1.3],
+                      [2.1, 2.2, nan],
+                      [3.1, 3.2, 3.3]]),
+            datetime(2014, 11, 21, 16, 1))
 
-    def test_wrong_input(self):
-        for s in ('DUMMY (GMT+0350)', '0150', '+01500'):
-            self.assertRaises(ValueError, TzinfoFromString, s)
+        fp = gdal.Open(filename)
+
+        # Get the top left point, coordinates 22.00, 38.00
+        point = ogr.Geometry(ogr.wkbPoint)
+        sr = osr.SpatialReference()
+        sr.ImportFromEPSG(4326)
+        point.AssignSpatialReference(sr)
+        point.AddPoint(22.0, 38.0)
+        self.assertAlmostEqual(extract_point_from_raster(point, fp), 1.1,
+                               places=2)
+
+        # Get the top middle point, co-ordinates 22.01, 38.00
+        point = ogr.Geometry(ogr.wkbPoint)
+        sr = osr.SpatialReference()
+        sr.ImportFromEPSG(4326)
+        point.AssignSpatialReference(sr)
+        point.AddPoint(22.01, 38.0)
+        self.assertTrue(math.isnan(extract_point_from_raster(point, fp)))
+
+        # Get the middle point, using co-ordinates almost to the center of
+        # the four lower left points, and only a little bit towards the center.
+        point = ogr.Geometry(ogr.wkbPoint)
+        sr = osr.SpatialReference()
+        sr.ImportFromEPSG(4326)
+        point.AssignSpatialReference(sr)
+        point.AddPoint(22.00501, 37.98501)
+        self.assertAlmostEqual(extract_point_from_raster(point, fp), 2.2,
+                               places=2)
+
+        # Use almost exactly same point as before, only slightly altered
+        # so that we get bottom left point instead.
+        point = ogr.Geometry(ogr.wkbPoint)
+        sr = osr.SpatialReference()
+        sr.ImportFromEPSG(4326)
+        point.AssignSpatialReference(sr)
+        point.AddPoint(22.00499, 37.98499)
+        self.assertAlmostEqual(extract_point_from_raster(point, fp), 3.1,
+                               places=2)
+
+        # Now try same two things as above, but with a different reference
+        # system, GRS80; the result should be the same.
+        point = ogr.Geometry(ogr.wkbPoint)
+        sr = osr.SpatialReference()
+        sr.ImportFromEPSG(2100)
+        point.AssignSpatialReference(sr)
+        point.AddPoint(324651, 4205742)
+        self.assertAlmostEqual(extract_point_from_raster(point, fp), 2.2,
+                               places=2)
+        point = ogr.Geometry(ogr.wkbPoint)
+        sr = osr.SpatialReference()
+        sr.ImportFromEPSG(2100)
+        point.AssignSpatialReference(sr)
+        point.AddPoint(324648, 4205739)
+        self.assertAlmostEqual(extract_point_from_raster(point, fp), 3.1,
+                               places=2)
+
+        fp = None
+
+    def test_extract_point_timeseries_from_rasters(self):
+        # Create three rasters
+        filename = os.path.join(self.tempdir, 'test1.tif')
+        setup_input_file(
+            filename,
+            np.array([[1.1, 1.2, 1.3],
+                      [2.1, 2.2, 2.3],
+                      [3.1, 3.2, 3.3]]),
+            datetime(2014, 11, 21, 16, 1))
+        filename = os.path.join(self.tempdir, 'test2.tif')
+        setup_input_file(
+            filename,
+            np.array([[11.1, 12.1, 13.1],
+                      [21.1, 22.1, 23.1],
+                      [31.1, 32.1, 33.1]]),
+            datetime(2014, 11, 22, 16, 1))
+        filename = os.path.join(self.tempdir, 'test0.tif')
+        setup_input_file(
+            filename,
+            np.array([[110.1, 120.1, 130.1],
+                      [210.1, 220.1, 230.1],
+                      [310.1, 320.1, 330.1]]),
+            datetime(2014, 11, 23, 16, 1))
+
+        # Get the middle point, using co-ordinates almost to the center of
+        # the four lower left points, and only a little bit towards the center.
+        point = ogr.Geometry(ogr.wkbPoint)
+        sr = osr.SpatialReference()
+        sr.ImportFromEPSG(4326)
+        point.AssignSpatialReference(sr)
+        point.AddPoint(22.00501, 37.98501)
+        files = glob(os.path.join(self.tempdir, '*.tif'))
+        ts = extract_point_timeseries_from_rasters(files, point)
+        outstring = StringIO()
+        ts.write(outstring)
+        self.assertEqual(outstring.getvalue(),
+                         textwrap.dedent("""\
+                                         2014-11-21 16:01,2.2,\r
+                                         2014-11-22 16:01,22.1,\r
+                                         2014-11-23 16:01,220.1,\r
+                                         """))
 
 
 @skipIf(skip_osgeo, skip_osgeo_message)

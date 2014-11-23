@@ -32,9 +32,9 @@ import zlib
 
 from six import u, StringIO
 
-from pthelma.timeseries import TimeStep, strip_trailing_zeros, \
-    isoformat_nosecs, Timeseries, IntervalType, \
-    identify_events, add_months_to_datetime, datestr_diff
+from pthelma.timeseries import add_months_to_datetime, datestr_diff, \
+    identify_events, IntervalType, isoformat_nosecs, strip_trailing_zeros, \
+    Timeseries, TimeStep, TzinfoFromString
 
 
 big_test_timeseries = textwrap.dedent("""\
@@ -948,6 +948,33 @@ class _Test_Timeseries_append_to_db(TestCase):
                           commit=False)
 
 
+class TzinfoFromStringTestCase(TestCase):
+
+    def test_simple(self):
+        atzinfo = TzinfoFromString('+0130')
+        self.assertEqual(atzinfo.offset, timedelta(hours=1, minutes=30))
+
+    def test_brackets(self):
+        atzinfo = TzinfoFromString('DUMMY (+0240)')
+        self.assertEqual(atzinfo.offset, timedelta(hours=2, minutes=40))
+
+    def test_brackets_with_utc(self):
+        atzinfo = TzinfoFromString('DUMMY (UTC+0350)')
+        self.assertEqual(atzinfo.offset, timedelta(hours=3, minutes=50))
+
+    def test_negative(self):
+        atzinfo = TzinfoFromString('DUMMY (UTC-0420)')
+        self.assertEqual(atzinfo.offset, -timedelta(hours=4, minutes=20))
+
+    def test_zero(self):
+        atzinfo = TzinfoFromString('DUMMY (UTC-0000)')
+        self.assertEqual(atzinfo.offset, timedelta(hours=0, minutes=0))
+
+    def test_wrong_input(self):
+        for s in ('DUMMY (GMT+0350)', '0150', '+01500'):
+            self.assertRaises(ValueError, TzinfoFromString, s)
+
+
 class _Test_Timeseries_item(TestCase):
 
     def setUp(self):
@@ -958,6 +985,30 @@ class _Test_Timeseries_item(TestCase):
         item = self.ts.item('2003-07-24 19:52')
         self.assertAlmostEqual(item[1], 108.7)
         self.assertEqual(isoformat_nosecs(item[0]), '2003-07-24T19:52')
+
+    def test_tz_key(self):
+        """Verify that timezone is correctly taken into account."""
+        # Try with a naive key
+        key = datetime(2003, 7, 19, 19, 52)
+        self.assertAlmostEqual(self.ts[key], 108.7)
+
+        # Try with an aware key when the time series is UTC
+        key = datetime(2003, 7, 19, 19, 52,
+                       tzinfo=TzinfoFromString('EET (+0200)'))
+        self.ts.timezone = 'UTC (+0000)'
+        self.assertRaises(KeyError, lambda: self.ts[key])
+
+        # Same thing, with proper zone info to time series
+        key = datetime(2003, 7, 19, 19, 52,
+                       tzinfo=TzinfoFromString('EET (+0200)'))
+        self.ts.timezone = 'EET (+0200)'
+        self.assertAlmostEqual(self.ts[key], 108.7)
+
+        # Try different time zones
+        key = datetime(2005, 7, 24, 13, 22,
+                       tzinfo=TzinfoFromString('VST (-0430)'))
+        self.ts.timezone = 'EET (+0200)'
+        self.assertAlmostEqual(self.ts[key], 1087.0)
 
     def test_matches_next(self):
         item = self.ts.item('2003-07-24 00:00')

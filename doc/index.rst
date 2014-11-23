@@ -29,7 +29,7 @@ Well-maintained modules:
    dev/meteologger
    dev/spatial
    dev/timeseries
-   dev/water_balance
+   dev/swb
 
 Modules that need some work but should work:
 
