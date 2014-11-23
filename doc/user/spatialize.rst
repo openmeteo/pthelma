@@ -36,6 +36,8 @@ Windows, something like :file:`C:\\Users\\user\\spatialize.conf` , with
 the following contents (the contents don't matter at this stage, just
 copy and paste them from below):
 
+.. code-block:: ini
+
     [General]
     loglevel = INFO
 
