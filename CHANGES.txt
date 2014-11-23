@@ -16,7 +16,7 @@
   in their input).
 - Spatialize (formerly bitia) can now use seasonal albedo, and it now
   also recalculates already existing output if in the meantime more
-  data has become available.
+  data has become available. Several bugs have also been corrected.
 - Experimental Mac OS X support.
 
 0.9.1 (2014-06-16)
