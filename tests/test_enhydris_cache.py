@@ -276,6 +276,7 @@ class EnhydrisCacheAppTestCase(TestCase):
         application = EnhydrisCacheApp()
         application.read_command_line()
         application.read_configuration()
+        application.setup_logger()
 
         # Check that the two files don't exist yet
         self.assertFalse(os.path.exists(os.path.join(self.tempdir, 'file1')))
