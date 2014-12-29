@@ -753,6 +753,7 @@ class SpatializeAppTestCase(TestCase):
         application = SpatializeApp()
         application.read_command_line()
         application.read_configuration()
+        application.setup_logger()
 
         # Create some time series data
         with open(application.files[0], 'a') as f:
