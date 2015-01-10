@@ -18,6 +18,8 @@ class SoilWaterBalance(object):
             taw: Total available water, [m3m-3]
             raw: Readily available water,  [m3m-3]
             irrigation_efficiency: The irrigation efficiency factor
+            depletion_report: Special attribute that summarize calculation
+                              steps of root_zone_depletion method.
 
         Methods:
             root_zone_depletion:
@@ -54,6 +56,7 @@ class SoilWaterBalance(object):
         self.taw = (self.fc - self.wp) * self.rd
         self.raw = self.p * self.taw
         self.irrigation_efficiency = irrigation_efficiency
+        self.depletion_report = []
 
     def root_zone_depletion(self, start_date, initial_soil_moisture, end_date):
         depletion = (initial_soil_moisture * self.rd * self.rd_factor) / self.fc
@@ -63,6 +66,13 @@ class SoilWaterBalance(object):
                 depletion = depletion - self.precip[day] + self.kc * self.evap[day]
                 if depletion < 0:
                     depletion = 0
+                self.depletion_report.append({'date': day,
+                                             'fc': self.fc,
+                                             'rd': self.rd,
+                                             'ism': initial_soil_moisture,
+                                             'precip': self.precip[day],
+                                             'evap': self.evap[day],
+                                             'depletion': depletion})
                 day += delta
         return depletion
 
