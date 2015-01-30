@@ -17,6 +17,7 @@
 .. |CR_i| replace:: CR\ :sub:`i`
 .. |ET_ci| replace:: ET\ :sub:`c,i`
 .. |DP_i| replace:: DP\ :sub:`i`
+.. |K_s| replace:: K\ :sub:`s`
 
 .. class:: SoilWaterBalance(fc, wp, rd, kc, p, precipitation, evapotranspiration, irrigation_efficiency, rd_factor=1)
 
@@ -40,11 +41,11 @@
       Irrigation method efficiency factor, provided at class initialization.
 
    .. attribute:: kc
-   
+
       The crop coefficient, provided at class initialization time.
 
    .. attribute:: p
-   
+
       The crop depletion fraction, i.e. RAW/TAW, provided at class
       initialization time.
 
@@ -66,10 +67,10 @@
       water depth variables (such as evapotranspiration,
       precipitation, irrigation and depletion) :attr:`rd_factor` is
       used to convert it.
-     
+
    .. attribute:: rd_factor
 
-      If the root depth is in a different unit than 
+      If the root depth is in a different unit than
       the water depth variables (such as evapotranspiration,
       precipitation, irrigation and depletion) :attr:`rd_factor` is
       used to convert it.  If the root depth is in metres and the
@@ -80,15 +81,15 @@
 
       The total available water:
 
-         taw = (:attr:`fc` - :attr:`wp`) * :attr:`rd`
+         taw = (:attr:`fc` - :attr:`wp`) * :attr:`rd` * :attr:`rd_factor`
 
    .. attribute:: wp
-   
+
       The wilting point, provided at class initialization time.
 
    .. attribute:: depletion_report
 
-      Summary dictionary with detailed calculation steps per day of :meth:`root_zone_depletion` method.
+      Summary list containing internal calculations of :meth:`root_zone_depletion`. At class initialization time is equal to an empty list.
 
    .. method:: root_zone_depletion(start_date, initial_soil_moisture, end_date)
 
@@ -97,8 +98,10 @@
 
          |D_ri| = |D_ri-1| - (|P_i| - |RO_i|) - |IR_ni| - |CR_i| + |ET_ci| + |DP_i|
 
+      ([#FAO]_ pag.170 eq.85)
+
       where:
-      
+
       * i is the current time period (i.e. the current day).
       * |D_ri| is the root zone depletion at the end of the previous time
         period.
@@ -108,6 +111,12 @@
       * |CR_i| is the capillary rise.
       * |ET_ci| is the crop evapotranspiration.
       * |DP_i| is the water loss through deep percolation.
+
+      |D_ri| limits are consequenly:
+
+         0 <= |D_ri| <= :attr:`taw`
+
+      ([#FAO]_ pag.170 eq.86)
 
       |RO_i|, |CR_i| and |DP_i| are ignored and considered zero. The
       equation therefore becomes:
@@ -138,6 +147,8 @@
 
          moisture = fc - depletion / (rd * rd_factor)
 
+      ([#FAO]_ pag.170 eq.87)
+
       so, since the *initial_soil_moisture* is given, |D_r1| is also
       known.
 
@@ -151,3 +162,14 @@
       This method calculates irrigation water needs based on :meth:`root_zone_depletion` and  :attr:`irrigation_efficiency` factor (i.e. drip, sprinkler).
 
       The method returns irrigation water needs for *end_date* in millimeters (mm).
+
+   .. method:: ks_calc(depletion)
+
+      This method calculates the dimensionless transiration reduction factor, |K_s| , that depends on the available soil water :attr:`taw` , :attr:`raw` ([#FAO]_ pag.169 eq.84). When :meth:`root_zone_depletion` is smaller than :attr:`raw` , |K_s|  is equal to 1.
+
+   .. method:: taw_percents(soil_moisture)
+
+      This method calculates the percents of :attr:`taw`, :attr:`raw` respectively, given available soil moisture conditions.
+
+   .. [#FAO] (2006) "Crop Evapotranspiration: Guidelines for Computing Crop Water Requirements. United Nations Food
+      and Agriculture Organization, Irrigation and Drainage Paper 56" Allen, R.G., Pereira, L.S., Raes, D., Smith, M., Rome, Italy.
