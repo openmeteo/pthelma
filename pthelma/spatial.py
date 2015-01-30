@@ -12,6 +12,8 @@ from simpletail import ropen
 from pthelma.cliapp import CliApp, WrongValueError
 from pthelma.timeseries import Timeseries, TzinfoFromString
 
+gdal.UseExceptions()
+
 
 def idw(point, data_layer, alpha=1):
     data_layer.ResetReading()
@@ -88,9 +90,6 @@ def _needs_calculation(output_filename, date, stations_layer):
 
     # Get list of files which were used to calculate the output file
     fp = gdal.Open(output_filename)
-    if fp is None:
-        raise IOError('An error occured when trying to open {}'
-                      .format(output_filename))
     try:
         actual_input_files = fp.GetMetadataItem('INPUT_FILES')
         if actual_input_files is None:
@@ -154,9 +153,6 @@ def h_integrate(mask, stations_layer, date, output_filename_prefix, date_fmt,
     output = gdal.GetDriverByName('GTiff').Create(
         output_filename, mask.RasterXSize, mask.RasterYSize, 1,
         gdal.GDT_Float32)
-    if not output:
-        raise IOError('An error occured when trying to open {}'.format(
-            output_filename))
     output.SetMetadataItem('TIMESTAMP', date.strftime(date_fmt))
     output.SetMetadataItem('INPUT_FILES', '\n'.join(input_files))
 
@@ -388,9 +384,6 @@ class SpatializeApp(CliApp):
 
         # Get mask
         mask = gdal.Open(self.config['General']['mask'])
-        if mask is None:
-            raise IOError('An error occured when trying to open {}'.format(
-                self.config['General']['mask']))
 
         # Setup integration method
         if self.config['General']['method'] == 'idw':

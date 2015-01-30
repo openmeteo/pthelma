@@ -10,6 +10,8 @@ from osgeo import gdal, ogr, osr
 
 from pthelma.cliapp import CliApp, WrongValueError
 
+gdal.UseExceptions()
+
 
 class PenmanMonteith(object):
     # Modified Stefan-Boltzmann constant (Allen et al., 1998, end of p. 74)
@@ -257,8 +259,6 @@ class VaporizeApp(CliApp):
         except ValueError:
             pass
         input_file = gdal.Open(s)
-        if input_file is None:
-            raise IOError('An error occured when trying to open {}'.format(s))
         result = input_file.GetRasterBand(1).ReadAsArray()
         nodata = input_file.GetRasterBand(1).GetNoDataValue()
         if nodata is not None:
@@ -324,9 +324,6 @@ class VaporizeApp(CliApp):
         """
         # Read data from GeoTIFF file
         fp = gdal.Open(self.geographical_reference_file)
-        if fp is None:
-            raise IOError('An error occured when trying to open '
-                          + self.geographical_reference_file)
         self.width, self.height = fp.RasterXSize, fp.RasterYSize
         self.geo_transform = fp.GetGeoTransform()
         self.projection = osr.SpatialReference()
@@ -425,9 +422,6 @@ class VaporizeApp(CliApp):
             filename_prefix = self.config['General'][variable + '_prefix']
             filename = filename_prefix + '-' + timestamp + '.tif'
             fp = gdal.Open(filename)
-            if fp is None:
-                raise IOError('An error occured when trying to open {}'
-                              .format(filename))
 
             # Verify consistency of geographical data
             consistent = all(
@@ -466,9 +460,6 @@ class VaporizeApp(CliApp):
         output = gdal.GetDriverByName('GTiff').Create(
             output_filename, self.width, self.height, 1,
             gdal.GDT_Float32)
-        if not output:
-            raise IOError('An error occured when trying to open {}'.format(
-                output_filename))
         try:
             output.SetMetadataItem('TIMESTAMP',
                                    input_data['adatetime'].isoformat())

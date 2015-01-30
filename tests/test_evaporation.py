@@ -13,6 +13,7 @@ from osgeo import gdal, osr
 
 from pthelma.evaporation import VaporizeApp, PenmanMonteith
 
+gdal.UseExceptions()
 
 class SenegalTzinfo(tzinfo):
     """
@@ -189,8 +190,6 @@ class VaporizeAppTestCase(TestCase):
         filename = os.path.join(self.tempdir, filename + '.tif')
         f = gdal.GetDriverByName('GTiff').Create(
             filename, 2, 1, 1, gdal.GDT_Float32)
-        if not f:
-            raise IOError('An error occured when trying to open ' + filename)
 
         # Some tests verify that when some grid points have nodata they are
         # ignored during the calculations. For such tests to properly work, the
@@ -223,8 +222,6 @@ class VaporizeAppTestCase(TestCase):
         filename = os.path.join(self.tempdir, 'a00.tif')
         f = gdal.GetDriverByName('GTiff').Create(
             filename, 2, 1, 1, gdal.GDT_Float32)
-        if not f:
-            raise IOError('An error occured when trying to open ' + filename)
         try:
             f.SetGeoTransform(self.geo_transform)
             f.SetProjection(self.wgs84.ExportToWkt())
@@ -561,7 +558,7 @@ class VaporizeAppTestCase(TestCase):
                 elevation = 8
                 ''').format(self=self))
         application = VaporizeApp()
-        self.assertRaises(IOError, application.run, self)
+        self.assertRaises(RuntimeError, application.run, self)
 
     def test_single_albedo_with_wrong_domain_float_inputs(self):
         with open(self.config_file, 'w') as f:
@@ -599,7 +596,7 @@ class VaporizeAppTestCase(TestCase):
                 elevation = 8
                 ''').format(self=self))
         application = VaporizeApp()
-        self.assertRaises(IOError, application.run, self)
+        self.assertRaises(RuntimeError, application.run, self)
 
     def test_seasonal_albedo_configuration_as_mix_numbers_and_grids(self):
         with open(self.config_file, 'w') as f:
@@ -612,7 +609,7 @@ class VaporizeAppTestCase(TestCase):
                 elevation = 8
                 ''').format(self=self))
         application = VaporizeApp()
-        self.assertRaises(IOError, application.run, self)
+        self.assertRaises(RuntimeError, application.run, self)
 
     def test_seasonal_albedo_configuration_with_not_enough_arguments(self):
         with open(self.config_file, 'w') as f:

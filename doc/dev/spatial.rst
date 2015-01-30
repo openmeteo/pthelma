@@ -115,6 +115,9 @@
    *point* and *data_source* need not be in the same reference system,
    but they must both have an appropriate spatial reference defined.
 
+   If the *point* does not fall in the raster, :exc:`RuntimeError` is
+   raised.
+
 .. function:: extract_point_timeseries_from_rasters(files, point)
 
    Extracts and returns a :class:`~timeseries.Timeseries` object that

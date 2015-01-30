@@ -1,3 +1,9 @@
+0.10.1 (2015-01-30)
+-------------------
+
+- Minor bug fix: spatial.extract_point_from_raster now raises
+  exception on error.
+
 0.10.0 (2014-12-29)
 -------------------
 
