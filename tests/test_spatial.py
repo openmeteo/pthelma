@@ -12,6 +12,9 @@ from time import sleep
 from unittest import TestCase, skipIf
 
 import iso8601
+from osgeo import gdal
+
+gdal.UseExceptions()
 
 if sys.platform != 'win32':
     import numpy as np
@@ -299,8 +302,6 @@ def setup_input_file(filename, value, timestamp):
     value[np.isnan(value)] = nodata
     f = gdal.GetDriverByName('GTiff').Create(
         filename, 3, 3, 1, gdal.GDT_Float32)
-    if not f:
-        raise IOError('An error occured when trying to open ' + filename)
     try:
         f.SetMetadataItem('TIMESTAMP', timestamp.isoformat())
         f.SetGeoTransform((22.0, 0.01, 0, 38.0, 0, -0.01))
@@ -387,6 +388,16 @@ class ExtractPointFromRasterTestCase(TestCase):
         point.AddPoint(324648, 4205739)
         self.assertAlmostEqual(extract_point_from_raster(point, fp), 3.1,
                                places=2)
+
+        # Try to get a point that is outside the raster; should raise an
+        # exception.
+        point = ogr.Geometry(ogr.wkbPoint)
+        sr = osr.SpatialReference()
+        sr.ImportFromEPSG(4326)
+        point.AssignSpatialReference(sr)
+        point.AddPoint(21.0, 38.0)
+        self.assertRaises(RuntimeError, extract_point_from_raster,
+                          *(point, fp))
 
         fp = None
 
