@@ -304,7 +304,7 @@ class SpatializeApp(CliApp):
                         datestring, default_timezone=timezone))
                 except iso8601.ParseError as e:
                     raise iso8601.ParseError(
-                        e.message + ' (file {}, {} lines from the end)'
+                        str(e) + ' (file {}, {} lines from the end)'
                         .format(filename, i + 1))
         return result
 
