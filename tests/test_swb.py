@@ -37,34 +37,39 @@ evapotranspiration_test_timeseries = textwrap.dedent("""\
 
 class SoilWaterBalanceTestCase(TestCase):
 
+    def setUp(self):
+        self.precip = Timeseries(time_step=TimeStep(1440, 0))
+        instring = StringIO(precipitation_test_timeseries)
+        self.precip.read_file(instring)
+
+        self.evap = Timeseries(time_step=Timeseries(1440, 0))
+        instring = StringIO(evapotranspiration_test_timeseries)
+        self.evap.read_file(instring)
+        self.swb = SoilWaterBalance(0.5, 1, 0.5, 0.75,
+                                    1, self.precip, self.evap, 1.2, 1)
+
     def test_root_zone_depletion(self):
         # pthelma/tests/data/SoilWaterBalance_calculations.obs
-        precipitation = Timeseries(time_step=TimeStep(1440, 0))
-        instring = StringIO(precipitation_test_timeseries)
-        precipitation.read_file(instring)
-
-        evapotranspiration = Timeseries(time_step=Timeseries(1440, 0))
-        instring = StringIO(evapotranspiration_test_timeseries)
-        evapotranspiration.read_file(instring)
-
-        swb = SoilWaterBalance(0.5, 1, 0.5, 0.75,
-                               1, precipitation, evapotranspiration, 1.2, 1)
-        depletion = swb.root_zone_depletion(datetime(2014, 11, 1), 100,
-                                            datetime(2014, 11, 10))
+        depletion = self.swb.root_zone_depletion(datetime(2014, 11, 1), 100,
+                                                 datetime(2014, 11, 10))
         self.assertAlmostEqual(depletion, 79.6)
+
+    def test_depletion_report(self):
+        self.swb.root_zone_depletion(datetime(2014, 11, 1), 100,
+                                     datetime(2014, 11, 10))
+
+        len_report = len(self.swb.depletion_report)
+        sample_report_item = self.swb.depletion_report[4]
+        report_keys = [k for k in sample_report_item.keys()]
+        expected_keys = ['precip', 'evap', 'rd', 'depletion',
+                         'fc', 'ism', 'date']
+
+        self.assertEqual(len_report, 9)
+        self.assertEqual(sample_report_item['precip'], 4)
+        self.assertListEqual(report_keys, expected_keys)
 
     def test_irrigation_water_amount(self):
         # pthelma/tests/data/SoilWaterBalance_calculations.obs
-        precipitation = Timeseries(time_step=TimeStep(1440, 0))
-        instring = StringIO(precipitation_test_timeseries)
-        precipitation.read_file(instring)
-
-        evapotranspiration = Timeseries(time_step=Timeseries(1440, 0))
-        instring = StringIO(evapotranspiration_test_timeseries)
-        evapotranspiration.read_file(instring)
-
-        swb_model = SoilWaterBalance(0.5, 1, 0.5, 0.75, 1,
-                                     precipitation, evapotranspiration, 1.2, 1)
-        iwa = swb_model.irrigation_water_amount(datetime(2014, 11, 1),
-                                                100, datetime(2014, 11, 10))
+        iwa = self.swb.irrigation_water_amount(datetime(2014, 11, 1),
+                                               100, datetime(2014, 11, 10))
         self.assertAlmostEqual(iwa, 66.3333333)

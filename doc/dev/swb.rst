@@ -86,6 +86,10 @@
    
       The wilting point, provided at class initialization time.
 
+   .. attribute:: depletion_report
+
+      Summary dictionary with detailed calculation steps per day of :meth:`root_zone_depletion` method.
+
    .. method:: root_zone_depletion(start_date, initial_soil_moisture, end_date)
 
       This method calculates, in a simplified way, the root zone
@@ -144,6 +148,6 @@
 
    .. method:: irrigation_water_amount(start_date, initial_soil_moisture, end_date)
 
-      This method calculates irrigation water needs based on :attr:`root_zone_depletion` and  :attr:`irrigation_efficiency` factor (i.e. drip, sprinkler).
+      This method calculates irrigation water needs based on :meth:`root_zone_depletion` and  :attr:`irrigation_efficiency` factor (i.e. drip, sprinkler).
 
       The method returns irrigation water needs for *end_date* in millimeters (mm).
