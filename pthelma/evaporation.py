@@ -1,7 +1,7 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 from glob import glob
 import math
-from math import cos, pi, sin
+from math import cos, pi, sin, tan
 import os
 
 import iso8601
@@ -14,11 +14,12 @@ gdal.UseExceptions()
 
 
 class PenmanMonteith(object):
-    # Modified Stefan-Boltzmann constant (Allen et al., 1998, end of p. 74)
-    sigma = 2.043e-10
+    # Stefan-Boltzmann constant (Allen et al., 1998, p. 52)
+    sigma = 4.903e-9
 
-    def __init__(self, albedo, nighttime_solar_radiation_ratio, elevation,
-                 latitude, longitude, step_length, unit_converters={}):
+    def __init__(self, albedo, elevation, latitude, step_length,
+                 longitude=None, nighttime_solar_radiation_ratio=None,
+                 unit_converters={}):
         self.albedo = albedo
         self.nighttime_solar_radiation_ratio = nighttime_solar_radiation_ratio
         self.elevation = elevation
@@ -27,12 +28,57 @@ class PenmanMonteith(object):
         self.step_length = step_length
         self.unit_converters = unit_converters
 
-    def calculate(self, temperature, humidity, wind_speed, pressure,
-                  solar_radiation, adatetime):
-        if self.step_length > timedelta(minutes=60):
-            raise NotImplementedError("Evaporation for time steps "
-                                      "larger than hourly has not been "
-                                      "implemented.")
+    def calculate(self, **kwargs):
+        if self.step_length == timedelta(minutes=60):
+            return self.calculate_hourly(**kwargs)
+        elif self.step_length == timedelta(days=1):
+            return self.calculate_daily(**kwargs)
+        else:
+            raise NotImplementedError(
+                "Evaporation for time steps other than hourly and daily "
+                "has not been implemented.")
+
+    def calculate_daily(self, temperature_max, temperature_min, humidity_max,
+                        humidity_min, wind_speed, adatetime,
+                        sunshine_duration=None, pressure=None, radiation=None):
+        if pressure is None:
+            # Eq. 7 p. 31
+            pressure = 101.3 * ((293 - 0.0065 * self.elevation) / 293) ** 5.26
+        variables = self.convert_units(temperature_max=temperature_max,
+                                       temperature_min=temperature_min,
+                                       humidity_max=humidity_max,
+                                       humidity_min=humidity_min,
+                                       wind_speed=wind_speed,
+                                       sunshine_duration=sunshine_duration,
+                                       pressure=pressure)
+
+        # Radiation
+        r_a, N = self.get_extraterrestrial_radiation(adatetime)
+        if radiation is None:
+            radiation = (0.25 + 0.50 * variables['sunshine_duration'] / N
+                         ) * r_a  # Eq.35 p. 50
+        r_so = r_a * (0.75 + 2e-5 * self.elevation)  # Eq. 37, p. 51
+        variables.update(self.convert_units(radiation=radiation))
+
+        temperature_mean = (variables['temperature_max']
+                            + variables['temperature_min']) / 2
+        variables['temperature_mean'] = temperature_mean
+        gamma = self.get_psychrometric_constant(temperature_mean,
+                                                pressure)
+        return self.penman_monteith_daily(
+            incoming_solar_radiation=variables['radiation'],
+            clear_sky_solar_radiation=r_so,
+            psychrometric_constant=gamma,
+            mean_wind_speed=variables['wind_speed'],
+            temperature_max=variables['temperature_max'],
+            temperature_min=variables['temperature_min'],
+            temperature_mean=variables['temperature_mean'],
+            humidity_max=variables['humidity_max'],
+            humidity_min=variables['humidity_min'],
+            adate=adatetime)
+
+    def calculate_hourly(self, temperature, humidity, wind_speed, pressure,
+                         solar_radiation, adatetime):
         variables = self.convert_units(temperature=temperature,
                                        humidity=humidity,
                                        wind_speed=wind_speed,
@@ -42,7 +88,7 @@ class PenmanMonteith(object):
                                                 variables['pressure'])
         r_so = self.get_extraterrestrial_radiation(adatetime) * (
             0.75 + 2e-5 * self.elevation)  # Eq. 37, p. 51
-        return self.penman_monteith(
+        return self.penman_monteith_hourly(
             incoming_solar_radiation=variables['solar_radiation'],
             clear_sky_solar_radiation=r_so,
             psychrometric_constant=gamma,
@@ -55,16 +101,22 @@ class PenmanMonteith(object):
     def convert_units(self, **kwargs):
         result = {}
         for item in kwargs:
-            result[item] = self.unit_converters.get(item, lambda x: x)(
-                kwargs[item])
+            varname = item
+            if item.endswith('_max') or item.endswith('_min'):
+                varname = item[:-4]
+            converter = self.unit_converters.get(varname, lambda x: x)
+            result[item] = converter(kwargs[item])
         return result
 
     def get_extraterrestrial_radiation(self, adatetime):
         """
         Calculates the solar radiation we would receive if there were no
         atmosphere. This is a function of date, time and location.
-        """
 
+        If adatetime is a datetime object, it merely returns the
+        extraterrestrial radiation R_a; if it is a date object, it returns a
+        tuple, (R_a, N), where N is the daylight hours.
+        """
         j = adatetime.timetuple().tm_yday  # Day of year
 
         # Inverse relative distance Earth-Sun, eq. 23, p. 46.
@@ -72,6 +124,16 @@ class PenmanMonteith(object):
 
         # Solar declination, eq. 24, p. 46.
         decl = 0.409 * sin(2 * pi * j / 365 - 1.39)
+
+        if self.step_length > timedelta(minutes=60):  # Daily?
+            phi = self.latitude / 180.0 * pi
+            omega_s = np.arccos(-np.tan(phi) * tan(decl))  # Eq. 25 p. 46
+
+            r_a = 24 * 60 / pi * 0.0820 * dr * (
+                omega_s * np.sin(phi) * sin(decl)
+                + np.cos(phi) * cos(decl) * np.sin(omega_s))  # Eq. 21 p. 46
+            n = 24 / pi * omega_s  # Eq. 34 p. 48
+            return r_a, n
 
         # Seasonal correction for solar time, eq. 32, p. 48.
         b = 2 * pi * (j - 81) / 364
@@ -112,11 +174,59 @@ class PenmanMonteith(object):
         lambda_ = 2.501 - (2.361e-3) * temperature  # eq. 3-1, p. 223
         return 1.013e-3 * pressure / 0.622 / lambda_
 
-    def penman_monteith(self, incoming_solar_radiation,
-                        clear_sky_solar_radiation,
-                        psychrometric_constant,
-                        mean_wind_speed, mean_temperature,
-                        mean_relative_humidity, adatetime):
+    def penman_monteith_daily(
+            self, incoming_solar_radiation, clear_sky_solar_radiation,
+            psychrometric_constant, mean_wind_speed, temperature_max,
+            temperature_min, temperature_mean, humidity_max, humidity_min,
+            adate):
+        """
+        Calculates and returns the reference evapotranspiration according
+        to Allen et al. (1998), eq. 6, p. 24 & 65.
+        """
+
+        # Saturation and actual vapour pressure
+        svp_max = self.get_saturation_vapour_pressure(temperature_max)
+        svp_min = self.get_saturation_vapour_pressure(temperature_min)
+        avp1 = svp_max * humidity_min / 100
+        avp2 = svp_min * humidity_max / 100
+        svp = (svp_max + svp_min) / 2  # Eq. 12 p. 36
+        avp = (avp1 + avp2) / 2  # Eq. 12 p. 36
+
+        # Saturation vapour pressure curve slope
+        delta = self.get_saturation_vapour_pressure_curve_slope(
+            temperature_mean)
+
+        # Net incoming radiation; p. 51, eq. 38
+        albedo = self.albedo[adate.month - 1] \
+            if self.albedo.__class__.__name__ in ('tuple', 'list') \
+            else self.albedo
+        rns = (1.0 - albedo) * incoming_solar_radiation
+
+        # Net outgoing radiation
+        rnl = self.get_net_outgoing_radiation(
+            (temperature_min, temperature_max), incoming_solar_radiation,
+            clear_sky_solar_radiation, avp)
+
+        # Net radiation at grass surface
+        rn = rns - rnl
+
+        # Soil heat flux
+        g_day = 0  # Eq. 42 p. 54
+
+        # Apply the formula
+        numerator_term1 = 0.408 * delta * (rn - g_day)
+        numerator_term2 = psychrometric_constant * 900 / \
+            (temperature_mean + 273.16) * mean_wind_speed * (svp - avp)
+        denominator = delta + psychrometric_constant * (1 +
+                                                        0.34 * mean_wind_speed)
+
+        return (numerator_term1 + numerator_term2) / denominator
+
+    def penman_monteith_hourly(self, incoming_solar_radiation,
+                               clear_sky_solar_radiation,
+                               psychrometric_constant,
+                               mean_wind_speed, mean_temperature,
+                               mean_relative_humidity, adatetime):
         """
         Calculates and returns the reference evapotranspiration according
         to Allen et al. (1998), eq. 53, p. 74.
@@ -161,15 +271,20 @@ class PenmanMonteith(object):
 
         return (numerator_term1 + numerator_term2) / denominator
 
-    def get_net_outgoing_radiation(self, mean_temperature,
+    def get_net_outgoing_radiation(self, temperature,
                                    incoming_solar_radiation,
                                    clear_sky_solar_radiation,
                                    mean_actual_vapour_pressure):
         """
-        Allen et al. (1998), p. 52, eq. 39, modified according to end of page
-        74.
+        Allen et al. (1998), p. 52, eq. 39. Temperature can be a tuple (a pair)
+        of min and max, or a single value. If it is a single value, the
+        equation is modified according to end of page 74.
         """
-        factor1 = self.sigma * (mean_temperature + 273.16) ** 4
+        if temperature.__class__.__name__ in ('tuple', 'list'):
+            factor1 = self.sigma * ((temperature[0] + 273.16) ** 4 +
+                                    (temperature[1] + 273.16) ** 4) / 2
+        else:
+            factor1 = self.sigma / 24 * (temperature + 273.16) ** 4
         factor2 = 0.34 - 0.14 * (mean_actual_vapour_pressure ** 0.5)
 
         # Solar radiation ratio Rs/Rs0 (Allen et al., 1998, top of p. 75).
@@ -209,17 +324,22 @@ class VaporizeApp(CliApp):
         'step_length':                     None,
         'elevation':                       None,
         'albedo':                          None,
-        'nighttime_solar_radiation_ratio': None,
+        'nighttime_solar_radiation_ratio': 0.6,
         'unit_converter_temperature':      'x',
         'unit_converter_humidity':         'x',
         'unit_converter_wind_speed':       'x',
         'unit_converter_pressure':         'x',
         'unit_converter_solar_radiation':  'x',
+        'temperature_min_prefix':          'temperature_min',
+        'temperature_max_prefix':          'temperature_max',
         'temperature_prefix':              'temperature',
         'humidity_prefix':                 'humidity',
+        'humidity_min_prefix':             'humidity_min',
+        'humidity_max_prefix':             'humidity_max',
         'wind_speed_prefix':               'wind_speed',
         'pressure_prefix':                 'pressure',
         'solar_radiation_prefix':          'solar_radiation',
+        'sunshine_duration_prefix':        'sunshine_duration',
         'evaporation_prefix':              'evaporation',
     }}
 
@@ -239,13 +359,12 @@ class VaporizeApp(CliApp):
         s = self.config['General']['step_length']
         try:
             minutes = int(s)
-            if minutes > 60 or minutes < 1:
-                raise ValueError("only up to hourly in this version")
+            if minutes not in (60, 1440):
+                raise ValueError("only hourly or daily in this version")
         except ValueError:
             raise WrongValueError(
                 '"{}" is not an appropriate time step; in this version of '
-                'vaporize, the step must be an integer number of minutes '
-                'smaller than or equal to 60.'.format(s))
+                'vaporize, the step must be either 60 or 1440.'.format(s))
         self.step = timedelta(minutes=minutes)
 
     def get_number_or_grid(self, s):
@@ -359,24 +478,30 @@ class VaporizeApp(CliApp):
         self.longitude, self.latitude = np.meshgrid(longitudes, latitudes)
 
     def execute(self):
-        # List all input temperature files
-        pattern = self.config['General']['temperature_prefix'] + '-*.tif'
-        temperature_files = glob(pattern)
+        # List all input wind speed files
+        pattern = self.config['General']['wind_speed_prefix'] + '-*.tif'
+        wind_speed_files = glob(pattern)
 
         # Remove the prefix from the start and the .tif from the end, leaving
         # only the date.
-        prefix_len = len(self.config['General']['temperature_prefix'])
-        timestamps = [item[prefix_len + 1:-4] for item in temperature_files]
+        prefix_len = len(self.config['General']['wind_speed_prefix'])
+        timestamps = [item[prefix_len + 1:-4] for item in wind_speed_files]
 
         # Arbitrarily use the first temperature file to extract location and
         # other geographical stuff. Elsewhere consistency of such data from all
         # other files with this file will be checked.
-        self.geographical_reference_file = temperature_files[0]
+        self.geographical_reference_file = wind_speed_files[0]
         self.get_coordinates()
 
+        nsrr = self.nighttime_solar_radiation_ratio
         self.penman_monteith = PenmanMonteith(
-            self.albedo, self.nighttime_solar_radiation_ratio, self.elevation,
-            self.latitude, self.longitude, self.step, self.unit_converters)
+            albedo=self.albedo,
+            nighttime_solar_radiation_ratio=nsrr,
+            elevation=self.elevation,
+            latitude=self.latitude,
+            longitude=self.longitude,
+            step_length=self.step,
+            unit_converters=self.unit_converters)
         for timestamp in timestamps:
             self.process_timestamp(timestamp)
         self.remove_extra_evaporation_files(timestamps)
@@ -414,9 +539,14 @@ class VaporizeApp(CliApp):
         return ''.join(chars)
 
     def process_timestamp(self, timestamp):
-        input_data = {'temperature': None, 'humidity': None,
-                      'wind_speed': None, 'pressure': None,
-                      'solar_radiation': None}
+        if self.step == timedelta(minutes=60):
+            input_data = {'temperature': None, 'humidity': None,
+                          'wind_speed': None, 'pressure': None,
+                          'solar_radiation': None}
+        else:
+            input_data = {'temperature_max': None, 'temperature_min': None,
+                          'humidity_max': None, 'humidity_min': None,
+                          'wind_speed': None, 'sunshine_duration': None}
         for variable in input_data:
             # Open file
             filename_prefix = self.config['General'][variable + '_prefix']
@@ -448,7 +578,10 @@ class VaporizeApp(CliApp):
 
         input_data['adatetime'] = iso8601.parse_date(
             self.timestamp_from_filename(timestamp), default_timezone=None)
-        if input_data['adatetime'].tzinfo is None:
+        if (self.step == timedelta(minutes=1440)):
+            input_data['adatetime'] = input_data['adatetime'].date()
+        if (self.step == timedelta(minutes=60)) and (
+                input_data['adatetime'].tzinfo is None):
             raise Exception('The time stamp in the input files does not '
                             'have a time zone specified.')
 

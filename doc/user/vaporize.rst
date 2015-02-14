@@ -128,7 +128,7 @@ Parameters
 
    An integer indicating the number of minutes in
    the time step. In this version, ``vaporize`` can only handle hourly
-   time steps or smaller.
+   (60) or daily (1440) time steps.
 
 .. confval:: elevation
 
@@ -136,6 +136,8 @@ Parameters
    or a GeoTIFF file with a digital elevation model.
 
 .. confval:: nighttime_solar_radiation_ratio
+
+   (Hourly step only.)
 
    In order to estimate the outgoing radiation, the ratio of incoming
    solar radiation to clear sky solar radiation is used as a
@@ -178,6 +180,7 @@ Parameters
    wind speed                m/s
    pressure                  kPa
    solar radiation           MJ/m²/h
+   sunshine duration         h
    ========================  =====================
    
    If they are in different units,
@@ -192,24 +195,39 @@ Parameters
    Use 32.0 rather than 32, and so on, in order to ensure that the
    calculations will be performed in floating point.
 
+   You can also use this to convert wind speed to a different height.
+   Wind speed at 2 m from the ground is required. If you have wind
+   speed at a different height, convert it using Eq. 47, p. 56, of
+   Allen et al. (1998). For example, if you have wind speed at 10 m,
+   specify this:
+
+      unit_converter_wind_speed = x * 4.87 / math.log(67.8 * 10 - 5.42)
+
 .. confval:: temperature_prefix
+             temperature_max_prefix
+             temperature_min_prefix
              humidity_prefix
+             humidity_max_prefix
+             humidity_min_prefix
              wind_speed_prefix
              pressure_prefix
              solar_radiation_prefix
+             sunshine_duration_prefix
              evaporation_prefix
 
-   Optional. `vaporize` assumes that the input files are
-   named :samp:`{variable}-{date}.tif`, where *variable* one of
-   `temperature`, `humidity`, `wind_speed`, `pressure` and
-   `solar_radiation`, and, similarly, for the output file *variable*
-   is `evaporation`. With these parameters these names can be changed;
-   for example::
+   Optional. `vaporize` assumes that the input files are named
+   :samp:`{variable}-{date}.tif`, where *variable* one of
+   `temperature`, `temperature_max`, `temperature_min`, `humidity`,
+   `humidity_max`, `humidity_min`, `wind_speed`, `pressure`,
+   `solar_radiation`, and `sunshine_duration`, and, similarly, for the
+   output file *variable* is `evaporation`. With these parameters
+   these names can be changed; for example::
 
       humidity_prefix = hum
 
    In that case, the humidity files are going to have a name similar
-   to `hum-2014-10-12-18-00+0200.tif`.
+   to `hum-2014-10-12-18-00+0200.tif` (for hourly) or
+   `hum-2014-10-12.tif` (for daily).
 
 REFERENCES
 ==========
@@ -223,7 +241,7 @@ AUTHOR AND COPYRIGHT
 
 ``vaporize`` was written by Antonis Christofides, anthony@itia.ntua.gr.
 
-| Copyright (C) 2014 TEI of Epirus
+| Copyright (C) 2014-2015 TEI of Epirus
 
 ``vaporize`` is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the

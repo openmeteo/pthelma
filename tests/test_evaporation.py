@@ -1,5 +1,6 @@
 from copy import copy
-from datetime import datetime, timedelta, tzinfo
+from datetime import date, datetime, timedelta, tzinfo
+import math
 import os
 import shutil
 from six.moves import configparser
@@ -14,6 +15,7 @@ from osgeo import gdal, osr
 from pthelma.evaporation import VaporizeApp, PenmanMonteith
 
 gdal.UseExceptions()
+
 
 class SenegalTzinfo(tzinfo):
     """
@@ -37,7 +39,56 @@ senegal_tzinfo = SenegalTzinfo()
 
 class PenmanMonteithTestCase(TestCase):
 
-    def test_2_dates_scalar_with_single_albedo(self):
+    def test_daily(self):
+        # Apply Allen et al. (1998) Example 18 page 72.
+
+        unit_converters = {
+            # Eq. 47 p. 56
+            'wind_speed': lambda x: x * 4.87 / math.log(67.8 * 10 - 5.42),
+        }
+
+        pm = PenmanMonteith(albedo=0.23,
+                            elevation=100,
+                            latitude=50.8,
+                            step_length=timedelta(days=1),
+                            unit_converters=unit_converters,
+                            )
+
+        result = pm.calculate(temperature_max=21.5,
+                              temperature_min=12.3,
+                              humidity_max=84,
+                              humidity_min=63,
+                              wind_speed=2.78,
+                              sunshine_duration=9.25,
+                              adatetime=date(2014, 7, 6))
+        self.assertAlmostEqual(result, 3.9, places=1)
+
+    def test_daily_grid(self):
+        # We use a 2x1 grid, where point 1, 1 is the same as Example 18, and
+        # point 1, 2 has some different values.
+
+        unit_converters = {
+            # Eq. 47 p. 56
+            'wind_speed': lambda x: x * 4.87 / math.log(67.8 * 10 - 5.42),
+        }
+
+        pm = PenmanMonteith(albedo=0.23,
+                            elevation=100,
+                            latitude=50.8,
+                            step_length=timedelta(days=1),
+                            unit_converters=unit_converters,
+                            )
+        result = pm.calculate(temperature_max=np.array([21.5, 28]),
+                              temperature_min=np.array([12.3, 15]),
+                              humidity_max=np.array([84, 70]),
+                              humidity_min=np.array([63, 60]),
+                              wind_speed=np.array([2.78, 3]),
+                              sunshine_duration=np.array([9.25, 9]),
+                              adatetime=date(2014, 7, 6))
+        np.testing.assert_almost_equal(result, np.array([3.9, 4.8]),
+                                       decimal=1)
+
+    def test_hourly(self):
         # Apply Allen et al. (1998) Example 19 page 75.
         pm = PenmanMonteith(albedo=0.23,
                             nighttime_solar_radiation_ratio=0.8,
@@ -64,7 +115,7 @@ class PenmanMonteithTestCase(TestCase):
                                                  tzinfo=senegal_tzinfo))
         self.assertAlmostEqual(result, 0.0, places=2)
 
-    def test_1_date_array_with_single_albedo(self):
+    def test_hourly_grid(self):
         # We use a 2x1 grid, where point 1, 1 is the same as Example 19, and
         # point 1, 2 has some different values.
         pm = PenmanMonteith(albedo=0.23,
@@ -84,7 +135,7 @@ class PenmanMonteithTestCase(TestCase):
         np.testing.assert_almost_equal(result, np.array([0.63, 0.36]),
                                        decimal=2)
 
-    def test_1_date_scalar_with_albedo_scalar_array(self):
+    def test_hourly_with_albedo_grid(self):
         # Apply Allen et al. (1998) Example 19 page 75.
         pm = PenmanMonteith(albedo=np.array([0.23]),
                             nighttime_solar_radiation_ratio=0.8,
@@ -108,7 +159,7 @@ class PenmanMonteithTestCase(TestCase):
         self.assertEqual(result.size, 1)
         self.assertAlmostEqual(result[0], 0.63, places=2)
 
-    def test_1_date_array_with_seasonal_albedo_array(self):
+    def test_hourly_array_with_seasonal_albedo_grid(self):
         # We use a 2x1 grid, where point 1, 1 is the same as Example 19, and
         # point 1, 2 has some different values.
         pm = PenmanMonteith(albedo=[np.array([0.23, 0.23])
@@ -129,7 +180,7 @@ class PenmanMonteithTestCase(TestCase):
         np.testing.assert_almost_equal(result, np.array([0.63, 0.36]),
                                        decimal=2)
 
-    def test_3_dates_to_confirm_month_selection_in_seasonal_albedo(self):
+    def test_hourly_with_seasonal_albedo(self):
         # Apply Allen et al. (1998) Example 19 page 75.
 
         pm = PenmanMonteith(albedo=[0.13, 0.01, 0.01, 0.01, 0.01, 0.01,
@@ -185,16 +236,24 @@ class VaporizeAppTestCase(TestCase):
         Saves value, which is an np array, to a GeoTIFF file whose name is
         based on variable.
         """
-        filename = variable if not with_date else \
-            variable + '-' + self.timestamp.strftime('%Y-%m-%d-%H-%M%z')
+        if not with_date:
+            filename = variable
+        elif not isinstance(self.timestamp, datetime):
+            # Daily stuff
+            filename = variable + '-' + self.timestamp.strftime('%Y-%m-%d')
+        else:
+            # Hourly stuff
+            filename = variable + '-' + self.timestamp.strftime(
+                '%Y-%m-%d-%H-%M%z')
+
         filename = os.path.join(self.tempdir, filename + '.tif')
         f = gdal.GetDriverByName('GTiff').Create(
             filename, 2, 1, 1, gdal.GDT_Float32)
 
         # Some tests verify that when some grid points have nodata they are
         # ignored during the calculations. For such tests to properly work, the
-        # gdal nodata value must be a positive number and not very high. It must
-        # be positive because a square root might be taken, and if it were
+        # gdal nodata value must be a positive number and not very high. It
+        # must be positive because a square root might be taken, and if it were
         # negative the result would be nan anyway. It must also not be very
         # high, because it might be raised to the fourth power, resulting in
         # overflow, which would in the end result in nan. But in such cases the
@@ -301,19 +360,6 @@ class VaporizeAppTestCase(TestCase):
         self.assertRaisesRegex(configparser.Error, 'elevation',
                                application.run)
 
-        # Missing nighttime_solar_radiation_ratio
-        with open(self.config_file, 'w') as f:
-            f.write(textwrap.dedent('''\
-                base_dir = {self.tempdir}
-                albedo = 0.23
-                elevation = 8
-                step_length = 60
-                ''').format(self=self))
-        application = VaporizeApp()
-        self.assertRaisesRegex(configparser.Error,
-                               'nighttime_solar_radiation_ratio',
-                               application.run)
-
     def test_execute_notz(self):
         # Prepare input files without time zone
         self.timestamp = datetime(2014, 10, 1, 15, 0)
@@ -355,7 +401,70 @@ class VaporizeAppTestCase(TestCase):
         # Verify the output file still doesn't exist
         self.assertFalse(os.path.exists(result_filename))
 
-    def test_execute(self):
+    def test_execute_daily(self):
+        # Prepare input files
+        self.timestamp = date(2014, 7, 6)
+        self.setup_input_file('temperature_max', np.array([[21.5, 28]]))
+        self.setup_input_file('temperature_min', np.array([[12.3, 15]]))
+        self.setup_input_file('humidity_max', np.array([[84, 70]]))
+        self.setup_input_file('humidity_min', np.array([[63, 60]]))
+        self.setup_input_file('wind_speed', np.array([[2.078, 2.244]]))
+        self.setup_input_file('sunshine_duration', np.array([[9.25, 9]]))
+
+        # Also setup an output file that has no corresponding input files
+        rogue_output_file = os.path.join(
+            self.tempdir, 'evaporation-2013-01-01.tif')
+        with open(rogue_output_file, 'w') as f:
+            f.write('irrelevant contents')
+
+        with open(self.config_file, 'w') as f:
+            f.write(textwrap.dedent('''\
+                base_dir = {self.tempdir}
+                albedo = 0.23
+                elevation = 100
+                step_length = 1440
+                ''').format(self=self))
+        application = VaporizeApp()
+        application.read_command_line()
+        application.read_configuration()
+
+        # Verify the output file doesn't exist yet
+        result_filename = os.path.join(
+            self.tempdir, 'evaporation-{}.tif'.format(
+                self.timestamp.strftime('%Y-%m-%d')))
+        self.assertFalse(os.path.exists(result_filename))
+
+        # Verify the rogue output file is still here
+        self.assertTrue(os.path.exists(rogue_output_file))
+
+        # Execute
+        application.run()
+
+        # Check that it has created a file
+        self.assertTrue(os.path.exists(result_filename))
+
+        # Check that the rogue output file is gone
+        self.assertFalse(os.path.exists(rogue_output_file))
+
+        # Check that the created file is correct
+        fp = gdal.Open(result_filename)
+        timestamp = fp.GetMetadata()['TIMESTAMP']
+        self.assertEqual(timestamp, '2014-07-06')
+        self.assertEqual(fp.RasterXSize, 2)
+        self.assertEqual(fp.RasterYSize, 1)
+        self.assertEqual(fp.GetGeoTransform(), self.geo_transform)
+        # We can't just compare fp.GetProjection() to self.wgs84.ExportToWkt(),
+        # because sometimes there are minor differences in the formatting or in
+        # the information contained in the WKT.
+        self.assertTrue(fp.GetProjection().startswith('GEOGCS["WGS 84",'))
+        self.assertTrue(fp.GetProjection().endswith('AUTHORITY["EPSG","4326"]]'
+                                                    ))
+        np.testing.assert_almost_equal(fp.GetRasterBand(1).ReadAsArray(),
+                                       np.array([[3.9, 4.8]]),
+                                       decimal=1)
+        fp = None
+
+    def test_execute_hourly(self):
         # Prepare input files
         self.timestamp = datetime(2014, 10, 1, 15, 0, tzinfo=senegal_tzinfo)
         self.setup_input_file('temperature', np.array([[38, 28]]))

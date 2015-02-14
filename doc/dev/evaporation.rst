@@ -8,7 +8,7 @@
 .. moduleauthor:: Antonis Christofides <anthony@itia.ntua.gr>
 .. sectionauthor:: Antonis Christofides <anthony@itia.ntua.gr>
 
-.. class:: PenmanMonteith(albedo, nighttime_solar_radiation_ratio, elevation, latitude, longitude, step_length, unit_converters={})
+.. class:: PenmanMonteith(albedo, elevation, latitude, step_length, longitude=None, nighttime_solar_radiation_ratio=None, unit_converters={})
 
    Calculates evapotranspiration according to the Penman-Monteith
    equation. The methodology used is that of Allen et al. (1998).
@@ -38,28 +38,26 @@
    scalar or array, it is used for the entire year. The albedo is a
    number between 0 and 1.
 
-   In order to estimate the outgoing radiation, the ratio of incoming
-   solar radiation to clear sky solar radiation is used as a
-   representation of cloud cover. This, however, does not work during
-   the night, in which case *nighttime_solar_radiation_ratio* is used
-   as a rough approximation of that ratio. It should be a scalar or
-   array between 0.4 and 0.8; see Allen et al. (1998), top of page 75.
-
    *elevation* is a scalar or array with the location elevation above
    sea level in meters.
 
    *latitude* and *longitude* are scalars or arrays, in decimal
    degrees north of the equator or east of the prime meridian
-   (negative for west or south).
+   (negative for west or south). Only *latitude* needs to be specified
+   for calculating daily evaporation.
 
    *step_length* is a :class:`datetime.timedelta` object with the
    length of the time step; so, for example, to calculate daily
-   evaporation, *step_length* must be one day. In this version of
-   :class:`PenmanMonteith`, we only support hourly or smaller time
-   steps. The equation used is Allen et al. (1998), equation 53, page
-   74.  As explained there, the function is modified in relation to
-   the original Penman-Monteith equation, so that it is suitable for
-   hourly data.
+   evaporation, *step_length* must be one day, whereas for hourly
+   evaporation it must one hour.
+
+   In order to estimate the outgoing radiation, the ratio of incoming
+   solar radiation to clear sky solar radiation is used as a
+   representation of cloud cover. However, when calculating hourly
+   evaporation, this does not work during the night, in which case
+   *nighttime_solar_radiation_ratio* is used as a rough approximation
+   of that ratio. It should be a scalar or array between 0.4 and 0.8;
+   see Allen et al. (1998), top of page 75.
 
    The meteorological values that will be supplied after class
    initialization to the :meth:`calculate` method are supposed to be
@@ -87,11 +85,24 @@
    Any variable whose name is not found in *unit_converters* is used
    as is, without conversion.
 
-   .. method:: calculate(self, temperature, humidity, wind_speed, pressure, solar_radiation, adatetime)
+   .. method:: calculate(self, **kwargs)
 
-      Calculates and returns the reference evapotranspiration, in mm/h, for the
-      interval that ends at *adatetime*, which must be a timezone-aware
-      :class:`~datetime.datetime` object.
+      Calculates and returns the reference evapotranspiration in mm.
+
+      For daily step, the keyword arguments must be *temperature_max*,
+      *temperature_min*, *humidity_max*, *humidity_min*, *wind_speed*,
+      *sunshine_duration*, and *adatetime*. *adatetime* must be a
+      :class:`~datetime.date` object, not a
+      :class:`~datetime.datetime` object, but it is named *adatetime*
+      for consistency with the hourly step. The result is the
+      reference evapotranspiration for the given day.
+
+      For hourly step, the keyword arguments must be
+      *temperature*, *humidity*, *wind_speed*, *pressure*,
+      *solar_radiation*, and *adatetime*. The result is the reference
+      evapotranspiration for the hour that ends at *adatetime*, which
+      must be a timezone-aware :class:`~datetime.datetime` object.
+
 
 .. class:: VaporizeApp
 
