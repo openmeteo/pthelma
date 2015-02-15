@@ -3,6 +3,7 @@ from glob import glob
 import math
 import os
 import shutil
+import six
 from six import StringIO
 from six.moves import configparser
 import sys
@@ -639,14 +640,10 @@ class SpatializeAppTestCase(TestCase):
                 2014-04-30 13:00,20.4,
                 2014-04-30 14:00,21.4,
                 '''))
-        error_message = "Unable to parse date string u'malformed date' (file "\
-            + self.filenames[0] + ", 3 lines from the end)"
-        try:
-            application.dates_to_calculate.next()
-        except iso8601.ParseError as e:
-            self.assertEqual(e.message, error_message)
-        else:
-            self.assertTrue(False, 'An exception should have been raised')
+        error_message = r"^Unable to parse date string u?'malformed date' " \
+            r"\(file " + self.filenames[0] + ", 3 lines from the end\)$"
+        six.assertRaisesRegex(self, iso8601.ParseError, error_message,
+                              six.next, application.dates_to_calculate)
 
     def test_dates_to_calculate_error2(self):
         application = SpatializeApp()
@@ -669,14 +666,10 @@ class SpatializeAppTestCase(TestCase):
                 2014-04-30 13:00,20.4,
                 2014-04-30 14:00,21.4,
                 '''))
-        error_message = "Unable to parse date string u'Actual_offset=0' " \
-            "(file " + self.filenames[1] + ", 5 lines from the end)"
-        try:
-            application.dates_to_calculate.next()
-        except iso8601.ParseError as e:
-            self.assertEqual(e.message, error_message)
-        else:
-            self.assertTrue(False, 'An exception should have been raised')
+        error_message = r"^Unable to parse date string u?'Actual_offset=0' " \
+            r"\(file " + self.filenames[1] + ", 5 lines from the end\)$"
+        six.assertRaisesRegex(self, iso8601.ParseError, error_message,
+                              six.next, application.dates_to_calculate)
 
     def test_date_fmt(self):
         application = SpatializeApp()

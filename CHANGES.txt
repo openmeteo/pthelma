@@ -1,3 +1,9 @@
+0.10.2 (2015-02-15)
+-------------------
+
+- Can now calculate daily evaporation in addition to hourly.
+- "spatial" now properly sets no data value in rasters.
+
 0.10.1 (2015-01-30)
 -------------------
 
