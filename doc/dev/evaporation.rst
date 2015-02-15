@@ -91,11 +91,11 @@
 
       For daily step, the keyword arguments must be *temperature_max*,
       *temperature_min*, *humidity_max*, *humidity_min*, *wind_speed*,
-      *sunshine_duration*, and *adatetime*. *adatetime* must be a
-      :class:`~datetime.date` object, not a
-      :class:`~datetime.datetime` object, but it is named *adatetime*
-      for consistency with the hourly step. The result is the
-      reference evapotranspiration for the given day.
+      *adatetime*, and one of *solar_radiation* or *sunshine_duration*.
+      *adatetime* must be a :class:`~datetime.date` object, not a
+      :class:`~datetime.datetime` object, but it is named *adatetime* for
+      consistency with the hourly step. The result is the reference
+      evapotranspiration for the given day.
 
       For hourly step, the keyword arguments must be
       *temperature*, *humidity*, *wind_speed*, *pressure*,

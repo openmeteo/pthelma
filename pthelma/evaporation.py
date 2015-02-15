@@ -40,7 +40,8 @@ class PenmanMonteith(object):
 
     def calculate_daily(self, temperature_max, temperature_min, humidity_max,
                         humidity_min, wind_speed, adatetime,
-                        sunshine_duration=None, pressure=None, radiation=None):
+                        sunshine_duration=None, pressure=None,
+                        solar_radiation=None):
         if pressure is None:
             # Eq. 7 p. 31
             pressure = 101.3 * ((293 - 0.0065 * self.elevation) / 293) ** 5.26
@@ -54,11 +55,11 @@ class PenmanMonteith(object):
 
         # Radiation
         r_a, N = self.get_extraterrestrial_radiation(adatetime)
-        if radiation is None:
-            radiation = (0.25 + 0.50 * variables['sunshine_duration'] / N
-                         ) * r_a  # Eq.35 p. 50
+        if solar_radiation is None:
+            solar_radiation = (0.25 + 0.50 * variables['sunshine_duration'] / N
+                               ) * r_a  # Eq.35 p. 50
         r_so = r_a * (0.75 + 2e-5 * self.elevation)  # Eq. 37, p. 51
-        variables.update(self.convert_units(radiation=radiation))
+        variables.update(self.convert_units(solar_radiation=solar_radiation))
 
         temperature_mean = (variables['temperature_max']
                             + variables['temperature_min']) / 2
@@ -66,7 +67,7 @@ class PenmanMonteith(object):
         gamma = self.get_psychrometric_constant(temperature_mean,
                                                 pressure)
         return self.penman_monteith_daily(
-            incoming_solar_radiation=variables['radiation'],
+            incoming_solar_radiation=variables['solar_radiation'],
             clear_sky_solar_radiation=r_so,
             psychrometric_constant=gamma,
             mean_wind_speed=variables['wind_speed'],
@@ -546,11 +547,18 @@ class VaporizeApp(CliApp):
         else:
             input_data = {'temperature_max': None, 'temperature_min': None,
                           'humidity_max': None, 'humidity_min': None,
-                          'wind_speed': None, 'sunshine_duration': None}
+                          'wind_speed': None, 'solar_radiation': None,
+                          'sunshine_duration': None}
         for variable in input_data:
             # Open file
             filename_prefix = self.config['General'][variable + '_prefix']
             filename = filename_prefix + '-' + timestamp + '.tif'
+            if variable in ('solar_radiation', 'sunshine_duration') and \
+                    not os.path.exists(filename):
+                # Either solar_radiation or sunshine_duration may be absent;
+                # here we allow both to be absent and after the loop we will
+                # check that one was present
+                continue
             fp = gdal.Open(filename)
 
             # Verify consistency of geographical data
@@ -575,6 +583,15 @@ class VaporizeApp(CliApp):
 
             # Close file
             fp = None
+
+        # Verify that one of solar_radiation and sunshine duration was present
+        if input_data['solar_radiation'] is not None:
+            input_data.pop('sunshine_duration', None)
+        elif input_data['sunshine_duration'] is not None:
+            input_data.pop('solar_radiation', None)
+        else:
+            raise RuntimeError('Neither sunshine_duration nor solar_radiation '
+                               'are available for {}.'.format(timestamp))
 
         input_data['adatetime'] = iso8601.parse_date(
             self.timestamp_from_filename(timestamp), default_timezone=None)
