@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from glob import glob
 import math
 from math import cos, pi, sin, tan
@@ -9,6 +9,7 @@ import numpy as np
 from osgeo import gdal, ogr, osr
 
 from pthelma.cliapp import CliApp, WrongValueError
+from pthelma.spatial import NODATAVALUE
 
 gdal.UseExceptions()
 
@@ -615,6 +616,8 @@ class VaporizeApp(CliApp):
                                    input_data['adatetime'].isoformat())
             output.SetGeoTransform(self.geo_transform)
             output.SetProjection(self.projection.ExportToWkt())
+            result[np.isnan(result)] = NODATAVALUE
+            output.GetRasterBand(1).SetNoDataValue(NODATAVALUE)
             output.GetRasterBand(1).WriteArray(result)
         finally:
             # Close the dataset
