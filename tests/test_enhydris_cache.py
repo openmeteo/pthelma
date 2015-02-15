@@ -216,11 +216,15 @@ class EnhydrisCacheAppTestCase(TestCase):
                 base_url = {base_url}
                 id = {self.timeseries1_id}
                 file = file1
+                user = {self.parms[user]}
+                password = {self.parms[password]}
 
                 [timeseries2]
                 base_url = {base_url}
                 id = {self.timeseries2_id}
                 file = file2
+                user = {self.parms[user]}
+                password = {self.parms[password]}
                 ''').format(self=self, base_url=self.parms['base_url']))
 
     def tearDown(self):
