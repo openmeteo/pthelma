@@ -89,7 +89,9 @@
 
    .. attribute:: depletion_report
 
-      Summary list containing internal calculations of :meth:`root_zone_depletion`. At class initialization time is equal to an empty list.
+      A list with the intermediate calculations made by
+      :meth:`root_zone_depletion`. Before the first time the method is
+      called, it is an empty list.
 
    .. method:: root_zone_depletion(start_date, initial_soil_moisture, end_date)
 
@@ -98,7 +100,7 @@
 
          |D_ri| = |D_ri-1| - (|P_i| - |RO_i|) - |IR_ni| - |CR_i| + |ET_ci| + |DP_i|
 
-      ([#FAO]_ pag.170 eq.85)
+      (:ref:`FAO56 <fao56>`, p. 170 eq. 85)
 
       where:
 
@@ -112,18 +114,20 @@
       * |ET_ci| is the crop evapotranspiration.
       * |DP_i| is the water loss through deep percolation.
 
-      |D_ri| limits are consequenly:
+      with the following limits imposed on |D_ri|:
 
          0 <= |D_ri| <= :attr:`taw`
 
-      ([#FAO]_ pag.170 eq.86)
+      (:ref:`FAO56 <fao56>`, p. 170 eq. 86)
 
       |RO_i|, |CR_i| and |DP_i| are ignored and considered zero. The
       equation therefore becomes:
 
          |D_ri| = |D_ri-1| - |P_i| - |IR_ni| + |ET_ci|
 
-      |ET_ci| is calculated using crop coefficient approach by multiplying :attr:`evapotranspiration` by  crop coefficient :attr:`kc`.
+      |ET_ci| is calculated using crop coefficient approach by
+      multiplying :attr:`evapotranspiration` by  crop coefficient
+      :attr:`kc`.
 
       The essential simplifying assumption of this method is that each
       time we irrigate we reach field capacity (i.e. zero depletion).
@@ -147,29 +151,44 @@
 
          moisture = fc - depletion / (rd * rd_factor)
 
-      ([#FAO]_ pag.170 eq.87)
+      (:ref:`FAO56 <fao56>`, p. 170 eq. 87)
 
       so, since the *initial_soil_moisture* is given, |D_r1| is also
       known.
 
-      The method returns the root zone depletion for *end_date* in millimeters (mm).
-      :attr:`precipitation` and :attr:`evaporation` must have non-null
-      records for all days from the day following *start_date* to
-      *end_date*.
+      The method returns the root zone depletion for *end_date* in
+      millimeters (mm).  :attr:`precipitation` and :attr:`evaporation`
+      must have non-null records for all days from the day following
+      *start_date* to *end_date*.
 
    .. method:: irrigation_water_amount(start_date, initial_soil_moisture, end_date)
 
-      This method calculates irrigation water needs based on :meth:`root_zone_depletion` and  :attr:`irrigation_efficiency` factor (i.e. drip, sprinkler).
+      This method calculates irrigation water needs based on
+      :meth:`root_zone_depletion` and  :attr:`irrigation_efficiency`
+      factor (i.e. drip, sprinkler).
 
-      The method returns irrigation water needs for *end_date* in millimeters (mm).
+      The method returns irrigation water needs for *end_date* in
+      millimeters (mm).
 
    .. method:: ks_calc(depletion)
 
-      This method calculates the dimensionless transiration reduction factor, |K_s| , that depends on the available soil water :attr:`taw` , :attr:`raw` ([#FAO]_ pag.169 eq.84). When :meth:`root_zone_depletion` is smaller than :attr:`raw` , |K_s|  is equal to 1.
+      This method calculates the dimensionless transiration reduction
+      factor, |K_s|, that depends on the available soil water
+      :attr:`taw` and :attr:`raw` (:ref:`FAO56 <fao56>`, p. 169 eq.
+      84).  When :meth:`root_zone_depletion` is smaller than
+      :attr:`raw`, |K_s| is equal to 1.
 
    .. method:: taw_percents(soil_moisture)
 
-      This method calculates the percents of :attr:`taw`, :attr:`raw` respectively, given available soil moisture conditions.
+      This method calculates the percents of :attr:`taw` and
+      :attr:`raw` respectively, given available soil moisture
+      conditions.
 
-   .. [#FAO] (2006) "Crop Evapotranspiration: Guidelines for Computing Crop Water Requirements. United Nations Food
-      and Agriculture Organization, Irrigation and Drainage Paper 56" Allen, R.G., Pereira, L.S., Raes, D., Smith, M., Rome, Italy.
+References
+----------
+
+.. _fao56:
+
+R. G. Allen, L. S. Pereira, D. Raes, and M. Smith, Crop evapotranspiration -
+Guidelines for computing crop water requirements, FAO Irrigation and drainage
+paper no. 56, 1998.
