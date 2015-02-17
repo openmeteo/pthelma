@@ -1,3 +1,9 @@
+0.10.3 (2015-02-17)
+-------------------
+
+- Improvements in "swb" module for soil water balance.
+- Better "no data" value in rasters.
+
 0.10.2 (2015-02-15)
 -------------------
 
