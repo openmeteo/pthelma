@@ -119,10 +119,11 @@ class IntegrateTestCase(TestCase):
     def test_integrate_idw(self):
         integrate(self.dataset, self.data_layer, self.target_band, idw)
         result = self.target_band.ReadAsArray()
+        nodatavalue = self.target_band.GetNoDataValue()
 
-        # All masked points and only those must be NaN
+        # All masked points and only those must be no data
         # (^ is bitwise xor in Python)
-        self.assertTrue((np.isnan(result) ^ (self.mask != 0)).all())
+        self.assertTrue(((result == nodatavalue) ^ (self.mask != 0)).all())
 
         self.assertAlmostEqual(result[3, 3],  62.971, places=3)
         self.assertAlmostEqual(result[6, 14], 34.838, places=3)
@@ -243,7 +244,8 @@ class HIntegrateTestCase(TestCase):
                     date_fmt='%Y-%m-%d %H:%M%z', funct=idw, kwargs={})
         f = gdal.Open(result_filename)
         result = f.GetRasterBand(1).ReadAsArray()
-        expected_result = np.array([[1.5088, 1.6064, np.nan, 1.7237],
+        nodatavalue = f.GetRasterBand(1).GetNoDataValue()
+        expected_result = np.array([[1.5088, 1.6064, nodatavalue, 1.7237],
                                     [1.3828, 1.6671, 1.7336, 1.7662],
                                     [0.5400, 2.4000, 1.7954, 1.7504]])
         np.testing.assert_almost_equal(result, expected_result, decimal=4)
@@ -288,11 +290,12 @@ class HIntegrateTestCase(TestCase):
                     date_fmt='%Y-%m-%d %H:%M%z', funct=idw, kwargs={})
         self.assertGreater(os.path.getmtime(result_filename),
                            result_mtime + 0.0009)
-        expected_result = np.array([[2.6736, 3.1053, np.nan, 2.5166],
-                                    [2.3569, 3.5775, 2.9512, 2.3596],
-                                    [0.5400, 2.4000, 2.5377, 2.3779]])
         f = gdal.Open(result_filename)
         result = f.GetRasterBand(1).ReadAsArray()
+        nodatavalue = f.GetRasterBand(1).GetNoDataValue()
+        expected_result = np.array([[2.6736, 3.1053, nodatavalue, 2.5166],
+                                    [2.3569, 3.5775, 2.9512, 2.3596],
+                                    [0.5400, 2.4000, 2.5377, 2.3779]])
         np.testing.assert_almost_equal(result, expected_result, decimal=4)
         f = None
 

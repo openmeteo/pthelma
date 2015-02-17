@@ -14,6 +14,7 @@ from pthelma.timeseries import Timeseries, TzinfoFromString
 
 gdal.UseExceptions()
 
+NODATAVALUE = -2.0 ** 127
 
 def idw(point, data_layer, alpha=1):
     data_layer.ResetReading()
@@ -51,7 +52,10 @@ def integrate(dataset, data_layer, target_band, funct, kwargs={}):
     interpolate = np.vectorize(interpolate_one_point, otypes=[np.float32])
 
     # Make the calculation
-    target_band.WriteArray(interpolate(xarray, yarray, mask))
+    result = interpolate(xarray, yarray, mask)
+    result[np.isnan(result)] = NODATAVALUE
+    target_band.SetNoDataValue(NODATAVALUE)
+    target_band.WriteArray(result)
 
 
 def create_ogr_layer_from_timeseries(filenames, epsg, data_source):
@@ -155,7 +159,6 @@ def h_integrate(mask, stations_layer, date, output_filename_prefix, date_fmt,
         gdal.GDT_Float32)
     output.SetMetadataItem('TIMESTAMP', date.strftime(date_fmt))
     output.SetMetadataItem('INPUT_FILES', '\n'.join(input_files))
-    output.GetRasterBand(1).SetNoDataValue(float('nan'))
 
     try:
         # Set geotransform and projection in the output data source

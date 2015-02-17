@@ -727,8 +727,9 @@ class VaporizeAppTestCase(TestCase):
         self.assertTrue(fp.GetProjection().startswith('GEOGCS["WGS 84",'))
         self.assertTrue(fp.GetProjection().endswith('AUTHORITY["EPSG","4326"]]'
                                                     ))
+        nodatavalue = fp.GetRasterBand(1).GetNoDataValue()
         np.testing.assert_almost_equal(fp.GetRasterBand(1).ReadAsArray(),
-                                       np.array([[0.63, nan]]),
+                                       np.array([[0.63, nodatavalue]]),
                                        decimal=2)
         fp = None
 

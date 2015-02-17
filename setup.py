@@ -76,7 +76,7 @@ except VersionError as e:
 installation_requirements = ["pytz",
                              "simpletail>=0.1.1",
                              "requests>=1,<3",
-                             "six>=1.6,<2",
+                             "six>=1.9,<2",
                              "iso8601",
                              "affine",
                              ]
