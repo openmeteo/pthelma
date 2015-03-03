@@ -588,7 +588,7 @@ class VaporizeApp(CliApp):
         # Verify that one of solar_radiation and sunshine duration was present
         if input_data['solar_radiation'] is not None:
             input_data.pop('sunshine_duration', None)
-        elif input_data['sunshine_duration'] is not None:
+        elif input_data.get('sunshine_duration', None) is not None:
             input_data.pop('solar_radiation', None)
         else:
             raise RuntimeError('Neither sunshine_duration nor solar_radiation '

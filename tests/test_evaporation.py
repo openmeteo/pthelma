@@ -616,6 +616,32 @@ class VaporizeAppTestCase(TestCase):
                                        decimal=2)
         fp = None
 
+    def test_execute_hourly_without_sun(self):
+        # Prepare input files, without solar radiation
+        self.timestamp = datetime(2014, 10, 1, 15, 0, tzinfo=senegal_tzinfo)
+        self.setup_input_file('temperature', np.array([[38, 28]]))
+        self.setup_input_file('humidity', np.array([[52, 42]]))
+        self.setup_input_file('wind_speed', np.array([[3.3, 2.3]]))
+        self.setup_input_file('pressure', np.array([[1013, 1013]]))
+
+        # Configuration
+        with open(self.config_file, 'w') as f:
+            f.write(textwrap.dedent('''\
+                base_dir = {self.tempdir}
+                albedo = 0.23
+                nighttime_solar_radiation_ratio = 0.8
+                elevation = 8
+                step_length = 60
+                unit_converter_pressure = x / 10.0
+                unit_converter_solar_radiation = x * 3600 / 1e6
+                ''').format(self=self))
+        application = VaporizeApp()
+        application.read_command_line()
+        application.read_configuration()
+
+        # Execute and check exception
+        self.assertRaises(RuntimeError, application.run)
+
     def test_execute_with_dem(self):
         """This is essentially the same as test_execute, but uses a GeoTIFF
         with a DEM instead of a constant elevation. The numbers are the same,
