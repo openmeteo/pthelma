@@ -58,14 +58,10 @@ class SoilWaterBalance(object):
             return 1
         return 0
 
-    def Dr_i_1_calc(self, Dr_i, Inet_i, theta):
-        if theta < self.theta_s_mm:
-            tempDr_i_1 = Dr_i - Inet_i
-        else:
-            tempDr_i_1 = 0.0
-        if tempDr_i_1 > self.taw_mm:
+    def Dr_i_1_calc(self, Dr_i, Inet_i):
+        if Dr_i - Inet_i > self.taw_mm:
             return self.taw_mm
-        return tempDr_i_1
+        return Dr_i - Inet_i
 
     def theta_calc(self, theta_init, Dr_i, Inet_i):
         if theta_init - Dr_i >= self.theta_s_mm:
@@ -131,7 +127,7 @@ class SoilWaterBalance(object):
             Dr_i = Dr_i_1 + SWB
             Inet_i = self.irr_events_calc(irr_event_days, step, Dr_i)
             theta = self.theta_calc(theta_init, Dr_i, Inet_i)
-            Dr_i_1 = self.Dr_i_1_calc(Dr_i, Inet_i, theta)
+            Dr_i_1 = self.Dr_i_1_calc(Dr_i, Inet_i)
             theta_i_1 = theta
             theta_p = theta / (self.rd * self.rd_factor)
             self.wbm_report.append({'date': step,
