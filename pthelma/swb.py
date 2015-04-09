@@ -58,7 +58,9 @@ class SoilWaterBalance(object):
             return 1
         return 0
 
-    def __Dr_i_1_calc__(self, Dr_i, Inet_i):
+    def __Dr_i_1_calc__(self, Dr_i, Inet_i, Inet_in):
+        if Inet_in in ["NO"]:
+            Inet_i = 0.0
         if Dr_i - Inet_i > self.taw_mm:
             return self.taw_mm
         return Dr_i - Inet_i
@@ -106,7 +108,11 @@ class SoilWaterBalance(object):
 
     def water_balance(self, theta_init, irr_event_days,
                       start_date, end_date, FC_IRT=1,
-                      Dr_historical=None):
+                      Dr_historical=None, Inet_in="YES"):
+        # add_Inet for irma/aira usage
+        # Inet_calc "YES" or "NO"
+        if Inet_in not in ['YES', 'NO']:
+            raise ValueError("Inet_in must be either 'YES' or 'NO'")
         if len(self.wbm_report) >= 1:
             self.depletion_report = []
         # i = 0
@@ -129,7 +135,7 @@ class SoilWaterBalance(object):
                                               step, Dr_i, FC_IRT)
             theta = self.__theta_calc__(theta_init, Dr_i,
                                         Inet_i, irr_event_days)
-            Dr_i_1 = self.__Dr_i_1_calc__(Dr_i, Inet_i)
+            Dr_i_1 = self.__Dr_i_1_calc__(Dr_i, Inet_i, Inet_in)
             theta_i_1 = theta
             theta_p = theta / (self.rd * self.rd_factor)
             self.wbm_report.append({'date': step,

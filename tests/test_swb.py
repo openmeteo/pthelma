@@ -236,3 +236,15 @@ class SoilWaterBalanceDailyTestCase(TestCase):
         self.assertEqual(values3['irrigate'], 1.0)
         self.assertAlmostEqual(values3['Dr_i'], 51.83859483)
         self.assertAlmostEqual(values3['theta'], 91.66140517)
+
+    def test_swb_daily_Inet_in_wrong_input(self):
+        start_date = datetime(2008, 8, 1)
+        end_date = datetime(2008, 8, 30)
+        theta_init = 131.93750
+        irr_event_days = [datetime(2008, 8, 8, 0, 0),
+                          datetime(2008, 8, 15, 0, 0)]
+
+        with self.assertRaises(ValueError):
+            self.swb.water_balance(theta_init, irr_event_days,
+                                   start_date, end_date,
+                                   FC_IRT=1, Inet_in="Something Else")
