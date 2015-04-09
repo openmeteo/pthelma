@@ -1169,9 +1169,9 @@ class Timeseries(dict):
                         break
                 s = self.time_step.next(s)
             flag = []
-            if not test_run and missing / total_components > \
-                    missing_allowed / total_components + 1e-5 \
-                    or abs(missing - total_components) < 1e-36:
+            if not test_run and (missing / total_components > \
+                    missing_allowed + 1e-10 \
+                    or abs(missing - total_components) < 1e-10):
                 aggregate_value = float('NaN')
             else:
                 if (missing / total_components > 1e-36) or \
