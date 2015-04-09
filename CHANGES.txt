@@ -1,5 +1,5 @@
-dev
----
+0.10.5 (2015-04-09)
+-------------------
 
 - Fix error in the handling of 'missing_allowed' when aggregating time
   series.
