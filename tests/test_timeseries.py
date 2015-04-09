@@ -250,6 +250,11 @@ aggregated_hourly_sum = textwrap.dedent("""\
             2008-02-07 13:00,72.77,\r
             """)
 
+aggregated_hourly_sum_small_missing_allowed = textwrap.dedent("""\
+            2008-02-07 11:00,65.47,\r
+            2008-02-07 12:00,69.29,MISS\r
+            2008-02-07 13:00,72.77,\r
+            """)
 
 aggregated_hourly_average = textwrap.dedent("""\
             2008-02-07 10:00,10.4166666666667,MISS\r
@@ -1086,7 +1091,7 @@ class _Test_Timeseries_aggregate(TestCase):
     def test_aggregate_hourly_sum(self):
         target_step = TimeStep(length_minutes=60, nominal_offset=(0, 0),
                                interval_type=IntervalType.SUM)
-        result, missing = self.ts.aggregate(target_step, missing_allowed=3,
+        result, missing = self.ts.aggregate(target_step, missing_allowed=0.5,
                                             missing_flag="MISS")
         out = StringIO()
         result.write(out)
@@ -1096,10 +1101,20 @@ class _Test_Timeseries_aggregate(TestCase):
         missing.write(out)
         self.assertEqual(out.getvalue(), aggregated_hourly_missing)
 
+        # Try again the calculation, but with a smaller missing_allowed, to
+        # see the difference.
+        result, missing = self.ts.aggregate(target_step, missing_allowed=0.4,
+                                            missing_flag="MISS")
+        out.truncate(0)
+        out.seek(0)
+        result.write(out)
+        self.assertEqual(out.getvalue(),
+                         aggregated_hourly_sum_small_missing_allowed)
+
     def test_aggregate_hourly_average(self):
         target_step = TimeStep(length_minutes=60, nominal_offset=(0, 0),
                                interval_type=IntervalType.AVERAGE)
-        result, missing = self.ts.aggregate(target_step, missing_allowed=3,
+        result, missing = self.ts.aggregate(target_step, missing_allowed=0.5,
                                             missing_flag="MISS")
         correct_ts = Timeseries()
         correct_ts.read(StringIO(aggregated_hourly_average))
@@ -1113,7 +1128,7 @@ class _Test_Timeseries_aggregate(TestCase):
     def test_aggregate_hourly_max(self):
         target_step = TimeStep(length_minutes=60, nominal_offset=(0, 0),
                                interval_type=IntervalType.MAXIMUM)
-        result, missing = self.ts.aggregate(target_step, missing_allowed=3,
+        result, missing = self.ts.aggregate(target_step, missing_allowed=0.5,
                                             missing_flag="MISS")
         out = StringIO()
         result.write(out)
@@ -1126,7 +1141,7 @@ class _Test_Timeseries_aggregate(TestCase):
     def test_aggregate_hourly_min(self):
         target_step = TimeStep(length_minutes=60, nominal_offset=(0, 0),
                                interval_type=IntervalType.MINIMUM)
-        result, missing = self.ts.aggregate(target_step, missing_allowed=3,
+        result, missing = self.ts.aggregate(target_step, missing_allowed=0.5,
                                             missing_flag="MISS")
         out = StringIO()
         result.write(out)
@@ -1141,7 +1156,7 @@ class _Test_Timeseries_aggregate(TestCase):
                                                 nominal_offset=(0, 0)))
         target_step = TimeStep(length_minutes=60, nominal_offset=(0, 0),
                                interval_type=IntervalType.SUM)
-        result, missing = self.ts.aggregate(target_step, missing_allowed=3,
+        result, missing = self.ts.aggregate(target_step, missing_allowed=0.5,
                                             missing_flag="MISS")
         out = StringIO()
         result.write(out)
@@ -1179,7 +1194,7 @@ class _Test_Timeseries_allmiss_aggregate(TestCase):
     def test_aggregate_hourly_allmiss(self):
         target_step = TimeStep(length_minutes=60, nominal_offset=(0, 0),
                                interval_type=IntervalType.SUM)
-        result = (self.ts.aggregate(target_step, missing_allowed=6,
+        result = (self.ts.aggregate(target_step, missing_allowed=1.0,
                                     missing_flag="MISS"))[0]
         out = StringIO()
         result.write(out)
