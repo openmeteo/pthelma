@@ -65,7 +65,10 @@ class SoilWaterBalance(object):
             return self.taw_mm
         return Dr_i - Inet_i
 
-    def __theta_calc__(self, theta_init, Dr_i, Inet_i, irr_event_days):
+    def __theta_calc__(self, theta_init, Dr_i, Inet_i,
+                       irr_event_days, Inet_in):
+        if Inet_in in ["NO"]:
+            Inet_i = 0.0
         if theta_init - Dr_i >= self.theta_s_mm:
             return self.theta_s_mm
         return self.fc_mm - Dr_i + Inet_i
@@ -134,7 +137,7 @@ class SoilWaterBalance(object):
             Inet_i = self.__irr_events_calc__(irr_event_days,
                                               step, Dr_i, FC_IRT)
             theta = self.__theta_calc__(theta_init, Dr_i,
-                                        Inet_i, irr_event_days)
+                                        Inet_i, irr_event_days, Inet_in)
             Dr_i_1 = self.__Dr_i_1_calc__(Dr_i, Inet_i, Inet_in)
             theta_i_1 = theta
             theta_p = theta / (self.rd * self.rd_factor)
