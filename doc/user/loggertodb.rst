@@ -256,6 +256,12 @@ subset_identifiers
    (Which fields are the subset identifiers depends on the data file
    format.)
 
+nullstr
+    Indicates how null values are represented in the source file. For
+    example, if ``nullstr = *``, then a ``*`` in place of a number in
+    the source file is interpreted as a missing value. Likewise for
+    ``nullstr = -9999``.
+
 delimiter, decimal_separator, date_format
    Some file formats may be dependent upon regional settings; these
    formats support ``delimiter``, ``decimal_separator``, and
