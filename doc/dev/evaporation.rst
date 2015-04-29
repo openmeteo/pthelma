@@ -97,9 +97,10 @@
       consistency with the hourly step. The result is the reference
       evapotranspiration for the given day.
 
-      For hourly step, the keyword arguments must be
-      *temperature*, *humidity*, *wind_speed*, *pressure*,
-      *solar_radiation*, and *adatetime*. The result is the reference
+      For hourly step, the keyword arguments must be *temperature*,
+      *humidity*, *wind_speed*, *solar_radiation*, *adatetime*, and,
+      optionally, *pressure* (if the pressure is not specified it is
+      calculated from the elevation). The result is the reference
       evapotranspiration for the hour that ends at *adatetime*, which
       must be a timezone-aware :class:`~datetime.datetime` object.
 

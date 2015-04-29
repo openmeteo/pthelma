@@ -79,8 +79,11 @@ class PenmanMonteith(object):
             humidity_min=variables['humidity_min'],
             adate=adatetime)
 
-    def calculate_hourly(self, temperature, humidity, wind_speed, pressure,
-                         solar_radiation, adatetime):
+    def calculate_hourly(self, temperature, humidity, wind_speed,
+                         solar_radiation, adatetime, pressure=None):
+        if pressure is None:
+            # Eq. 7 p. 31
+            pressure = 101.3 * ((293 - 0.0065 * self.elevation) / 293) ** 5.26
         variables = self.convert_units(temperature=temperature,
                                        humidity=humidity,
                                        wind_speed=wind_speed,
@@ -560,7 +563,12 @@ class VaporizeApp(CliApp):
                 # here we allow both to be absent and after the loop we will
                 # check that one was present
                 continue
-            fp = gdal.Open(filename)
+            try:
+                fp = gdal.Open(filename)
+            except RuntimeError:
+                if variable == 'pressure':
+                    continue
+                raise
 
             # Verify consistency of geographical data
             consistent = all(

@@ -137,6 +137,22 @@ class PenmanMonteithTestCase(TestCase):
                                                  tzinfo=senegal_tzinfo))
         self.assertAlmostEqual(result, 0.0, places=2)
 
+        # Same thing, but let it calculate pressure itself
+        result = pm.calculate(temperature=38,
+                              humidity=52,
+                              wind_speed=3.3,
+                              solar_radiation=2.450,
+                              adatetime=datetime(2014, 10, 1, 15, 0,
+                                                 tzinfo=senegal_tzinfo))
+        self.assertAlmostEqual(result, 0.63, places=2)
+        result = pm.calculate(temperature=28,
+                              humidity=90,
+                              wind_speed=1.9,
+                              solar_radiation=0,
+                              adatetime=datetime(2014, 10, 1, 2, 30,
+                                                 tzinfo=senegal_tzinfo))
+        self.assertAlmostEqual(result, 0.0, places=2)
+
     def test_hourly_grid(self):
         # We use a 2x1 grid, where point 1, 1 is the same as Example 19, and
         # point 1, 2 has some different values.
@@ -616,6 +632,70 @@ class VaporizeAppTestCase(TestCase):
                                        decimal=2)
         fp = None
 
+    def test_execute_hourly_no_pressure(self):
+        """Same as test_execute_hourly, but does not have pressure an input;
+           therefore, it will calculate pressure itself."""
+        # Prepare input files
+        self.timestamp = datetime(2014, 10, 1, 15, 0, tzinfo=senegal_tzinfo)
+        self.setup_input_file('temperature', np.array([[38, 28]]))
+        self.setup_input_file('humidity', np.array([[52, 42]]))
+        self.setup_input_file('wind_speed', np.array([[3.3, 2.3]]))
+        self.setup_input_file('solar_radiation', np.array([[681, 403]]))
+
+        # Also setup an output file that has no corresponding input files
+        rogue_output_file = os.path.join(
+            self.tempdir, 'evaporation-2013-01-01-15-00-0100.tif')
+        with open(rogue_output_file, 'w') as f:
+            f.write('irrelevant contents')
+
+        with open(self.config_file, 'w') as f:
+            f.write(textwrap.dedent('''\
+                base_dir = {self.tempdir}
+                albedo = 0.23
+                nighttime_solar_radiation_ratio = 0.8
+                elevation = 8
+                step_length = 60
+                unit_converter_solar_radiation = x * 3600 / 1e6
+                ''').format(self=self))
+        application = VaporizeApp()
+        application.read_command_line()
+        application.read_configuration()
+
+        # Verify the output file doesn't exist yet
+        result_filename = os.path.join(
+            self.tempdir, 'evaporation-{}.tif'.format(
+                self.timestamp.strftime('%Y-%m-%d-%H-%M%z')))
+        self.assertFalse(os.path.exists(result_filename))
+
+        # Verify the rogue output file is still here
+        self.assertTrue(os.path.exists(rogue_output_file))
+
+        # Execute
+        application.run()
+
+        # Check that it has created a file
+        self.assertTrue(os.path.exists(result_filename))
+
+        # Check that the rogue output file is gone
+        self.assertFalse(os.path.exists(rogue_output_file))
+
+        # Check that the created file is correct
+        fp = gdal.Open(result_filename)
+        timestamp = fp.GetMetadata()['TIMESTAMP']
+        self.assertEqual(timestamp, '2014-10-01T15:00:00-01:00')
+        self.assertEqual(fp.RasterXSize, 2)
+        self.assertEqual(fp.RasterYSize, 1)
+        self.assertEqual(fp.GetGeoTransform(), self.geo_transform)
+        # We can't just compare fp.GetProjection() to self.wgs84.ExportToWkt(),
+        # because sometimes there are minor differences in the formatting or in
+        # the information contained in the WKT.
+        self.assertTrue(fp.GetProjection().startswith('GEOGCS["WGS 84",'))
+        self.assertTrue(fp.GetProjection().endswith('AUTHORITY["EPSG","4326"]]'
+                                                    ))
+        np.testing.assert_almost_equal(fp.GetRasterBand(1).ReadAsArray(),
+                                       np.array([[0.63, 0.36]]),
+                                       decimal=2)
+        fp = None
     def test_execute_hourly_without_sun(self):
         # Prepare input files, without solar radiation
         self.timestamp = datetime(2014, 10, 1, 15, 0, tzinfo=senegal_tzinfo)

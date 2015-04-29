@@ -215,7 +215,7 @@ Parameters
              sunshine_duration_prefix
              evaporation_prefix
 
-   Optional. `vaporize` assumes that the input files are named
+   Optional. ``vaporize`` assumes that the input files are named
    :samp:`{variable}-{date}.tif`, where *variable* one of
    `temperature`, `temperature_max`, `temperature_min`, `humidity`,
    `humidity_max`, `humidity_min`, `wind_speed`, `pressure`,
@@ -228,6 +228,9 @@ Parameters
    In that case, the humidity files are going to have a name similar
    to `hum-2014-10-12-18-00+0200.tif` (for hourly) or
    `hum-2014-10-12.tif` (for daily).
+
+   ``vaporize`` will use the pressure if it is available in the input
+   files, otherwise it will calculate it from the elevation.
 
 REFERENCES
 ==========

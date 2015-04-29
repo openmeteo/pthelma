@@ -1,3 +1,9 @@
+0.11.0 (2015-04-29)
+-------------------
+
+- vaporize can now work without pressure (it calculates it from the
+  elevation if necessary)
+
 0.10.6 (2015-04-16)
 -------------------
 
