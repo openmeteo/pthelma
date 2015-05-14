@@ -741,6 +741,7 @@ class Timeseries(dict):
                 raise ParsingError(('Value should be "minutes, months"'))
 
         try:
+            self.comment = ''
             (name, value) = self.__read_meta_line(fp)
             while name:
                 if name in ('unit', 'title', 'timezone', 'variable'):

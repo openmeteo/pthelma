@@ -98,21 +98,21 @@ class TimeseriesCacheTestCase(TestCase):
 
         # Check that the cached stuff is what it should be
         with open('file1') as f:
-            ts = Timeseries()
-            ts.read_file(f)
-            self.assertEqual(ts.time_step.length_minutes, 1440)
-            self.assertEqual(ts.time_step.length_months, 0)
+            ts1_before = Timeseries()
+            ts1_before.read_file(f)
+            self.assertEqual(ts1_before.time_step.length_minutes, 1440)
+            self.assertEqual(ts1_before.time_step.length_months, 0)
             c = StringIO()
-            ts.write(c)
+            ts1_before.write(c)
             self.assertEqual(c.getvalue().replace('\r', ''),
                              self.timeseries1_top)
         with open('file2') as f:
-            ts = Timeseries()
-            ts.read_file(f)
-            self.assertEqual(ts.time_step.length_minutes, 1440)
-            self.assertEqual(ts.time_step.length_months, 0)
+            ts2_before = Timeseries()
+            ts2_before.read_file(f)
+            self.assertEqual(ts2_before.time_step.length_minutes, 1440)
+            self.assertEqual(ts2_before.time_step.length_months, 0)
             c = StringIO()
-            ts.write(c)
+            ts2_before.write(c)
             self.assertEqual(c.getvalue().replace('\r', ''),
                              self.timeseries2_top)
 
@@ -129,23 +129,27 @@ class TimeseriesCacheTestCase(TestCase):
 
         # Check that the cached stuff is what it should be
         with open('file1') as f:
-            ts = Timeseries()
-            ts.read_file(f)
-            self.assertEqual(ts.time_step.length_minutes, 1440)
-            self.assertEqual(ts.time_step.length_months, 0)
+            ts1_after = Timeseries()
+            ts1_after.read_file(f)
+            self.assertEqual(ts1_after.time_step.length_minutes, 1440)
+            self.assertEqual(ts1_after.time_step.length_months, 0)
             c = StringIO()
-            ts.write(c)
+            ts1_after.write(c)
             self.assertEqual(c.getvalue().replace('\r', ''),
                              self.test_timeseries1)
         with open('file2') as f:
-            ts = Timeseries()
-            ts.read_file(f)
-            self.assertEqual(ts.time_step.length_minutes, 1440)
-            self.assertEqual(ts.time_step.length_months, 0)
+            ts2_after = Timeseries()
+            ts2_after.read_file(f)
+            self.assertEqual(ts2_after.time_step.length_minutes, 1440)
+            self.assertEqual(ts2_after.time_step.length_months, 0)
             c = StringIO()
-            ts.write(c)
+            ts2_after.write(c)
             self.assertEqual(c.getvalue().replace('\r', ''),
                              self.test_timeseries2)
+
+        # Check that the time series comments are the same before and after
+        self.assertEqual(ts1_before.comment, ts1_after.comment)
+        self.assertEqual(ts2_before.comment, ts2_after.comment)
 
 
 @skipUnless(os.getenv('PTHELMA_TEST_ENHYDRIS_API'),
