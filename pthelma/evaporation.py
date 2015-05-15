@@ -386,7 +386,7 @@ class VaporizeApp(CliApp):
         result = input_file.GetRasterBand(1).ReadAsArray()
         nodata = input_file.GetRasterBand(1).GetNoDataValue()
         if nodata is not None:
-            result[result == nodata] = float('nan')
+            result = np.ma.masked_values(result, nodata, copy=False)
         return result
 
     def read_configuration_elevation(self):
@@ -587,7 +587,7 @@ class VaporizeApp(CliApp):
             array = fp.GetRasterBand(1).ReadAsArray()
             nodata = fp.GetRasterBand(1).GetNoDataValue()
             if nodata is not None:
-                array[array == nodata] = float('nan')
+                array = np.ma.masked_values(array, nodata, copy=False)
             input_data[variable] = array
 
             # Close file
@@ -624,7 +624,7 @@ class VaporizeApp(CliApp):
                                    input_data['adatetime'].isoformat())
             output.SetGeoTransform(self.geo_transform)
             output.SetProjection(self.projection.ExportToWkt())
-            result[np.isnan(result)] = NODATAVALUE
+            result[result.mask] = NODATAVALUE
             output.GetRasterBand(1).SetNoDataValue(NODATAVALUE)
             output.GetRasterBand(1).WriteArray(result)
         finally:
