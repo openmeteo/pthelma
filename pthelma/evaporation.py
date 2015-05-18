@@ -3,6 +3,7 @@ from glob import glob
 import math
 from math import cos, pi, sin, tan
 import os
+import warnings
 
 import iso8601
 import numpy as np
@@ -12,6 +13,22 @@ from pthelma.cliapp import CliApp, WrongValueError
 from pthelma.spatial import NODATAVALUE
 
 gdal.UseExceptions()
+
+# Note about RuntimeWarning
+#
+# When numpy makes calculations with masked arrays, it sometimes emits spurious
+# RuntimeWarnings. This is because it occasionally does use the masked part of
+# the array during the calculations (but masks the result). This is a known
+# numpy but (e.g. https://github.com/numpy/numpy/issues/4269). The numpy
+# documentation, section "Operations on masked arrays", also has a related
+# warning there.
+#
+# In order to avoid these spurious warnings, we have used, at various places in
+# the code, "with warnings.catch_warnings()". We have attempted to unit test
+# it, but sometimes it's hard to make the bug appear. A large array in
+# production may cause the bug, but a small array in the unit test might not
+# cause it, despite same python and numpy version. So the locations in which
+# a fix was needed were largely located in production.
 
 
 class PenmanMonteith(object):
@@ -62,8 +79,11 @@ class PenmanMonteith(object):
         r_so = r_a * (0.75 + 2e-5 * self.elevation)  # Eq. 37, p. 51
         variables.update(self.convert_units(solar_radiation=solar_radiation))
 
-        temperature_mean = (variables['temperature_max']
-                            + variables['temperature_min']) / 2
+        with warnings.catch_warnings():
+            # See comment about RuntimeWarning on top of the file
+            warnings.simplefilter('ignore', RuntimeWarning)
+            temperature_mean = (variables['temperature_max']
+                                + variables['temperature_min']) / 2
         variables['temperature_mean'] = temperature_mean
         gamma = self.get_psychrometric_constant(temperature_mean,
                                                 pressure)
@@ -110,7 +130,10 @@ class PenmanMonteith(object):
             if item.endswith('_max') or item.endswith('_min'):
                 varname = item[:-4]
             converter = self.unit_converters.get(varname, lambda x: x)
-            result[item] = converter(kwargs[item])
+            with warnings.catch_warnings():
+                # See comment about RuntimeWarning on top of the file
+                warnings.simplefilter('ignore', RuntimeWarning)
+                result[item] = converter(kwargs[item])
         return result
 
     def get_extraterrestrial_radiation(self, adatetime):
@@ -289,7 +312,10 @@ class PenmanMonteith(object):
             factor1 = self.sigma * ((temperature[0] + 273.16) ** 4 +
                                     (temperature[1] + 273.16) ** 4) / 2
         else:
-            factor1 = self.sigma / 24 * (temperature + 273.16) ** 4
+            with warnings.catch_warnings():
+                # See comment about RuntimeWarning on top of the file
+                warnings.simplefilter('ignore', RuntimeWarning)
+                factor1 = self.sigma / 24 * (temperature + 273.16) ** 4
         factor2 = 0.34 - 0.14 * (mean_actual_vapour_pressure ** 0.5)
 
         # Solar radiation ratio Rs/Rs0 (Allen et al., 1998, top of p. 75).
@@ -306,7 +332,11 @@ class PenmanMonteith(object):
 
     def get_saturation_vapour_pressure(self, temperature):
         "Allen et al. (1998), p. 36, eq. 11."
-        return 0.6108 * math.e ** (17.27 * temperature / (237.3 + temperature))
+        with warnings.catch_warnings():
+            # See comment about RuntimeWarning on top of the file
+            warnings.simplefilter('ignore')
+            return 0.6108 * math.e ** (17.27 *
+                                       temperature / (237.3 + temperature))
 
     def get_soil_heat_flux_density(self, incoming_solar_radiation, rn):
         "Allen et al. (1998), p. 55, eq. 45 & 46."
@@ -316,8 +346,11 @@ class PenmanMonteith(object):
     def get_saturation_vapour_pressure_curve_slope(self, temperature):
         "Allen et al. (1998), p. 37, eq. 13."
         numerator = 4098 * self.get_saturation_vapour_pressure(temperature)
-        denominator = (temperature + 237.3) ** 2
-        return numerator / denominator
+        with warnings.catch_warnings():
+            # See comment about RuntimeWarning on top of the file
+            warnings.simplefilter('ignore', RuntimeWarning)
+            denominator = (temperature + 237.3) ** 2
+            return numerator / denominator
 
 
 class VaporizeApp(CliApp):
