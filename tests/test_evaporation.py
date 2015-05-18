@@ -3,6 +3,7 @@ from datetime import date, datetime, timedelta, tzinfo
 import math
 import os
 import shutil
+from six import StringIO
 from six.moves import configparser
 import sys
 import tempfile
@@ -288,17 +289,7 @@ class VaporizeAppTestCase(TestCase):
         f = gdal.GetDriverByName('GTiff').Create(
             filename, 2, 1, 1, gdal.GDT_Float32)
 
-        # Some tests verify that when some grid points have nodata they are
-        # ignored during the calculations. For such tests to properly work, the
-        # gdal nodata value must be a positive number and not very high. It
-        # must be positive because a square root might be taken, and if it were
-        # negative the result would be nan anyway. It must also not be very
-        # high, because it might be raised to the fourth power, resulting in
-        # overflow, which would in the end result in nan. But in such cases the
-        # result would be nan not because the gridpoints were ignored, but
-        # because they were taken into account but the result of the
-        # calculations happened to be nan.
-        nodata = 1e8
+        nodata = -1.70141183e38
 
         value[np.isnan(value)] = nodata
         try:
@@ -342,7 +333,11 @@ class VaporizeAppTestCase(TestCase):
         # Prepare sample albedo grid
         self.setup_sample_albedo_grid(np.array([[0.23, 0.44]]))
 
+        # Save standard error (some tests change it)
+        self.saved_stderr = sys.stderr
+
     def tearDown(self):
+        sys.stderr = self.saved_stderr
         os.chdir(self.savedcwd)
         shutil.rmtree(self.tempdir)
         sys.argv = copy(self.saved_argv)
@@ -401,11 +396,12 @@ class VaporizeAppTestCase(TestCase):
     def test_execute_notz(self):
         # Prepare input files without time zone
         self.timestamp = datetime(2014, 10, 1, 15, 0)
-        self.setup_input_file('temperature-notz', np.array([[38, 28]]))
-        self.setup_input_file('humidity-notz', np.array([[52, 42]]))
+        self.setup_input_file('temperature-notz', np.array([[38.0, 28.0]]))
+        self.setup_input_file('humidity-notz', np.array([[52.0, 42.0]]))
         self.setup_input_file('wind_speed-notz', np.array([[3.3, 2.3]]))
-        self.setup_input_file('pressure-notz', np.array([[1013, 1013]]))
-        self.setup_input_file('solar_radiation-notz', np.array([[681, 403]]))
+        self.setup_input_file('pressure-notz', np.array([[1013.0, 1013.0]]))
+        self.setup_input_file('solar_radiation-notz',
+                              np.array([[681.0, 403.0]]))
 
         with open(self.config_file, 'w') as f:
             f.write(textwrap.dedent('''\
@@ -444,10 +440,10 @@ class VaporizeAppTestCase(TestCase):
         self.timestamp = date(2014, 7, 6)
         self.setup_input_file('temperature_max', np.array([[21.5, 28]]))
         self.setup_input_file('temperature_min', np.array([[12.3, 15]]))
-        self.setup_input_file('humidity_max', np.array([[84, 70]]))
-        self.setup_input_file('humidity_min', np.array([[63, 60]]))
+        self.setup_input_file('humidity_max', np.array([[84.0, 70.0]]))
+        self.setup_input_file('humidity_min', np.array([[63.0, 60.0]]))
         self.setup_input_file('wind_speed', np.array([[2.078, 2.244]]))
-        self.setup_input_file('sunshine_duration', np.array([[9.25, 9]]))
+        self.setup_input_file('sunshine_duration', np.array([[9.25, 9.0]]))
 
         # Also setup an output file that has no corresponding input files
         rogue_output_file = os.path.join(
@@ -509,8 +505,8 @@ class VaporizeAppTestCase(TestCase):
         self.timestamp = date(2014, 7, 6)
         self.setup_input_file('temperature_max', np.array([[21.5, 28]]))
         self.setup_input_file('temperature_min', np.array([[12.3, 15]]))
-        self.setup_input_file('humidity_max', np.array([[84, 70]]))
-        self.setup_input_file('humidity_min', np.array([[63, 60]]))
+        self.setup_input_file('humidity_max', np.array([[84.0, 70.0]]))
+        self.setup_input_file('humidity_min', np.array([[63.0, 60.0]]))
         self.setup_input_file('wind_speed', np.array([[2.078, 2.244]]))
         self.setup_input_file('solar_radiation', np.array([[22.07, 21.62]]))
 
@@ -570,11 +566,11 @@ class VaporizeAppTestCase(TestCase):
     def test_execute_hourly(self):
         # Prepare input files
         self.timestamp = datetime(2014, 10, 1, 15, 0, tzinfo=senegal_tzinfo)
-        self.setup_input_file('temperature', np.array([[38, 28]]))
-        self.setup_input_file('humidity', np.array([[52, 42]]))
+        self.setup_input_file('temperature', np.array([[38.0, 28.0]]))
+        self.setup_input_file('humidity', np.array([[52.0, 42.0]]))
         self.setup_input_file('wind_speed', np.array([[3.3, 2.3]]))
-        self.setup_input_file('pressure', np.array([[1013, 1013]]))
-        self.setup_input_file('solar_radiation', np.array([[681, 403]]))
+        self.setup_input_file('pressure', np.array([[1013.0, 1013.0]]))
+        self.setup_input_file('solar_radiation', np.array([[681.0, 403.0]]))
 
         # Also setup an output file that has no corresponding input files
         rogue_output_file = os.path.join(
@@ -637,10 +633,10 @@ class VaporizeAppTestCase(TestCase):
            therefore, it will calculate pressure itself."""
         # Prepare input files
         self.timestamp = datetime(2014, 10, 1, 15, 0, tzinfo=senegal_tzinfo)
-        self.setup_input_file('temperature', np.array([[38, 28]]))
-        self.setup_input_file('humidity', np.array([[52, 42]]))
+        self.setup_input_file('temperature', np.array([[38.0, 28.0]]))
+        self.setup_input_file('humidity', np.array([[52.0, 42.0]]))
         self.setup_input_file('wind_speed', np.array([[3.3, 2.3]]))
-        self.setup_input_file('solar_radiation', np.array([[681, 403]]))
+        self.setup_input_file('solar_radiation', np.array([[681.0, 403.0]]))
 
         # Also setup an output file that has no corresponding input files
         rogue_output_file = os.path.join(
@@ -696,13 +692,14 @@ class VaporizeAppTestCase(TestCase):
                                        np.array([[0.63, 0.36]]),
                                        decimal=2)
         fp = None
+
     def test_execute_hourly_without_sun(self):
         # Prepare input files, without solar radiation
         self.timestamp = datetime(2014, 10, 1, 15, 0, tzinfo=senegal_tzinfo)
-        self.setup_input_file('temperature', np.array([[38, 28]]))
-        self.setup_input_file('humidity', np.array([[52, 42]]))
+        self.setup_input_file('temperature', np.array([[38.0, 28.0]]))
+        self.setup_input_file('humidity', np.array([[52.0, 42.0]]))
         self.setup_input_file('wind_speed', np.array([[3.3, 2.3]]))
-        self.setup_input_file('pressure', np.array([[1013, 1013]]))
+        self.setup_input_file('pressure', np.array([[1013.0, 1013.0]]))
 
         # Configuration
         with open(self.config_file, 'w') as f:
@@ -729,12 +726,12 @@ class VaporizeAppTestCase(TestCase):
 
         # Prepare input files
         self.timestamp = datetime(2014, 10, 1, 15, 0, tzinfo=senegal_tzinfo)
-        self.setup_input_file('temperature', np.array([[38, 28]]))
-        self.setup_input_file('humidity', np.array([[52, 42]]))
+        self.setup_input_file('temperature', np.array([[38.0, 28.0]]))
+        self.setup_input_file('humidity', np.array([[52.0, 42.0]]))
         self.setup_input_file('wind_speed', np.array([[3.3, 2.3]]))
-        self.setup_input_file('pressure', np.array([[1013, 1013]]))
-        self.setup_input_file('solar_radiation', np.array([[681, 403]]))
-        self.setup_input_file('dem', np.array([[8, 8]]), with_date=False)
+        self.setup_input_file('pressure', np.array([[1013.0, 1013.0]]))
+        self.setup_input_file('solar_radiation', np.array([[681.0, 403.0]]))
+        self.setup_input_file('dem', np.array([[8.0, 8.0]]), with_date=False)
 
         with open(self.config_file, 'w') as f:
             f.write(textwrap.dedent('''\
@@ -784,15 +781,17 @@ class VaporizeAppTestCase(TestCase):
         """This is essentially the same as test_execute, but the gdal rasters
         contain cells with nodata."""
 
+        sys.stderr = StringIO()
+
         # Prepare input files
         self.timestamp = datetime(2014, 10, 1, 15, 0, tzinfo=senegal_tzinfo)
         nan = float("nan")
-        self.setup_input_file('temperature', np.array([[38, nan]]))
-        self.setup_input_file('humidity', np.array([[52, nan]]))
+        self.setup_input_file('temperature', np.array([[38.0, nan]]))
+        self.setup_input_file('humidity', np.array([[52.0, nan]]))
         self.setup_input_file('wind_speed', np.array([[3.3, 2.3]]))
-        self.setup_input_file('pressure', np.array([[1013, 1013]]))
-        self.setup_input_file('solar_radiation', np.array([[681, 403]]))
-        self.setup_input_file('dem', np.array([[8, nan]]), with_date=False)
+        self.setup_input_file('pressure', np.array([[1013.0, nan]]))
+        self.setup_input_file('solar_radiation', np.ma.array([[681.0, nan]]))
+        self.setup_input_file('dem', np.array([[8.0, nan]]), with_date=False)
 
         with open(self.config_file, 'w') as f:
             f.write(textwrap.dedent('''\
@@ -837,6 +836,11 @@ class VaporizeAppTestCase(TestCase):
         np.testing.assert_almost_equal(fp.GetRasterBand(1).ReadAsArray(),
                                        np.array([[0.63, nodatavalue]]),
                                        decimal=2)
+
+        # sys.stderr should be empty (no RuntimeWarning should have been
+        # written there)
+        self.assertEqual('', sys.stderr.getvalue())
+
         fp = None
 
     def test_albedo_configuration_as_one_number(self):
