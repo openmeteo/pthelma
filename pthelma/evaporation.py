@@ -319,10 +319,13 @@ class PenmanMonteith(object):
         factor2 = 0.34 - 0.14 * (mean_actual_vapour_pressure ** 0.5)
 
         # Solar radiation ratio Rs/Rs0 (Allen et al., 1998, top of p. 75).
-        solar_radiation_ratio = np.where(
-            clear_sky_solar_radiation > 0.05,
-            incoming_solar_radiation / clear_sky_solar_radiation,
-            self.nighttime_solar_radiation_ratio)
+        with warnings.catch_warnings():
+            # See comment about RuntimeWarning on top of the file
+            warnings.simplefilter('ignore', RuntimeWarning)
+            solar_radiation_ratio = np.where(
+                clear_sky_solar_radiation > 0.05,
+                incoming_solar_radiation / clear_sky_solar_radiation,
+                self.nighttime_solar_radiation_ratio)
         solar_radiation_ratio = np.maximum(solar_radiation_ratio, 0.3)
         solar_radiation_ratio = np.minimum(solar_radiation_ratio, 1.0)
 
