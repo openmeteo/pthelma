@@ -588,8 +588,8 @@ class SpatializeAppTestCase(TestCase):
         with open(self.filenames[1], 'w') as f:
             f.write(textwrap.dedent('''\
                 Time_step=60,0
-                Nominal_offset=0,0
-                Actual_offset=0,0
+                Timestamp_rounding=0,0
+                Timestamp_offset=0,0
 
                 2014-04-30 11:00,18.3,
                 2014-04-30 12:00,19.3,
@@ -662,14 +662,15 @@ class SpatializeAppTestCase(TestCase):
         with open(self.filenames[1], 'w') as f:
             f.write(textwrap.dedent('''\
                 Time_step=60,0
-                Nominal_offset=0,0
-                Actual_offset=0,0
+                Timestamp_rounding=0,0
+                Timestamp_offset=0,0
                 2014-04-30 11:00,18.3,
                 2014-04-30 12:00,19.3,
                 2014-04-30 13:00,20.4,
                 2014-04-30 14:00,21.4,
                 '''))
-        error_message = r"^Unable to parse date string u?'Actual_offset=0' " \
+        error_message = r"^Unable to parse date string " \
+            r"u?'Timestamp_offset=0' " \
             r"\(file " + self.filenames[1] + ", 5 lines from the end\)$"
         six.assertRaisesRegex(self, iso8601.ParseError, error_message,
                               six.next, application.dates_to_calculate)

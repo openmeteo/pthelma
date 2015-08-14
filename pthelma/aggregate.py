@@ -11,17 +11,17 @@ from pthelma.timeseries import TimeStep, Timeseries, IntervalType
 class AggregateApp(CliApp):
     name = 'aggregate'
     description = 'Aggregate time series'
-    #                       Section     Option            Default
-    config_file_options = {'General': {'base_dir':        None,
-                                       'target_step':     None,
-                                       'nominal_offset':  '0,0',
-                                       'actual_offset':   '0,0',
-                                       'missing_allowed': '0.0',
-                                       'missing_flag':    'MISSING',
+    #                       Section     Option               Default
+    config_file_options = {'General': {'base_dir':           None,
+                                       'target_step':        None,
+                                       'timestamp_rounding': '0,0',
+                                       'timestamp_offset':   '0,0',
+                                       'missing_allowed':    '0.0',
+                                       'missing_flag':       'MISSING',
                                        },
-                           'other':   {'source_file':     None,
-                                       'target_file':     None,
-                                       'interval_type':   None,
+                           'other':   {'source_file':        None,
+                                       'target_file':        None,
+                                       'interval_type':      None,
                                        },
                            }
 
@@ -31,8 +31,8 @@ class AggregateApp(CliApp):
         # Make some checks
         self.check_configuration_missing_allowed()
         self.check_configuration_target_step()
-        self.check_configuration_offset('nominal_offset')
-        self.check_configuration_offset('actual_offset')
+        self.check_configuration_minutes_months('timestamp_rounding')
+        self.check_configuration_minutes_months('timestamp_offset')
         for item in self.config:
             if item == 'General':
                 continue
@@ -44,14 +44,14 @@ class AggregateApp(CliApp):
         self.missing_allowed = float(genconfig['missing_allowed'])
         minutes, months = [int(x.strip())
                            for x in genconfig['target_step'].split(',')]
-        nominal_offset = [int(x.strip())
-                          for x in genconfig['nominal_offset'].split(',')]
-        actual_offset = [int(x.strip())
-                         for x in genconfig['actual_offset'].split(',')]
+        timestamp_rounding = [
+            int(x.strip()) for x in genconfig['timestamp_rounding'].split(',')]
+        timestamp_offset = [int(x.strip())
+                            for x in genconfig['timestamp_offset'].split(',')]
         self.target_step = TimeStep(length_minutes=minutes,
                                     length_months=months,
-                                    nominal_offset=nominal_offset,
-                                    actual_offset=actual_offset)
+                                    timestamp_rounding=timestamp_rounding,
+                                    timestamp_offset=timestamp_offset)
         self.missing_flag = genconfig['missing_flag']
 
         # Convert time series sections into a list
@@ -94,14 +94,14 @@ class AggregateApp(CliApp):
                 'minutes and Y is months; one and only one must be nonzero.'
                 .format(target_step))
 
-    def check_configuration_offset(self, offsetname):
-        offset = self.config['General'][offsetname]
+    def check_configuration_minutes_months(self, paramname):
+        param = self.config['General'][paramname]
         try:
-            minutes, months = [int(x.strip()) for x in offset.split(',')]
+            minutes, months = [int(x.strip()) for x in param.split(',')]
         except (IndexError, ValueError):
             raise WrongValueError(
-                '"{}" is not an appropriate offset; use "X,Y" where X is '
-                'minutes and Y is months.'.format(offset))
+                '"{}" is not an appropriate {}; use "X,Y" where X is '
+                'minutes and Y is months.'.format(param, paramname))
 
     def execute(self):
         if self.base_dir:

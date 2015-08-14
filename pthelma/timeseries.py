@@ -284,24 +284,24 @@ class IntervalType:
 class TimeStep:
 
     def __init__(self, length_minutes=0, length_months=0, interval_type=None,
-                 nominal_offset=None, actual_offset=(0, 0)):
+                 timestamp_rounding=None, timestamp_offset=(0, 0)):
         self.length_minutes = length_minutes
         self.length_months = length_months
-        self.nominal_offset = nominal_offset
-        self.actual_offset = actual_offset
+        self.timestamp_rounding = timestamp_rounding
+        self.timestamp_offset = timestamp_offset
         self.interval_type = interval_type
 
-    def _check_nominal_offset(self):
-        """Called whenever an operation requires a nominal offset; verifies
-        that the nominal offset is not None, otherwise raises exception."""
-        if self.nominal_offset:
+    def _check_timestamp_rounding(self):
+        """Called whenever an operation requires timestamp rounding; verifies
+        that timestamp_rounding is not None, otherwise raises exception."""
+        if self.timestamp_rounding:
             return
-        raise ValueError("This operation requires a nominal offset")
+        raise ValueError("This operation requires timestamp_rounding")
 
     def up(self, timestamp):
-        self._check_nominal_offset()
+        self._check_timestamp_rounding()
         if self.length_minutes:
-            required_modulo = self.nominal_offset[0]
+            required_modulo = self.timestamp_rounding[0]
             if required_modulo < 0:
                 required_modulo += self.length_minutes
             reference_date = timestamp.replace(day=1, hour=0, minute=0)
@@ -315,10 +315,10 @@ class TimeStep:
             return result
         else:
             y = timestamp.year - 1
-            m = 1 + self.nominal_offset[1]
+            m = 1 + self.timestamp_rounding[1]
             result = timestamp.replace(
                 year=y, month=m, day=1, hour=0, minute=0) + \
-                timedelta(minutes=self.nominal_offset[0])
+                timedelta(minutes=self.timestamp_rounding[0])
             while result < timestamp:
                 m += self.length_months
                 if m > 12:
@@ -326,13 +326,13 @@ class TimeStep:
                     y += 1
                 result = timestamp.replace(
                     year=y, month=m, day=1, hour=0, minute=0) + \
-                    timedelta(minutes=self.nominal_offset[0])
+                    timedelta(minutes=self.timestamp_rounding[0])
             return result
 
     def down(self, timestamp):
-        self._check_nominal_offset()
+        self._check_timestamp_rounding()
         if self.length_minutes:
-            required_modulo = self.nominal_offset[0]
+            required_modulo = self.timestamp_rounding[0]
             if required_modulo < 0:
                 required_modulo += self.length_minutes
             reference_date = timestamp.replace(day=1, hour=0, minute=0)
@@ -345,10 +345,10 @@ class TimeStep:
                 result -= timedelta(minutes=self.length_minutes)
         elif self.length_months:
             y = timestamp.year + 1
-            m = 1 + self.nominal_offset[1]
+            m = 1 + self.timestamp_rounding[1]
             result = timestamp.replace(
                 year=y, month=m, day=1, hour=0, minute=0) + \
-                timedelta(minutes=self.nominal_offset[0])
+                timedelta(minutes=self.timestamp_rounding[0])
             while result > timestamp:
                 m -= self.length_months
                 if m < 1:
@@ -356,7 +356,7 @@ class TimeStep:
                     y -= 1
                 result = timestamp.replace(
                     year=y, month=m, day=1, hour=0, minute=0) + \
-                    timedelta(minutes=self.nominal_offset[0])
+                    timedelta(minutes=self.timestamp_rounding[0])
         else:
             assert(False)
         return result
@@ -384,7 +384,7 @@ class TimeStep:
         return timestamp - timedelta(minutes=self.length_minutes)
 
     def actual_timestamp(self, timestamp):
-        m = timestamp.month + self.actual_offset[1]
+        m = timestamp.month + self.timestamp_offset[1]
         y = timestamp.year
         while m > 12:
             m -= 12
@@ -393,7 +393,7 @@ class TimeStep:
             m += 12
             y -= 1
         return timestamp.replace(year=y, month=m) + \
-            timedelta(minutes=self.actual_offset[0])
+            timedelta(minutes=self.timestamp_offset[0])
 
     def containing_interval(self, timestamp):
         result = self.down(timestamp)
@@ -744,13 +744,16 @@ class Timeseries(dict):
             self.comment = ''
             (name, value) = self.__read_meta_line(fp)
             while name:
+                name = (name == 'nominal_offset' and 'timestamp_rounding' or
+                        name)
+                name = (name == 'actual_offset' and 'timestamp_offset' or name)
                 if name in ('unit', 'title', 'timezone', 'variable'):
                     self.__dict__[name] = value
                 elif name == 'time_step':
                     minutes, months = read_minutes_months(value)
                     self.time_step.length_minutes = minutes
                     self.time_step.length_months = months
-                elif name in ('nominal_offset', 'actual_offset'):
+                elif name in ('timestamp_rounding', 'timestamp_offset'):
                     self.time_step.__dict__[name] = read_minutes_months(value)
                 elif name == 'interval_type':
                     try:
@@ -812,6 +815,10 @@ class Timeseries(dict):
     def write_meta(self, fp, version):
         if version == 2:
             fp.write(u("Version=2\r\n"))
+        timestamp_rounding_name = (version >= 4 and 'Timestamp_rounding' or
+                                   'Nominal_offset')
+        timestamp_offset_name = (version >= 4 and 'Timestamp_offset' or
+                                 'Actual_offset')
         if self.unit:
             fp.write(u("Unit=%s\r\n") % (self.unit,))
         fp.write(u("Count=%d\r\n") % (len(self),))
@@ -824,12 +831,14 @@ class Timeseries(dict):
         if self.time_step.length_minutes or self.time_step.length_months:
             fp.write(u("Time_step=%d,%d\r\n") % (self.time_step.length_minutes,
                                                  self.time_step.length_months))
-            if self.time_step.nominal_offset:
-                fp.write(u("Nominal_offset={o[0]},{o[1]}\r\n").format(
-                    o=self.time_step.nominal_offset))
+            if self.time_step.timestamp_rounding:
+                fp.write(u("{n}={o[0]},{o[1]}\r\n").format(
+                    n=timestamp_rounding_name,
+                    o=self.time_step.timestamp_rounding))
 
-            fp.write(u("Actual_offset={o[0]},{o[1]}\r\n").format(
-                o=self.time_step.actual_offset))
+            fp.write(u("{n}={o[0]},{o[1]}\r\n").format(
+                n=timestamp_offset_name,
+                o=self.time_step.timestamp_offset))
         if self.time_step.interval_type:
             fp.write(
                 u("Interval_type={}\r\n").format({

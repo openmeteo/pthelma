@@ -242,6 +242,47 @@ tenmin_test_timeseries_file_version_3 = textwrap.dedent(u("""\
             2008-02-07 13:10,12.3,\r
             """))
 
+tenmin_test_timeseries_file_version_4 = textwrap.dedent(u("""\
+            Unit=°C\r
+            Count=22\r
+            Title=A test 10-min time series\r
+            Comment=This timeseries is extremely important\r
+            Comment=because the comment that describes it\r
+            Comment=spans five lines.\r
+            Comment=\r
+            Comment=These five lines form two paragraphs.\r
+            Timezone=EET (UTC+0200)\r
+            Time_step=10,0\r
+            Timestamp_rounding=0,0\r
+            Timestamp_offset=0,0\r
+            Variable=temperature\r
+            Precision=1\r
+            Location=24.678900 38.123450 4326\r
+            Altitude=219.22\r
+            \r
+            2008-02-07 09:40,10.3,\r
+            2008-02-07 09:50,10.4,\r
+            2008-02-07 10:00,10.5,\r
+            2008-02-07 10:10,10.5,\r
+            2008-02-07 10:20,10.7,\r
+            2008-02-07 10:30,11.0,\r
+            2008-02-07 10:40,10.9,\r
+            2008-02-07 10:50,11.1,\r
+            2008-02-07 11:00,11.2,\r
+            2008-02-07 11:10,11.4,\r
+            2008-02-07 11:20,11.4,\r
+            2008-02-07 11:30,11.4,MISS\r
+            2008-02-07 11:40,11.5,\r
+            2008-02-07 11:50,11.7,\r
+            2008-02-07 12:00,11.8,\r
+            2008-02-07 12:10,11.9,\r
+            2008-02-07 12:20,12.2,\r
+            2008-02-07 12:30,12.2,\r
+            2008-02-07 12:40,12.2,\r
+            2008-02-07 12:50,12.1,\r
+            2008-02-07 13:00,12.2,\r
+            2008-02-07 13:10,12.3,\r
+            """))
 
 aggregated_hourly_sum = textwrap.dedent("""\
             2008-02-07 10:00,31.25,MISS\r
@@ -313,11 +354,11 @@ class _Test_timestep_utilities(TestCase):
 
     def setUp(self):
         self.dailystep = TimeStep(length_minutes=1440,
-                                  nominal_offset=(480, 0),
-                                  actual_offset=(0, 0))
+                                  timestamp_rounding=(480, 0),
+                                  timestamp_offset=(0, 0))
         self.bimonthlystep = TimeStep(length_months=2,
-                                      nominal_offset=(0, 0),
-                                      actual_offset=(-1442, 2))
+                                      timestamp_rounding=(0, 0),
+                                      timestamp_offset=(-1442, 2))
 
     def test_up1(self):
         self.assertEqual(self.dailystep.up(datetime(1964, 2, 29, 18, 35)),
@@ -672,7 +713,7 @@ class _Test_Timeseries_file(TestCase):
     def setUp(self):
         self.reference_ts = Timeseries(
             time_step=TimeStep(length_minutes=10, length_months=0,
-                               nominal_offset=(0, 0)),
+                               timestamp_rounding=(0, 0)),
             unit=u('°C'), title=u("A test 10-min time series"), precision=1,
             timezone=u("EET (UTC+0200)"), variable=u("temperature"),
             comment="This timeseries is extremely important\n"
@@ -693,6 +734,10 @@ class _Test_Timeseries_file(TestCase):
         self.reference_ts.write_file(outstring, version=3)
         self.assertEqual(outstring.getvalue(),
                          tenmin_test_timeseries_file_version_3)
+        outstring = StringIO()
+        self.reference_ts.write_file(outstring, version=4)
+        self.assertEqual(outstring.getvalue(),
+                         tenmin_test_timeseries_file_version_4)
 
     def test_read_file_version_2(self):
         instring = StringIO(tenmin_test_timeseries_file_version_2)
@@ -702,10 +747,10 @@ class _Test_Timeseries_file(TestCase):
                          self.reference_ts.time_step.length_minutes)
         self.assertEqual(ts.time_step.length_months,
                          self.reference_ts.time_step.length_months)
-        self.assertEqual(ts.time_step.nominal_offset,
-                         self.reference_ts.time_step.nominal_offset)
-        self.assertEqual(ts.time_step.actual_offset,
-                         self.reference_ts.time_step.actual_offset)
+        self.assertEqual(ts.time_step.timestamp_rounding,
+                         self.reference_ts.time_step.timestamp_rounding)
+        self.assertEqual(ts.time_step.timestamp_offset,
+                         self.reference_ts.time_step.timestamp_offset)
         self.assertEqual(ts.time_step.interval_type,
                          self.reference_ts.time_step.interval_type)
         self.assertEqual(ts.unit, self.reference_ts.unit)
@@ -726,10 +771,39 @@ class _Test_Timeseries_file(TestCase):
                          self.reference_ts.time_step.length_minutes)
         self.assertEqual(ts.time_step.length_months,
                          self.reference_ts.time_step.length_months)
-        self.assertEqual(ts.time_step.nominal_offset,
-                         self.reference_ts.time_step.nominal_offset)
-        self.assertEqual(ts.time_step.actual_offset,
-                         self.reference_ts.time_step.actual_offset)
+        self.assertEqual(ts.time_step.timestamp_rounding,
+                         self.reference_ts.time_step.timestamp_rounding)
+        self.assertEqual(ts.time_step.timestamp_offset,
+                         self.reference_ts.time_step.timestamp_offset)
+        self.assertEqual(ts.time_step.interval_type,
+                         self.reference_ts.time_step.interval_type)
+        self.assertEqual(ts.unit, self.reference_ts.unit)
+        self.assertEqual(ts.title, self.reference_ts.title)
+        self.assertEqual(ts.precision, self.reference_ts.precision)
+        self.assertEqual(ts.timezone, self.reference_ts.timezone)
+        self.assertEqual(ts.variable, self.reference_ts.variable)
+        self.assertEqual(ts.comment, self.reference_ts.comment)
+        self.assertAlmostEqual(ts.location['abscissa'], 24.67890, places=6)
+        self.assertAlmostEqual(ts.location['ordinate'], 38.12345, places=6)
+        self.assertEqual(ts.location['srid'], 4326)
+        self.assertAlmostEqual(ts.location['altitude'], 219.22, places=2)
+        self.assertTrue(ts.location['asrid'] is None)
+        self.assertEqual(len(ts), len(self.reference_ts))
+        for d in self.reference_ts:
+            self.assertAlmostEqual(ts[d], self.reference_ts[d], 1)
+
+    def test_read_file_version_4(self):
+        instring = StringIO(tenmin_test_timeseries_file_version_4)
+        ts = Timeseries()
+        ts.read_file(instring)
+        self.assertEqual(ts.time_step.length_minutes,
+                         self.reference_ts.time_step.length_minutes)
+        self.assertEqual(ts.time_step.length_months,
+                         self.reference_ts.time_step.length_months)
+        self.assertEqual(ts.time_step.timestamp_rounding,
+                         self.reference_ts.time_step.timestamp_rounding)
+        self.assertEqual(ts.time_step.timestamp_offset,
+                         self.reference_ts.time_step.timestamp_offset)
         self.assertEqual(ts.time_step.interval_type,
                          self.reference_ts.time_step.interval_type)
         self.assertEqual(ts.unit, self.reference_ts.unit)
@@ -1110,11 +1184,11 @@ class _Test_Timeseries_aggregate(TestCase):
 
     def setUp(self):
         self.ts = Timeseries(time_step=TimeStep(length_minutes=10,
-                                                nominal_offset=(0, 0)))
+                                                timestamp_rounding=(0, 0)))
         self.ts.read(StringIO(tenmin_test_timeseries))
 
     def test_aggregate_hourly_sum(self):
-        target_step = TimeStep(length_minutes=60, nominal_offset=(0, 0),
+        target_step = TimeStep(length_minutes=60, timestamp_rounding=(0, 0),
                                interval_type=IntervalType.SUM)
         result, missing = self.ts.aggregate(target_step, missing_allowed=0.5,
                                             missing_flag="MISS")
@@ -1137,7 +1211,7 @@ class _Test_Timeseries_aggregate(TestCase):
                          aggregated_hourly_sum_small_missing_allowed)
 
     def test_aggregate_hourly_average(self):
-        target_step = TimeStep(length_minutes=60, nominal_offset=(0, 0),
+        target_step = TimeStep(length_minutes=60, timestamp_rounding=(0, 0),
                                interval_type=IntervalType.AVERAGE)
         result, missing = self.ts.aggregate(target_step, missing_allowed=0.5,
                                             missing_flag="MISS")
@@ -1151,7 +1225,7 @@ class _Test_Timeseries_aggregate(TestCase):
         self.assertEqual(out.getvalue(), aggregated_hourly_missing)
 
     def test_aggregate_hourly_max(self):
-        target_step = TimeStep(length_minutes=60, nominal_offset=(0, 0),
+        target_step = TimeStep(length_minutes=60, timestamp_rounding=(0, 0),
                                interval_type=IntervalType.MAXIMUM)
         result, missing = self.ts.aggregate(target_step, missing_allowed=0.5,
                                             missing_flag="MISS")
@@ -1164,7 +1238,7 @@ class _Test_Timeseries_aggregate(TestCase):
         self.assertEqual(out.getvalue(), aggregated_hourly_missing)
 
     def test_aggregate_hourly_min(self):
-        target_step = TimeStep(length_minutes=60, nominal_offset=(0, 0),
+        target_step = TimeStep(length_minutes=60, timestamp_rounding=(0, 0),
                                interval_type=IntervalType.MINIMUM)
         result, missing = self.ts.aggregate(target_step, missing_allowed=0.5,
                                             missing_flag="MISS")
@@ -1178,8 +1252,8 @@ class _Test_Timeseries_aggregate(TestCase):
 
     def test_aggregate_empty(self):
         self.ts = Timeseries(time_step=TimeStep(length_minutes=10,
-                                                nominal_offset=(0, 0)))
-        target_step = TimeStep(length_minutes=60, nominal_offset=(0, 0),
+                                                timestamp_rounding=(0, 0)))
+        target_step = TimeStep(length_minutes=60, timestamp_rounding=(0, 0),
                                interval_type=IntervalType.SUM)
         result, missing = self.ts.aggregate(target_step, missing_allowed=0.5,
                                             missing_flag="MISS")
@@ -1196,11 +1270,11 @@ class _Test_Timeseries_vector_aggregate(TestCase):
 
     def setUp(self):
         self.ts = Timeseries(time_step=TimeStep(length_minutes=10,
-                                                nominal_offset=(0, 0)))
+                                                timestamp_rounding=(0, 0)))
         self.ts.read(StringIO(tenmin_vector_test_timeseries))
 
     def test_aggregate_hourly_vector(self):
-        target_step = TimeStep(length_minutes=60, nominal_offset=(0, 0),
+        target_step = TimeStep(length_minutes=60, timestamp_rounding=(0, 0),
                                interval_type=IntervalType.VECTOR_AVERAGE)
         result = (self.ts.aggregate(target_step, missing_allowed=0,
                                     missing_flag="MISS"))[0]
@@ -1213,11 +1287,11 @@ class _Test_Timeseries_allmiss_aggregate(TestCase):
 
     def setUp(self):
         self.ts = Timeseries(time_step=TimeStep(length_minutes=10,
-                                                nominal_offset=(0, 0)))
+                                                timestamp_rounding=(0, 0)))
         self.ts.read(StringIO(tenmin_allmiss_test_timeseries))
 
     def test_aggregate_hourly_allmiss(self):
-        target_step = TimeStep(length_minutes=60, nominal_offset=(0, 0),
+        target_step = TimeStep(length_minutes=60, timestamp_rounding=(0, 0),
                                interval_type=IntervalType.SUM)
         result = (self.ts.aggregate(target_step, missing_allowed=1.0,
                                     missing_flag="MISS"))[0]
@@ -1347,11 +1421,11 @@ class _Test_Timeseries_identify_events(TestCase):
 
     def setUp(self):
         self.ts1 = Timeseries(time_step=TimeStep(length_minutes=10,
-                                                 nominal_offset=(0, 0)))
+                                                 timestamp_rounding=(0, 0)))
         self.ts2 = Timeseries(time_step=TimeStep(length_minutes=10,
-                                                 nominal_offset=(0, 0)))
+                                                 timestamp_rounding=(0, 0)))
         self.ts3 = Timeseries(time_step=TimeStep(length_minutes=10,
-                                                 nominal_offset=(0, 0)))
+                                                 timestamp_rounding=(0, 0)))
         self.ts1.read(StringIO(events_test_timeseries_1))
         self.ts2.read(StringIO(events_test_timeseries_2))
         self.ts3.read(StringIO(events_test_timeseries_3))

@@ -80,7 +80,7 @@ meaning January 2008 and probably displayed by application software as
 would be 2008-02-01 08:00, because we make the convention that actual
 timestamps mark either a moment or the end of an interval.
 
-.. class:: TimeStep([length_minutes=0][, length_months=0][, nominal_offset=None][, actual_offset=(0,0)][, interval_type=None])
+.. class:: TimeStep([length_minutes=0][, length_months=0][, timestamp_rounding=None][, timestamp_offset=(0,0)][, interval_type=None])
 
    .. attribute:: TimeStep.length_minutes
    .. attribute:: TimeStep.length_months
@@ -99,41 +99,39 @@ timestamps mark either a moment or the end of an interval.
       ``IntervalType.SUM``, etc. If time series records are instant
       values rather than interval, this is 0 or None.
 
-   .. attribute:: TimeStep.nominal_offset
+   .. attribute:: TimeStep.timestamp_rounding
 
       A pair of integers indicating the number of minutes and months that
       must be added to a round timestamp to get to the nominal timestamp.
       For example, if an hourly time series has timestamps that end in
-      :13, such as 01:13, 02:13, etc., then its nominal offset is 13
+      :13, such as 01:13, 02:13, etc., then its rounding is 13
       minutes, 0 months, i.e., ``(13, 0)``. Monthly time series normally
       have a nominal timestamp of ``(0, 0)``, the timestamps usually
       being of the form 2008-02-01 00:00, meaning "February 2008" and
       usually rendered by application software as 2008-02. Annual
       timestamps have a nominal timestamp which normally has 0 minutes,
-      but may have nonzero months; for example, a common offset in Greece
-      is 9 months, which means that an annual timestamp is of the form
-      2008-10-01 00:00, normally rendered by application software as
-      2008-2009, and denoting the hydrological year 2008-2009.
+      but may have nonzero months; for example, a common rounding in
+      Greece is 9 months (0=January), which means that an annual
+      timestamp is of the form 2008-10-01 00:00, normally rendered by
+      application software as 2008-2009, and denoting the hydrological
+      year 2008-2009.
 
-      nominal_offset may be None, meaning that the timestamps can be
-      irregular.
+      :attr:`timestamp_rounding` may be None, meaning that the
+      timestamps can be irregular.
 
-   .. attribute:: TimeStep.actual_offset
+   .. attribute:: TimeStep.timestamp_offset
 
       A pair of integers indicating the number of minutes and months that
       must be added to the nominal timestamp to get to the actual
-      timestamp.  Note the difference from :attr:`nominal_offset`, which
-      is the offset from the round timestamp; the :attr:`actual_offset`
-      must be added to the nominal offset to find the actual offset from
-      the round timestamp. Actual offset for small time steps, such as up
+      timestamp. The timestamp offset for small time steps, such as up
       to daily, is usually zero, except if the nominal timestamp is the
-      beginning of an interval, in which case the actual offset is equal
+      beginning of an interval, in which case the timestamp offset is equal
       to the length of the time step, so that the actual timestamp is the
       end of the interval. For monthly and annual time steps, the
-      :attr:`actual_offset` is usually 1 and 12 months respectively.  For
-      a monthly time series, an :attr:`actual_offset` of (-475, 1) means
-      that 2003-11-01 00:00 (normally rendered as 2003-11) denotes the
-      interval 2003-10-31 18:05 to 2003-11-30 18:05.
+      :attr:`timestamp_offset` is usually 1 and 12 months respectively.  For
+      a monthly time series, a :attr:`timestamp_offset` of (-475, 1)
+      means that 2003-11-01 00:00 (normally rendered as 2003-11)
+      denotes the interval 2003-10-31 18:05 to 2003-11-30 18:05.
 
    .. method:: TimeStep.up(timestamp)
 
@@ -424,15 +422,16 @@ text in the ts_core directory in the repository.
    .. method:: Timeseries.aggregate(target_step[, missing_allowed=0.0][, missing_flag][, last_incomplete=False][, all_incomplete=False])
 
       Process the time series, produce two new time series, and return
-      these new time series as a tuple.  The first of these series is the
-      aggregated series; the second one is the number of missing values
-      in each time step (more on this below). Both produced time series
-      have a time step of *target_step*, which must be a
-      :class:`TimeStep` object.  The *nominal_offset*, *actual_offset*,
-      and *interval_type* attributes of *target_step* are taken into
-      account during aggregation; so if, for example, *target_step* is
-      one day with ``nominal_offset=(480,0)``, ``actual_offset=(0,0)``,
-      and an *interval_type* of ``IntervalType.SUM``, then aggregation is
+      these new time series as a tuple.  The first of these series is
+      the aggregated series; the second one is the number of missing
+      values in each time step (more on this below). Both produced
+      time series have a time step of *target_step*, which must be a
+      :class:`TimeStep` object.  The *timestamp_rounding*,
+      *timestamp_offset*, and *interval_type* attributes of
+      *target_step* are taken into account during aggregation; so if,
+      for example, *target_step* is one day with
+      ``timestamp_rounding=(480,0)``, ``timestamp_offset=(0,0)``, and
+      an *interval_type* of ``IntervalType.SUM``, then aggregation is
       performed so that, in the resulting time series, a record with
       timestamp 2008-01-17 08:00 contains the sum of the values of the
       source series from 2008-01-16 08:00 to 2008-01-17 08:00.
@@ -568,17 +567,24 @@ only exception is the Comment parameter.
 The parameters available are:
 
 **Version**
-    For version 2 files, this must have the value 2 and must be the
-    first parameter in the file. Version 3 files do not have this
-    parameter. In addition, in Version 3 files, unrecognized
-    parameters are ignored; in Version 2 an error may be raised by
-    software reading them.
+    There are four versions:
 
-    All other parameters are optional. However, in Version 3, at least
-    one parameter must be present.
+    * Version 1 files are long obsolete. They did not have a header
+      section.
 
-    (Version 1 files, which did not have a header section, are
-    obsolete.)
+    * Version 2 files must have ``Version=2`` as the first line of the
+      file. All other parameters are optional. The file may not
+      contain unrecognized parameters; software reading files with
+      unrecognized parameters may raise an error.
+
+    * Version 3 files do not have the *Version* parameter. At least
+      one of the other parameters must be present. Unrecognized
+      parameters are ignored when reading. The deprecated parameter
+      names *Nominal_offset* and *Actual_offset* are used instead of
+      the newer ones *Timestamp_rounding* and *Timestamp_offset*.
+
+    * Version 4 files are the same as Version 3, except for the names
+      of the parameters *Timestamp_rounding* and *Timestamp_offset*.
 
 **Unit**
     A symbol for the measurement unit, like ``°C`` or ``mm``.
@@ -616,24 +622,28 @@ The parameters available are:
 
 **Time_step**
 
-**Nominal_offset**
+**Timestamp_rounding**
 
-**Actual_offset**
+**Timestamp_offset**
 
     These three parameters specify the time step; each one is a pair
     of comma-separated integers, like this::
 
         Time_step=1440,0
-        Nominal_offset=480,0
-        Actual_offset=0,0
+        Timestamp_rounding=480,0
+        Timestamp_offset=0,0
 
     The first number designates minutes and the second designates
-    months. If nominal_offset is missing, it means that the time
+    months. If timestamp_rounding is missing, it means that the time
     series records can have irregular timestamps. If time_step is
-    present, actual_offset must also be present. If time_step is
+    present, timestamp_offset must also be present. If time_step is
     missing, it means that the time series is irregular.  For more
     information on these three parameters, refer to the
     :class:`Timeseries` documentation.
+
+    *Timestamp_rounding* and *Timestamp_offset* are named differently
+    in older versions. See the *Version* parameter above for more
+    information.
 
 **Interval_type**
 

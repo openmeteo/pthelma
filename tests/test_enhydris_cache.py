@@ -50,8 +50,8 @@ class TimeseriesCacheTestCase(TestCase):
             'unit_of_measurement': self.parms['unit_of_measurement_id'],
             'time_zone': self.parms['time_zone_id'],
             'time_step': 3,
-            'actual_offset_minutes': 0,
-            'actual_offset_months': 0,
+            'timestamp_offset_minutes': 0,
+            'timestamp_offset_months': 0,
             'remarks': 'Très importante',
         }
         self.ts1_id = enhydris_api.post_model(

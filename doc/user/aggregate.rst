@@ -122,49 +122,47 @@ General parameters
    nonzero (i.e. the target time step is an integer number of minutes
    or months).
 
-.. confval:: nominal_offset
+.. confval:: timestamp_rounding
 
    Optional. A pair of integers. The default is 0, 0. The timestamps
    of, e.g., an hourly time series usually end in :00, but they could
-   end in, say, :07. This is a nominal offset of 7 minutes. A nominal
-   offset for months is usually only used to specify a hydrological
-   year, e.g. hydrological years in Greece have a nominal offset of 9
-   months.
+   end in, say, :07. In this case, the timestamp rounding is 7
+   minutes. A rounding specified in months is usually only used to
+   specify a hydrological year, e.g. hydrological years in Greece have
+   a timestamp rounding of 9 months, with 0=January.
 
-   This parameter specifies the nominal offset for the target time
-   series.
+   This parameter specifies the rounding for the target time series.
 
-.. confval:: actual_offset
+.. confval:: timestamp_offset
 
    Optional. A pair of integers. The default is 0, 0. Usually the
    timestamps refer to the interval whose time ends at the timestamp.
-   So, for example, in an hourly time series (with a nominal_offset of
-   50), 2014-06-16 15:50 refers to the interval 2014-06-16
-   14:50-15:50.
+   So, for example, in an hourly time series (with rounding 50),
+   2014-06-16 15:50 refers to the interval 2014-06-16 14:50-15:50.
 
    In some rare cases, however, we may want to use the timestamp
    2014-06-16 15:50 to signify the interval 2014-06-16 14:45-15:45. In
-   that case, we say we have an actual offset of -5 minutes.
+   that case, we say we have an timestamp offset of -5 minutes.
 
    There are two use cases for this. One is river flows. Suppose you
    are aggregating hourly river stages into monthly river stages. If
    your basin is such that a rainfall today results in increased stage
    2 days later, you may want "April 2014" for stages to actually mean
    the period "3 April to 3 May 2014", so that it correlates better
-   with monthly rainfalls. In this case, you have an actual offset of
-   2880 minutes (plus one month, see below).
+   with monthly rainfalls. In this case, you have a timestamp offset
+   of 2880 minutes (plus one month, see below).
 
    The second use case is when the timestamp indicates the beginning
    rather than the end of the interval, which is usually the case for
    monthly and annual time series. For a monthly time series, the
    timestamp 2003-11-01 00:00 (normally rendered as 2003-11) usually
    denotes the interval that starts at the beginning of November and
-   ends at the end of November. In these cases, the actual offset
+   ends at the end of November. In these cases, the timestamp offset
    should be the length of the interval, i.e. 1 month for monthly time
    series and 12 months for annual time series.
 
    Both minutes and months can be nonzero. In the river flows example
-   above, the actual offset would be (2880, 1).
+   above, the offset would be (2880, 1).
 
 .. confval:: missing_allowed
              missing_flag

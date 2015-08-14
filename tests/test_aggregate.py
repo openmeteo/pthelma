@@ -37,8 +37,8 @@ class AggregateAppTestCase(TestCase):
         with open(self.filenames[0], 'w') as f:
             f.write("Location=23.78743 37.97385 4326\n"
                     "Time_step=10,0\n"
-                    "Nominal_offset=0,0\n"
-                    "Actual_offset=0,0\n"
+                    "Timestamp_rounding=0,0\n"
+                    "Timestamp_offset=0,0\n"
                     "Timezone=EET (UTC+0200)\n"
                     "\n"
                     "2014-06-16 14:50,14.1,\n"
@@ -54,8 +54,8 @@ class AggregateAppTestCase(TestCase):
         with open(self.filenames[1], 'w') as f:
             f.write("Location=24.56789 38.76543 4326\n"
                     "Time_step=10,0\n"
-                    "Nominal_offset=0,0\n"
-                    "Actual_offset=0,0\n"
+                    "Timestamp_rounding=0,0\n"
+                    "Timestamp_offset=0,0\n"
                     "\n"
                     "2014-06-17 14:50,94.1,\n"
                     "2014-06-17 15:00,85.0,\n"
@@ -161,11 +161,11 @@ class AggregateAppTestCase(TestCase):
         application.read_command_line()
         application.read_configuration()
 
-        # Create a file that doesn't have nominal offset
+        # Create a file that doesn't have timestamp rounding
         with open(self.filenames[0], 'w') as f:
             f.write("Location=23.78743 37.97385 4326\n"
                     "Time_step=10,0\n"
-                    "Actual_offset=0,0\n"
+                    "Timestamp_offset=0,0\n"
                     "\n"
                     "2014-06-16 14:50,14.1,\n"
                     )
