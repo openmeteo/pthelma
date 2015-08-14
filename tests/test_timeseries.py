@@ -559,82 +559,107 @@ class _Test_Timeseries_write_nonempty(TestCase):
         self.ts["2005-08-25 23:59"] = (28.3, ['HEARTS', 'SPADES'])
         self.ts["2005-08-26 00:02"] = float('NaN')
         self.ts["2005-08-27 00:02"] = (float('NaN'), ['DIAMONDS'])
+        self.possible_value1 = textwrap.dedent("""\
+            2005-08-23 18:53,93,\r
+            2005-08-24 19:52,108.7,\r
+            2005-08-25 23:59,28.3,HEARTS SPADES\r
+            2005-08-26 00:02,,\r
+            2005-08-27 00:02,,DIAMONDS\r
+            """)
+        self.possible_value2 = textwrap.dedent("""\
+            2005-08-23 18:53,93,\r
+            2005-08-24 19:52,108.7,\r
+            2005-08-25 23:59,28.3,SPADES HEARTS\r
+            2005-08-26 00:02,,\r
+            2005-08-27 00:02,,DIAMONDS\r
+            """)
 
     def test_all(self):
         self.ts.write(self.c)
-        self.assertEqual(self.c.getvalue(), textwrap.dedent("""\
-            2005-08-23 18:53,93,\r
-            2005-08-24 19:52,108.7,\r
-            2005-08-25 23:59,28.3,HEARTS SPADES\r
-            2005-08-26 00:02,,\r
-            2005-08-27 00:02,,DIAMONDS\r
-            """))
+        self.assertTrue(self.c.getvalue() in (self.possible_value1,
+                                              self.possible_value2))
 
     def test_with_start1(self):
         self.ts.write(self.c, start=datetime(2005, 8, 24, 19, 52))
-        self.assertEqual(self.c.getvalue(), textwrap.dedent("""\
+        possible_value1 = textwrap.dedent("""\
             2005-08-24 19:52,108.7,\r
             2005-08-25 23:59,28.3,HEARTS SPADES\r
             2005-08-26 00:02,,\r
             2005-08-27 00:02,,DIAMONDS\r
-            """))
+            """)
+        possible_value2 = textwrap.dedent("""\
+            2005-08-24 19:52,108.7,\r
+            2005-08-25 23:59,28.3,SPADES HEARTS\r
+            2005-08-26 00:02,,\r
+            2005-08-27 00:02,,DIAMONDS\r
+            """)
+        self.assertTrue(self.c.getvalue() in (possible_value1,
+                                              possible_value2))
 
     def test_with_start2(self):
         self.ts.write(self.c, start=datetime(2005, 8, 24, 19, 51))
-        self.assertEqual(self.c.getvalue(), textwrap.dedent("""\
+        possible_value1 = textwrap.dedent("""\
             2005-08-24 19:52,108.7,\r
             2005-08-25 23:59,28.3,HEARTS SPADES\r
             2005-08-26 00:02,,\r
             2005-08-27 00:02,,DIAMONDS\r
-            """))
+            """)
+        possible_value2 = textwrap.dedent("""\
+            2005-08-24 19:52,108.7,\r
+            2005-08-25 23:59,28.3,SPADES HEARTS\r
+            2005-08-26 00:02,,\r
+            2005-08-27 00:02,,DIAMONDS\r
+            """)
+        self.assertTrue(self.c.getvalue() in (possible_value1,
+                                              possible_value2))
 
     def test_with_start3(self):
         self.ts.write(self.c, start=datetime(2000, 8, 24, 19, 51))
-        self.assertEqual(self.c.getvalue(), textwrap.dedent("""\
-            2005-08-23 18:53,93,\r
-            2005-08-24 19:52,108.7,\r
-            2005-08-25 23:59,28.3,HEARTS SPADES\r
-            2005-08-26 00:02,,\r
-            2005-08-27 00:02,,DIAMONDS\r
-            """))
+        self.assertTrue(self.c.getvalue() in (self.possible_value1,
+                                              self.possible_value2))
 
     def test_with_end1(self):
         self.ts.write(self.c, end=datetime(2005, 8, 27, 0, 2))
-        self.assertEqual(self.c.getvalue(), textwrap.dedent("""\
-            2005-08-23 18:53,93,\r
-            2005-08-24 19:52,108.7,\r
-            2005-08-25 23:59,28.3,HEARTS SPADES\r
-            2005-08-26 00:02,,\r
-            2005-08-27 00:02,,DIAMONDS\r
-            """))
+        self.assertTrue(self.c.getvalue() in (self.possible_value1,
+                                              self.possible_value2))
 
     def test_with_end2(self):
         self.ts.write(self.c, end=datetime(3005, 8, 27, 0, 2))
-        self.assertEqual(self.c.getvalue(), textwrap.dedent("""\
-            2005-08-23 18:53,93,\r
-            2005-08-24 19:52,108.7,\r
-            2005-08-25 23:59,28.3,HEARTS SPADES\r
-            2005-08-26 00:02,,\r
-            2005-08-27 00:02,,DIAMONDS\r
-            """))
+        self.assertTrue(self.c.getvalue() in (self.possible_value1,
+                                              self.possible_value2))
 
     def test_with_end3(self):
         self.ts.write(self.c, end=datetime(2005, 8, 26, 0, 3))
-        self.assertEqual(self.c.getvalue(), textwrap.dedent("""\
+        possible_value1 = textwrap.dedent("""\
             2005-08-23 18:53,93,\r
             2005-08-24 19:52,108.7,\r
             2005-08-25 23:59,28.3,HEARTS SPADES\r
             2005-08-26 00:02,,\r
-            """))
+            """)
+        possible_value2 = textwrap.dedent("""\
+            2005-08-23 18:53,93,\r
+            2005-08-24 19:52,108.7,\r
+            2005-08-25 23:59,28.3,SPADES HEARTS\r
+            2005-08-26 00:02,,\r
+            """)
+        self.assertTrue(self.c.getvalue() in (possible_value1,
+                                              possible_value2))
 
     def test_with_start_and_end1(self):
         self.ts.write(self.c, start=datetime(2005, 8, 24, 19, 50),
                       end=datetime(2005, 8, 26, 0, 3))
-        self.assertEqual(self.c.getvalue(), textwrap.dedent("""\
+        possible_value1 = textwrap.dedent("""\
             2005-08-24 19:52,108.7,\r
             2005-08-25 23:59,28.3,HEARTS SPADES\r
             2005-08-26 00:02,,\r
-            """))
+            """)
+        possible_value2 = textwrap.dedent("""\
+            2005-08-24 19:52,108.7,\r
+            2005-08-25 23:59,28.3,SPADES HEARTS\r
+            2005-08-26 00:02,,\r
+            """)
+        self.assertTrue(self.c.getvalue() in (possible_value1,
+                                              possible_value2))
 
     def test_with_start_and_end2(self):
         self.ts.write(self.c, start=datetime(2005, 8, 24, 19, 53),
