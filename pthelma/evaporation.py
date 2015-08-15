@@ -19,7 +19,7 @@ gdal.UseExceptions()
 # When numpy makes calculations with masked arrays, it sometimes emits spurious
 # RuntimeWarnings. This is because it occasionally does use the masked part of
 # the array during the calculations (but masks the result). This is a known
-# numpy but (e.g. https://github.com/numpy/numpy/issues/4269). The numpy
+# numpy bug (e.g. https://github.com/numpy/numpy/issues/4269). The numpy
 # documentation, section "Operations on masked arrays", also has a related
 # warning there.
 #
@@ -266,7 +266,10 @@ class PenmanMonteith(object):
 
         # Saturation and actual vapour pressure
         svp = self.get_saturation_vapour_pressure(mean_temperature)
-        avp = svp * mean_relative_humidity / 100.0  # Eq. 54, p. 74
+        with warnings.catch_warnings():
+            # See comment about RuntimeWarning on top of the file
+            warnings.simplefilter('ignore', RuntimeWarning)
+            avp = svp * mean_relative_humidity / 100.0  # Eq. 54, p. 74
 
         # Net incoming radiation; p. 51, eq. 38
         albedo = self.albedo[adatetime.month - 1] \
@@ -292,8 +295,11 @@ class PenmanMonteith(object):
 
         # Apply the formula
         numerator_term1 = 0.408 * delta * (rn - g)
-        numerator_term2 = psychrometric_constant * 37 / \
-            (mean_temperature + 273.16) * mean_wind_speed * (svp - avp)
+        with warnings.catch_warnings():
+            # See comment about RuntimeWarning on top of the file
+            warnings.simplefilter('ignore', RuntimeWarning)
+            numerator_term2 = psychrometric_constant * 37 / \
+                (mean_temperature + 273.16) * mean_wind_speed * (svp - avp)
         denominator = delta + psychrometric_constant * (1 +
                                                         0.34 * mean_wind_speed)
 

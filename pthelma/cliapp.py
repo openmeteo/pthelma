@@ -59,10 +59,12 @@ class CliApp(object):
         cp = RawConfigParser()
         cp.read_file = cp.readfp if six.PY2 else cp.read_file
         try:
-            cp.read_file(open(self.args.config_file))
+            with open(self.args.config_file) as f:
+                cp.read_file(f)
         except MissingSectionHeaderError:
             # No section headers? Assume the [General] section is implied.
-            configuration = '[General]\n' + open(self.args.config_file).read()
+            with open(self.args.config_file) as f:
+                configuration = '[General]\n' + f.read()
             cp.read_file(StringIO(configuration))
 
         # Convert config to dictionary (for Python 2.7 compatibility)
