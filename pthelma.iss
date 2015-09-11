@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Pthelma"
-#define MyAppVersion "dev"
+#define MyAppVersion "DEV"
 #define MyAppPublisher "Antonis Christofides"
 #define MyAppURL "http://pthelma.readthedocs.org/"
 
