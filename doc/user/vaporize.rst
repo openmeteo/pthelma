@@ -16,11 +16,12 @@ SYNOPSIS
 DESCRIPTION AND QUICK START
 ===========================
 
-``vaporize`` reads GeoTIFF files with temperature, humidity, solar
-radiation, pressure and wind speed, and produces a GeoTIFF file with
-evapotranspiration calculated with the Penman-Monteith method. The
-details of its operation are specified in the configuration file
-specified on the command line.
+``vaporize`` calculates evapotranspiration with the Penman-Monteith
+method. It works either with GeoTIFF files or with time series files.
+In either case, it reads files with temperature, humidity, solar
+radiation, pressure and wind speed, and produces a file with
+evapotranspiration. The details of its operation are specified in the
+configuration file specified on the command line.
 
 The methodology used is that of Allen et al. (1998).  Details can be
 found in :ref:`evaporation` and in the code itself, which has comments
@@ -86,18 +87,27 @@ evaporation (:confval:`step_length`) at the specified
 be GeoTIFF files instead of numbers). For some variables, the input
 files are in different units than the default ones (hPa instead of kPa
 for pressure, W/m² instead of MJ/m²/h for solar radiation) and need to
-be converted (:confval:`unit_converter`). The calculation is performed
-once for each one of the sets of files that are in
-:confval:`base_dir`; for example, if inside `base_dir` there are files
-`temperature-2014-10-12-18-00+0200.tif`,
-`humidity-2014-10-12-18-00+0200.tif`, and so on (including variables
-named `wind_speed`, `pressure`, and `solar_radiation`), there will be
-a resulting file `evaporation-2014-10-12-18-00+0200.tif`; if there are
-files for other dates, there will be a result for them as well.  The
-calculation is performed only if the resulting file does not already
-exist, or if at least one of the input files has a later modification
-time.  If there are any `evaporation-....tif` files without
-corresponding input files, they will be deleted.
+be converted (:confval:`unit_converter`).
+
+If the :confval:`base_dir` contains ``tif`` files, the calculation is
+performed once for each one of the sets of files; for example, if inside
+:confval:`base_dir` there are files
+file:`temperature-2014-10-12-18-00+0200.tif`,
+file:`humidity-2014-10-12-18-00+0200.tif`, and so on (including
+variables named ``wind_speed``, ``pressure``, and ``solar_radiation``),
+there will be a resulting file
+file:`evaporation-2014-10-12-18-00+0200.tif`; if there are files for
+other dates, there will be a result for them as well.  The calculation
+is performed only if the resulting file does not already exist, or if at
+least one of the input files has a later modification time.  If there
+are any `evaporation-....tif` files without corresponding input files,
+they will be deleted.
+
+If the :confval:`base_dir` contains ``hts`` files, the calculation is
+performed for these time series. For example, if inside
+:confval:`base_dir` there are files file:`temperature.hts`,
+`humidity.hts`, and so on, there will be a resulting file
+file:`evaporation.hts`, overwriting any previously existing such file.
 
 CONFIGURATION FILE REFERENCE
 ============================
@@ -169,7 +179,7 @@ Parameters
 
 .. confval:: unit_converter
 
-   The meteorological values that are supplied with the GeoTIFF files
+   The meteorological values that are supplied with the input files
    of the file set sections are supposed to be in the following units:
 
    ========================  =====================
@@ -216,12 +226,12 @@ Parameters
              evaporation_prefix
 
    Optional. ``vaporize`` assumes that the input files are named
-   :samp:`{variable}-{date}.tif`, where *variable* one of
-   `temperature`, `temperature_max`, `temperature_min`, `humidity`,
-   `humidity_max`, `humidity_min`, `wind_speed`, `pressure`,
-   `solar_radiation`, and `sunshine_duration`, and, similarly, for the
-   output file *variable* is `evaporation`. With these parameters
-   these names can be changed; for example::
+   :samp:`{variable}-{date}.tif` or :samp:`{variable}.hts`, where
+   *variable* one of `temperature`, `temperature_max`,
+   `temperature_min`, `humidity`, `humidity_max`, `humidity_min`,
+   `wind_speed`, `pressure`, `solar_radiation`, and `sunshine_duration`,
+   and, similarly, for the output file *variable* is `evaporation`. With
+   these parameters these names can be changed; for example::
 
       humidity_prefix = hum
 
@@ -244,7 +254,7 @@ AUTHOR AND COPYRIGHT
 
 ``vaporize`` was written by Antonis Christofides, anthony@itia.ntua.gr.
 
-| Copyright (C) 2014-2015 TEI of Epirus
+| Copyright (C) 2014-2016 TEI of Epirus
 
 ``vaporize`` is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the

@@ -11,6 +11,7 @@ from osgeo import gdal, ogr, osr
 
 from pthelma.cliapp import CliApp, WrongValueError
 from pthelma.spatial import NODATAVALUE
+from pthelma.timeseries import Timeseries, TimeStep
 
 gdal.UseExceptions()
 
@@ -525,6 +526,22 @@ class VaporizeApp(CliApp):
         self.longitude, self.latitude = np.meshgrid(longitudes, latitudes)
 
     def execute(self):
+        base_dir_has_tif_files = bool(glob('*.tif'))
+        base_dir_has_hts_files = bool(glob('*.hts'))
+        if base_dir_has_tif_files and base_dir_has_hts_files:
+            raise WrongValueError(
+                'Base directory {} contains both tif files and hts files; '
+                'this is not allowed.'.format(self.base_dir))
+        elif base_dir_has_tif_files:
+            self.execute_spatial()
+        elif base_dir_has_hts_files:
+            self.execute_point()
+        else:
+            raise WrongValueError(
+                'Base directory {} contains neither tif files nor hts files.'
+                .format(self.base_dir))
+
+    def execute_spatial(self):
         # List all input wind speed files
         pattern = self.config['General']['wind_speed_prefix'] + '-*.tif'
         wind_speed_files = glob(pattern)
@@ -552,6 +569,103 @@ class VaporizeApp(CliApp):
         for timestamp in timestamps:
             self.process_timestamp(timestamp)
         self.remove_extra_evaporation_files(timestamps)
+
+    def execute_point(self):
+        # Read input time series
+        input_timeseries = {}
+        for name in ('temperature_min', 'temperature_max', 'temperature',
+                     'humidity', 'humidity_min', 'humidity_max', 'wind_speed',
+                     'pressure', 'solar_radiation', 'sunshine_duration'):
+            filename = self.config['General'][name + '_prefix'] + '.hts'
+            if not os.path.exists(filename):
+                continue
+            t = Timeseries()
+            with open(filename, 'r') as f:
+                t.read_file(f)
+            input_timeseries[name] = t
+
+        # Make sure all are in the same location and timezone
+        first = True
+        for index in input_timeseries:
+            t = input_timeseries[index]
+            if first:
+                abscissa = t.location['abscissa']
+                ordinate = t.location['ordinate']
+                srid = t.location['srid']
+                altitude = t.location['altitude']
+                timezone = t.timezone
+                first = False
+                continue
+            if abs(abscissa - t.location['abscissa']) > 1e-7 or \
+                    abs(ordinate - t.location['ordinate']) > 1e-7 or \
+                    srid != t.location['srid'] or \
+                    abs(altitude - t.location['altitude']) > 1e-2 or \
+                    timezone != t.timezone:
+                raise ValueError('Incorrect or unspecified or inconsistent '
+                                 'locations or time zones in the time series '
+                                 'files.')
+
+        # Convert location to WGS84
+        source_projection = osr.SpatialReference()
+        source_projection.ImportFromEPSG(srid)
+        wgs84 = osr.SpatialReference()
+        wgs84.ImportFromEPSG(4326)
+        transform = osr.CoordinateTransformation(source_projection, wgs84)
+        apoint = ogr.Geometry(ogr.wkbPoint)
+        apoint.AddPoint(abscissa, ordinate)
+        apoint.Transform(transform)
+        latitude, longitude = apoint.GetY(), apoint.GetY()
+
+        # Prepare the Penman Monteith method
+        nsrr = self.nighttime_solar_radiation_ratio
+        self.penman_monteith = PenmanMonteith(
+            albedo=self.albedo,
+            nighttime_solar_radiation_ratio=nsrr,
+            elevation=altitude,
+            latitude=latitude,
+            longitude=longitude,
+            step_length=self.step,
+            unit_converters=self.unit_converters)
+
+        # Create output timeseries object
+        pet = Timeseries(
+            time_step=TimeStep(length_minutes=self.step.total_seconds() / 60),
+            unit='mm',
+            timezone=timezone,
+            variable='Potential Evapotranspiration',
+            precision=1,
+            location={'abscissa': abscissa, 'ordinate': ordinate,
+                      'srid': srid, 'altitude': altitude})
+
+        # Let's see what variables we are going to use in the calculation,
+        # based mainly on the step.
+        if self.step == timedelta(hours=1):
+            variables = ('temperature', 'humidity', 'wind_speed',
+                         'solar radiation')
+        elif self.step == timedelta(days=1):
+            variables = (
+                'temperature_max', 'temperature_min', 'humidity_max',
+                'humidity_min', 'wind_speed',
+                'solar_radiation' if 'solar_radiation' in input_timeseries
+                else 'sunshine_duration')
+        else:
+            raise Exception(
+                'Internal error: step should have been checked already')
+
+        # Calculate evaporation
+        for adatetime in input_timeseries['wind_speed']:
+            try:
+                kwargs = {v: input_timeseries[v][adatetime]
+                          for v in variables}
+            except IndexError:
+                continue
+            kwargs['adatetime'] = adatetime
+            pet[adatetime] = self.penman_monteith.calculate(**kwargs)
+
+        # Save result
+        outfilename = self.config['General']['evaporation_prefix'] + '.hts'
+        with open(outfilename, 'w') as f:
+            pet.write_file(f)
 
     def remove_extra_evaporation_files(self, timestamps):
         """

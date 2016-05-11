@@ -14,6 +14,7 @@ import numpy as np
 from osgeo import gdal, osr
 
 from pthelma.evaporation import VaporizeApp, PenmanMonteith
+from pthelma.timeseries import Timeseries
 
 gdal.UseExceptions()
 
@@ -259,10 +260,10 @@ class PenmanMonteithTestCase(TestCase):
         self.assertAlmostEqual(result, 0.63, places=2)
 
 
-class VaporizeAppTestCase(TestCase):
+class VaporizeAppTifTestCase(TestCase):
 
     def __init__(self, *args, **kwargs):
-        super(VaporizeAppTestCase, self).__init__(*args, **kwargs)
+        super(VaporizeAppTifTestCase, self).__init__(*args, **kwargs)
 
         # Python 2.7 compatibility
         try:
@@ -984,3 +985,100 @@ class VaporizeAppTestCase(TestCase):
 
         application = VaporizeApp()
         application.run(dry=True)
+
+
+class VaporizeAppHtsTestCase(TestCase):
+
+    def setUp(self):
+        self.tempdir = tempfile.mkdtemp()
+        self.config_file = os.path.join(self.tempdir, 'vaporize.conf')
+        self.saved_argv = copy(sys.argv)
+        sys.argv = ['vaporize', '--traceback', self.config_file]
+        self.savedcwd = os.getcwd()
+
+    def tearDown(self):
+        os.chdir(self.savedcwd)
+        shutil.rmtree(self.tempdir)
+        sys.argv = copy(self.saved_argv)
+
+    def setup_input_file(self, basename, contents):
+        filename = os.path.join(self.tempdir, basename + '.hts')
+        with open(filename, 'w') as f:
+            f.write(contents)
+
+    def test_daily(self):
+        self.setup_input_file('temperature_max',
+                              textwrap.dedent("""\
+                                              Title=Temperature Max
+                                              Location=-16.25 16.217 4326
+                                              Altitude=100
+
+                                              2014-07-06,21.5,
+                                              """))
+        self.setup_input_file('temperature_min',
+                              textwrap.dedent("""\
+                                              Title=Temperature Min
+                                              Location=-16.25 16.217 4326
+                                              Altitude=100
+
+                                              2014-07-06,12.3,
+                                              """))
+        self.setup_input_file('humidity_max',
+                              textwrap.dedent("""\
+                                              Title=Humidity Max
+                                              Location=-16.25 16.217 4326
+                                              Altitude=100
+
+                                              2014-07-06,84.0,
+                                              """))
+        self.setup_input_file('humidity_min',
+                              textwrap.dedent("""\
+                                              Title=Humidity Min
+                                              Location=-16.25 16.217 4326
+                                              Altitude=100
+
+                                              2014-07-06,63.0,
+                                              """))
+        self.setup_input_file('wind_speed',
+                              textwrap.dedent("""\
+                                              Title=Wind speed
+                                              Location=-16.25 16.217 4326
+                                              Altitude=100
+
+                                              2014-07-06,2.078,
+                                              """))
+        self.setup_input_file('sunshine_duration',
+                              textwrap.dedent("""\
+                                              Title=Sunshine duration
+                                              Location=-16.25 16.217 4326
+                                              Altitude=100
+
+                                              2014-07-06,9.25,
+                                              """))
+
+        with open(self.config_file, 'w') as f:
+            f.write(textwrap.dedent('''\
+                base_dir = {self.tempdir}
+                albedo = 0.23
+                elevation = 100
+                step_length = 1440
+                ''').format(self=self))
+        application = VaporizeApp()
+        application.read_command_line()
+        application.read_configuration()
+
+        # Verify the output file doesn't exist yet
+        result_filename = os.path.join(self.tempdir, 'evaporation.hts')
+        self.assertFalse(os.path.exists(result_filename))
+
+        # Execute
+        application.run()
+
+        # Check that it has created a file and that the file is correct
+        t = Timeseries()
+        with open(result_filename) as f:
+            t.read_file(f)
+        self.assertEqual(len(t), 1)
+        adate = datetime(2014, 7, 6)
+        self.assertEqual(t.bounding_dates(), (adate, adate))
+        self.assertAlmostEqual(t[adate], 3.9)
