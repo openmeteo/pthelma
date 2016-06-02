@@ -1006,6 +1006,81 @@ class VaporizeAppHtsTestCase(TestCase):
         with open(filename, 'w') as f:
             f.write(contents)
 
+    def test_hourly(self):
+        self.setup_input_file('temperature',
+                              textwrap.dedent("""\
+                                              Title=Temperature
+                                              Location=-16.25 16.217 4326
+                                              Altitude=8
+                                              Timezone=CVT (UTC-0100)
+
+                                              2014-10-01 15:00,38,
+                                              """))
+        self.setup_input_file('humidity',
+                              textwrap.dedent("""\
+                                              Title=Humidity
+                                              Location=-16.25 16.217 4326
+                                              Altitude=8
+                                              Timezone=CVT (UTC-0100)
+
+                                              2014-10-01 15:00,52,
+                                              """))
+        self.setup_input_file('wind_speed',
+                              textwrap.dedent("""\
+                                              Title=Wind speed
+                                              Location=-16.25 16.217 4326
+                                              Altitude=8
+                                              Timezone=CVT (UTC-0100)
+
+                                              2014-10-01 15:00,3.3,
+                                              """))
+        self.setup_input_file('pressure',
+                              textwrap.dedent("""\
+                                              Title=Pressure
+                                              Location=-16.25 16.217 4326
+                                              Altitude=8
+                                              Timezone=CVT (UTC-0100)
+
+                                              2014-10-01 15:00,1013.0,
+                                              """))
+        self.setup_input_file('solar_radiation',
+                              textwrap.dedent("""\
+                                              Title=Solar radiation
+                                              Location=-16.25 16.217 4326
+                                              Altitude=8
+                                              Timezone=CVT (UTC-0100)
+
+                                              2014-10-01 15:00,681.0,
+                                              """))
+        with open(self.config_file, 'w') as f:
+            f.write(textwrap.dedent('''\
+                base_dir = {self.tempdir}
+                albedo = 0.23
+                nighttime_solar_radiation_ratio = 0.8
+                step_length = 60
+                unit_converter_pressure = x / 10.0
+                unit_converter_solar_radiation = x * 3600 / 1e6
+                ''').format(self=self))
+        application = VaporizeApp()
+        application.read_command_line()
+        application.read_configuration()
+
+        # Verify the output file doesn't exist yet
+        result_filename = os.path.join(self.tempdir, 'evaporation.hts')
+        self.assertFalse(os.path.exists(result_filename))
+
+        # Execute
+        application.run()
+
+        # Check that it has created a file and that the file is correct
+        t = Timeseries()
+        with open(result_filename) as f:
+            t.read_file(f)
+        self.assertEqual(len(t), 1)
+        adate = datetime(2014, 10, 1, 15, 0, tzinfo=senegal_tzinfo)
+        self.assertEqual(t.bounding_dates(), (adate, adate))
+        self.assertAlmostEqual(t[adate], 0.63)
+
     def test_daily(self):
         self.setup_input_file('temperature_max',
                               textwrap.dedent("""\
@@ -1060,7 +1135,6 @@ class VaporizeAppHtsTestCase(TestCase):
             f.write(textwrap.dedent('''\
                 base_dir = {self.tempdir}
                 albedo = 0.23
-                elevation = 100
                 step_length = 1440
                 ''').format(self=self))
         application = VaporizeApp()

@@ -33,8 +33,8 @@ import zlib
 from six import u, StringIO
 
 from pthelma.timeseries import add_months_to_datetime, datestr_diff, \
-    identify_events, IntervalType, isoformat_nosecs, strip_trailing_zeros, \
-    Timeseries, TimeStep, TzinfoFromString
+    identify_events, IntervalType, is_aware, isoformat_nosecs, \
+    strip_trailing_zeros, Timeseries, TimeStep, TzinfoFromString
 
 
 big_test_timeseries = textwrap.dedent("""\
@@ -1108,11 +1108,27 @@ class _Test_Timeseries_item(TestCase):
         self.ts.timezone = 'EET (+0200)'
         self.assertAlmostEqual(self.ts[key], 108.7)
 
+        # Same thing, with a negative time zone
+        key = datetime(2003, 7, 19, 19, 52,
+                       tzinfo=TzinfoFromString('VST (-0430)'))
+        self.ts.timezone = 'VST (-0430)'
+        self.assertAlmostEqual(self.ts[key], 108.7)
+
         # Try different time zones
         key = datetime(2005, 7, 24, 13, 22,
                        tzinfo=TzinfoFromString('VST (-0430)'))
         self.ts.timezone = 'EET (+0200)'
         self.assertAlmostEqual(self.ts[key], 1087.0)
+
+        # Check that the list of keys is naive if no timezone
+        self.ts.timezone = None
+        for key in self.ts:
+            self.assertFalse(is_aware(key))
+
+        # Check that the list of keys is aware if timezone is specified
+        self.ts.timezone = 'EET (+0200)'
+        for key in self.ts:
+            self.assertTrue(is_aware(key))
 
     def test_matches_next(self):
         item = self.ts.item('2003-07-24 00:00')

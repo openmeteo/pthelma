@@ -604,8 +604,21 @@ class Timeseries(dict):
             # Timeseries object timestamps are always stored naively, so we
             # must add the timeseries' utcoffset to d to make it
             # consistent.
-            return _datetime_to_time_t(d) + TzinfoFromString(
-                self.timezone).utcoffset(None).seconds
+            return _datetime_to_time_t(d) + int(TzinfoFromString(
+                self.timezone).utcoffset(None).total_seconds())
+
+    def __time_t_to_datetime(self, t):
+        """Return a datetime key for the time series.
+
+        t is a time_t internally stored as an index for the time series. This
+        function returns the datetime that corresponds to it. If the Timeseries
+        object is naive, the datetime object returned is naive. Otherwise,
+        an aware datetime object is returned.
+        """
+        result = _time_t_to_datetime(t)
+        if self.timezone:
+            result = result.replace(tzinfo=TzinfoFromString(self.timezone))
+        return result
 
     def delete_items(self, date1, date2):
         bd = self.bounding_dates()
@@ -633,7 +646,7 @@ class Timeseries(dict):
         i = 0
         while i < dickinson.ts_length(self.ts_handle):
             rec = dickinson.ts_get_item(self.ts_handle, c_int(i))
-            a.append(_time_t_to_datetime(rec.timestamp))
+            a.append(self.__time_t_to_datetime(rec.timestamp))
             i += 1
         return a
 
@@ -641,7 +654,7 @@ class Timeseries(dict):
         i = 0
         while i < dickinson.ts_length(self.ts_handle):
             rec = dickinson.ts_get_item(self.ts_handle, c_int(i))
-            yield _time_t_to_datetime(rec.timestamp)
+            yield self.__time_t_to_datetime(rec.timestamp)
             i += 1
     __iter__ = iterkeys
 
@@ -996,8 +1009,8 @@ class Timeseries(dict):
         if len(self):
             rec1 = dickinson.ts_get_item(self.ts_handle, c_int(0))
             rec2 = dickinson.ts_get_item(self.ts_handle, c_int(len(self) - 1))
-            return _time_t_to_datetime(rec1.timestamp),\
-                _time_t_to_datetime(rec2.timestamp)
+            return self.__time_t_to_datetime(rec1.timestamp),\
+                self.__time_t_to_datetime(rec2.timestamp)
         else:
             return None
 
@@ -1012,7 +1025,7 @@ class Timeseries(dict):
             i = pos
         while i < dickinson.ts_length(self.ts_handle):
             rec = dickinson.ts_get_item(self.ts_handle, c_int(i))
-            a.append((_time_t_to_datetime(rec.timestamp),
+            a.append((self.__time_t_to_datetime(rec.timestamp),
                      _Tsvalue(float('NaN') if rec.null else rec.value,
                               rec.flags.split())))
             if pos is not None:
@@ -1036,7 +1049,7 @@ class Timeseries(dict):
         rec = dickinson.ts_get_item(self.ts_handle, c_int(self.index(date,
                                     downwards)))
         return (
-            _time_t_to_datetime(rec.timestamp),
+            self.__time_t_to_datetime(rec.timestamp),
             _Tsvalue(float('NaN') if rec.null else rec.value,
                      rec.flags.decode('ascii').split()))
 

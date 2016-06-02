@@ -9,7 +9,7 @@ import iso8601
 import numpy as np
 from osgeo import gdal, ogr, osr
 
-from pthelma.cliapp import CliApp, WrongValueError
+from pthelma.cliapp import CliApp, InvalidOptionError, WrongValueError
 from pthelma.spatial import NODATAVALUE
 from pthelma.timeseries import Timeseries, TimeStep
 
@@ -370,7 +370,7 @@ class VaporizeApp(CliApp):
         # Option                           Default
         'base_dir':                        None,
         'step_length':                     None,
-        'elevation':                       None,
+        'elevation':                       '',
         'albedo':                          None,
         'nighttime_solar_radiation_ratio': 0.6,
         'unit_converter_temperature':      'x',
@@ -434,6 +434,11 @@ class VaporizeApp(CliApp):
 
     def read_configuration_elevation(self):
         s = self.config['General']['elevation']
+        if s == '':
+            # In this case, only hts files are allowed, which should contain
+            # the elevation in the files. More checks are made elsewhere.
+            self.elevation = None
+            return
         self.elevation = self.get_number_or_grid(s)
         if np.any(self.elevation < -427) or np.any(self.elevation > 8848):
             raise WrongValueError('The elevation must be between -427 '
@@ -542,6 +547,11 @@ class VaporizeApp(CliApp):
                 .format(self.base_dir))
 
     def execute_spatial(self):
+        # Make sure elevation has been specified
+        if self.elevation is None:
+            raise WrongValueError(
+                'elevation needs to be specified in the configuration file')
+
         # List all input wind speed files
         pattern = self.config['General']['wind_speed_prefix'] + '-*.tif'
         wind_speed_files = glob(pattern)
@@ -571,6 +581,12 @@ class VaporizeApp(CliApp):
         self.remove_extra_evaporation_files(timestamps)
 
     def execute_point(self):
+        # Make sure elevation has not been specified
+        if self.elevation is not None:
+            raise InvalidOptionError(
+                'elevation should only be specified in the configuration file '
+                'in spatial calculation')
+
         # Read input time series
         input_timeseries = {}
         for name in ('temperature_min', 'temperature_max', 'temperature',
@@ -628,12 +644,13 @@ class VaporizeApp(CliApp):
             unit_converters=self.unit_converters)
 
         # Create output timeseries object
+        precision = 2 if self.step == timedelta(hours=1) else 1
         pet = Timeseries(
             time_step=TimeStep(length_minutes=self.step.total_seconds() / 60),
             unit='mm',
             timezone=timezone,
             variable='Potential Evapotranspiration',
-            precision=1,
+            precision=precision,
             location={'abscissa': abscissa, 'ordinate': ordinate,
                       'srid': srid, 'altitude': altitude})
 
@@ -641,7 +658,7 @@ class VaporizeApp(CliApp):
         # based mainly on the step.
         if self.step == timedelta(hours=1):
             variables = ('temperature', 'humidity', 'wind_speed',
-                         'solar radiation')
+                         'solar_radiation')
         elif self.step == timedelta(days=1):
             variables = (
                 'temperature_max', 'temperature_min', 'humidity_max',
@@ -657,7 +674,7 @@ class VaporizeApp(CliApp):
             try:
                 kwargs = {v: input_timeseries[v][adatetime]
                           for v in variables}
-            except IndexError:
+            except (IndexError, KeyError):
                 continue
             kwargs['adatetime'] = adatetime
             pet[adatetime] = self.penman_monteith.calculate(**kwargs)
