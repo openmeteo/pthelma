@@ -1,3 +1,9 @@
+0.13.0 (2016-07-06)
+-------------------
+
+- vaporize can now calculate evaporation time series at specific points
+  in addition to evaporation rasters at specific times.
+
 0.12.0 (2015-09-11)
 -------------------
 
