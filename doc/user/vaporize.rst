@@ -189,7 +189,7 @@ Parameters
    humidity                  %
    wind speed                m/s
    pressure                  kPa
-   solar radiation           MJ/m²/h
+   solar radiation           MJ/m²/step
    sunshine duration         h
    ========================  =====================
    
