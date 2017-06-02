@@ -1,3 +1,8 @@
+0.14.0 (2017-06-02)
+-------------------
+
+- Relaxed gdal version requirements; 2.x is now accepted.
+
 0.13.0 (2016-07-06)
 -------------------
 

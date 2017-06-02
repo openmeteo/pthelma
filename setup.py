@@ -82,7 +82,7 @@ installation_requirements = ["pytz",
                              ]
 if sys.platform != 'win32':
     installation_requirements.extend(["numpy>=1.5,<2",
-                                      "gdal>=1.9,<2",
+                                      "gdal>=1.9,<3",
                                       ])
 else:
     installation_requirements.extend(["pyodbc>=3,<4",
