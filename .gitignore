@@ -35,3 +35,6 @@ nosetests.xml
 
 man/loggertodb.1
 doc/_build
+
+# Mac Related
+.DS_Store
