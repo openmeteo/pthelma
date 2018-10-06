@@ -19,12 +19,11 @@
 .. |DP_i| replace:: DP\ :sub:`i`
 .. |K_s| replace:: K\ :sub:`s`
 
-.. class:: SoilWaterBalance(fc, wp, rd, kc, p, precipitation, evapotranspiration, irrigation_efficiency, rd_factor=1)
+.. class:: SoilWaterBalance(fc, wp, rd, kc, peff, irrigation_efficiency, precipitation, evapotranspiration, a=0, b=0, , rd_factor=1000, draintime=None)
 
    Calculates soil water balance. The init parameters provide values
-   for some of the attributes (see below). The heart of the class is
-   the :meth:`root_zone_depletion` method; see its documentation for
-   the methodology used.
+   for some of the attributes (see below).
+   (:ref:`Malamos et al. (2015) <malamos1>`, :ref:`Malamos et al. (2016) <malamos2>`)
 
    .. attribute:: evapotranspiration
 
@@ -44,7 +43,7 @@
 
       The crop coefficient, provided at class initialization time.
 
-   .. attribute:: p
+   .. attribute:: peff
 
       The crop depletion fraction, i.e. RAW/TAW, provided at class
       initialization time.
@@ -77,6 +76,26 @@
       water depth variables are in mm, specify
       ``rd_factor=1000``. Provided at class initialization time.
 
+   .. attribute:: a
+
+      The :attr:`a` is coefficient of draintime function with default zero.
+
+   .. attribute:: b
+
+      The :attr:`b` is coefficient of draintime function with default zero.
+
+   .. attribute:: draintime
+
+      The draintime is the time required for the soil to remove excess water up
+      to field capacity :attr:`Fc` in mm.
+
+      If not provided, draintime use calculation formula based on attr:`a`,
+      :attr:`b` and :attr:`rd` (m):
+
+         draitime = (:attr:`a` * (:attr:`rd` * 100) ** :attr:`b`
+
+      Returns draintime in days.
+
    .. attribute:: taw
 
       The total available water:
@@ -87,102 +106,27 @@
 
       The wilting point, provided at class initialization time.
 
-   .. attribute:: depletion_report
+   .. attribute:: wbm_report
 
       A list with the intermediate calculations made by
       :meth:`root_zone_depletion`. Before the first time the method is
       called, it is an empty list.
 
-   .. method:: root_zone_depletion(start_date, initial_soil_moisture, end_date)
+   .. method:: water_balance(theta_init, theta_init, irr_event_days, start_date, end_date, FC_IRT=1, Dr_historical=None, as_report=False)
 
-      This method calculates, in a simplified way, the root zone
-      depletion.  The basis for the calculation is this formula:
-
-         |D_ri| = |D_ri-1| - (|P_i| - |RO_i|) - |IR_ni| - |CR_i| + |ET_ci| + |DP_i|
-
-      (:ref:`FAO56 <fao56>`, p. 170 eq. 85)
-
-      where:
-
-      * i is the current time period (i.e. the current day).
-      * |D_ri| is the root zone depletion at the end of the previous time
-        period.
-      * |P_i| is the precipitation.
-      * |RO_i| is the runoff.
-      * |IR_ni| is the net irrigation depth.
-      * |CR_i| is the capillary rise.
-      * |ET_ci| is the crop evapotranspiration.
-      * |DP_i| is the water loss through deep percolation.
-
-      with the following limits imposed on |D_ri|:
-
-         0 <= |D_ri| <= :attr:`taw`
-
-      (:ref:`FAO56 <fao56>`, p. 170 eq. 86)
-
-      |RO_i|, |CR_i| and |DP_i| are ignored and considered zero. The
-      equation therefore becomes:
-
-         |D_ri| = |D_ri-1| - |P_i| - |IR_ni| + |ET_ci|
-
-      |ET_ci| is calculated using crop coefficient approach by
-      multiplying :attr:`evapotranspiration` by  crop coefficient
-      :attr:`kc`.
-
-      The essential simplifying assumption of this method is that each
-      time we irrigate we reach field capacity (i.e. zero depletion).
-      Therefore, at the last irrigation date we have i=1 and |D_r1|\
-      =0. The equation then becomes:
-
-         |D_ri| = |D_ri-1| - |P_i| + |ET_ci|
-
-      (we do not use |IR_ni|, since, if we irrigated, according to our
-      assumption, we would restart with i=1 and |D_r1|\ =0).
-
-      The point i=1 is specified by *start_date*, which is a
-      :class:`~datetime.datetime` object. The *initial_soil_moisture*
-      will usually equal :attr:`fc` (this, according to the essential
-      simplifying assumption, means that the crop was irrigated on
-      *start_date*). However, if the crop has not been irrigated
-      recently, *initial_soil_moisture* will be set to another value
-      (such as a soil moisture measurement made at *start_date*).
-
-      Soil moisture and depletion are related with this formula:
-
-         moisture = fc - depletion / (rd * rd_factor)
-
-      (:ref:`FAO56 <fao56>`, p. 170 eq. 87)
-
-      so, since the *initial_soil_moisture* is given, |D_r1| is also
-      known.
-
-      The method returns the root zone depletion for *end_date* in
-      millimeters (mm).  :attr:`precipitation` and :attr:`evaporation`
-      must have non-null records for all days from the day following
-      *start_date* to *end_date*.
-
-   .. method:: irrigation_water_amount(start_date, initial_soil_moisture, end_date)
-
-      This method calculates irrigation water needs based on
-      :meth:`root_zone_depletion` and  :attr:`irrigation_efficiency`
-      factor (i.e. drip, sprinkler).
+      This method calculates irrigation water needs.
 
       The method returns irrigation water needs for *end_date* in
       millimeters (mm).
 
-   .. method:: ks_calc(depletion)
+      :attr:`irr_event_days` is an empty list in no irrigation days or a list of
+      tuples in the form [ (datatime, water_amount)]
 
-      This method calculates the dimensionless transiration reduction
-      factor, |K_s|, that depends on the available soil water
-      :attr:`taw` and :attr:`raw` (:ref:`FAO56 <fao56>`, p. 169 eq.
-      84).  When :meth:`root_zone_depletion` is smaller than
-      :attr:`raw`, |K_s| is equal to 1.
+      If :attr:`Dr_historical` is defined then its used in model initial values.
 
-   .. method:: taw_percents(soil_moisture)
+      If :attr:`as_report` is set as True, the method return model run as list
+      of dictionary for each day.
 
-      This method calculates the percents of :attr:`taw` and
-      :attr:`raw` respectively, given available soil moisture
-      conditions.
 
 References
 ----------
@@ -192,3 +136,18 @@ References
 R. G. Allen, L. S. Pereira, D. Raes, and M. Smith, Crop evapotranspiration -
 Guidelines for computing crop water requirements, FAO Irrigation and drainage
 paper no. 56, 1998.
+
+.. _malamos1:
+
+Malamos, N., Tsirogiannis, I.L., Christofides, A., and Anastasiadis,S.,
+IRMA_SYS: a web-based irrigation management tool for agricultural cultivations
+and urban landscapes.
+In: IrriMed 2015 – Modern technologies, strategies and tools for sustainable
+irrigation management and governance in Mediterranean agriculture. Bari, Italy, 2015.
+
+.. _malamos2:
+
+Malamos, N., Tsirogiannis, I.L., and Christofides, A.,
+Modelling irrigation management services: the IRMA_SYS case.
+International Journal of Sustainable Agricultural Management and Informatics,
+2 (1), 1–18, 2016.
