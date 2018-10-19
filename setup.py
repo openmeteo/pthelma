@@ -79,6 +79,7 @@ installation_requirements = ["pytz",
                              "six>=1.9,<2",
                              "iso8601",
                              "affine",
+                             "pandas>=0.23",
                              ]
 if sys.platform != 'win32':
     installation_requirements.extend(["numpy>=1.5,<2",

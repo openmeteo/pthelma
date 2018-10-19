@@ -2,6 +2,7 @@ from datetime import datetime
 from six import StringIO
 
 import iso8601
+import pandas as pd
 import requests
 
 
@@ -70,17 +71,17 @@ def delete_model(base_url, session_cookies, model, id):
         raise requests.exceptions.HTTPError()
 
 
-def read_tsdata(base_url, session_cookies, ts):
-    r = requests.get(base_url + 'api/tsdata/{0}/'.format(ts.id),
+def read_tsdata(base_url, session_cookies, ts_id):
+    r = requests.get(base_url + 'api/tsdata/{0}/'.format(ts_id),
                      cookies=session_cookies)
     r.raise_for_status()
-    ts.read(StringIO(r.text))
+    return pd.read_csv(StringIO(r.text), header=None, parse_dates=True, index_col=0)
 
 
-def post_tsdata(base_url, session_cookies, timeseries):
+def post_tsdata(base_url, session_cookies, timeseries_id, ts):
     f = StringIO()
-    timeseries.write(f)
-    url = urljoin(base_url, 'api/tsdata/{}/'.format(timeseries.id))
+    ts.to_csv(f, header=False)
+    url = urljoin(base_url, 'api/tsdata/{}/'.format(timeseries_id))
     r = requests.post(
         url,
         data={'timeseries_records': f.getvalue()},

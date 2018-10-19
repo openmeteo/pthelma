@@ -33,10 +33,10 @@ from unittest import TestCase, skipUnless
 
 from six import StringIO
 
+import pandas as pd
 import requests
 
 from pthelma import enhydris_api
-from pthelma.timeseries import Timeseries
 
 
 @skipUnless(os.getenv('PTHELMA_TEST_ENHYDRIS_API'),
@@ -103,6 +103,49 @@ def get_after_blank_line(s):
 
 @skipUnless(os.getenv('PTHELMA_TEST_ENHYDRIS_API'),
             'set PTHELMA_TEST_ENHYDRIS_API')
+class ReadTsDataTestCase(TestCase):
+    test_timeseries = textwrap.dedent("""\
+                                      2014-01-01 08:00,11,
+                                      2014-01-02 08:00,12,
+                                      2014-01-03 08:00,13,
+                                      2014-01-04 08:00,14,
+                                      2014-01-05 08:00,15,
+                                      """)
+
+    def setUp(self):
+        # Login
+        v = json.loads(os.getenv('PTHELMA_TEST_ENHYDRIS_API'))
+        self.base_url = v["base_url"]
+        self.cookies = enhydris_api.login(v['base_url'], v['user'], v['password'])
+
+        # Create a time series in the database
+        j = {
+            'gentity': v['station_id'],
+            'variable': v['variable_id'],
+            'unit_of_measurement': v['unit_of_measurement_id'],
+            'time_zone': v['time_zone_id'],
+            'precision': 0,
+        }
+        self.ts_id = enhydris_api.post_model(
+            self.base_url, self.cookies, 'Timeseries', j
+        )
+
+        # Upload some data
+        self.ts = pd.read_csv(
+            StringIO(self.test_timeseries),
+            header=None,
+            parse_dates=True,
+            index_col=0
+        )
+        enhydris_api.post_tsdata(self.base_url, self.cookies, self.ts_id, self.ts)
+
+    def test_read_tsdata(self):
+        ts_db = enhydris_api.read_tsdata(self.base_url, self.cookies, self.ts_id)
+        pd.testing.assert_frame_equal(ts_db, self.ts)
+
+
+@skipUnless(os.getenv('PTHELMA_TEST_ENHYDRIS_API'),
+            'set PTHELMA_TEST_ENHYDRIS_API')
 class PostTsDataTestCase(TestCase):
     test_timeseries = textwrap.dedent("""\
                                       2014-01-01 08:00,11,
@@ -130,26 +173,34 @@ class PostTsDataTestCase(TestCase):
                                         j)
 
         # Now upload some data
-        ts = Timeseries(ts_id)
-        ts.read(StringIO(self.test_timeseries_top))
-        enhydris_api.post_tsdata(v['base_url'], cookies, ts)
+        ts = pd.read_csv(
+            StringIO(self.test_timeseries_top),
+            header=None,
+            parse_dates=True,
+            index_col=0
+        )
+        enhydris_api.post_tsdata(v['base_url'], cookies, ts_id, ts)
 
         # Read and check the time series
         url = enhydris_api.urljoin(v['base_url'],
-                                   'timeseries/d/{}/download/'.format(ts.id))
+                                   'timeseries/d/{}/download/'.format(ts_id))
         r = requests.get(url, cookies=cookies)
         r.raise_for_status()
         self.assertEqual(get_after_blank_line(r.text),
                          self.test_timeseries_top)
 
         # Upload more data
-        ts = Timeseries(ts_id)
-        ts.read(StringIO(self.test_timeseries_bottom))
-        enhydris_api.post_tsdata(v['base_url'], cookies, ts)
+        ts = pd.read_csv(
+            StringIO(self.test_timeseries_bottom),
+            header=None,
+            parse_dates=True,
+            index_col=0
+        )
+        enhydris_api.post_tsdata(v['base_url'], cookies, ts_id, ts)
 
         # Read and check the time series
         url = enhydris_api.urljoin(v['base_url'],
-                                   'timeseries/d/{}/download/'.format(ts.id))
+                                   'timeseries/d/{}/download/'.format(ts_id))
         r = requests.get(url, cookies=cookies)
         r.raise_for_status()
         self.assertEqual(get_after_blank_line(r.text),
@@ -186,9 +237,8 @@ class GetTsEndDateTestCase(TestCase):
         self.assertEqual(date.isoformat(), '0001-01-01T00:00:00')
 
         # Now upload some data
-        ts = Timeseries(ts_id)
-        ts.read(StringIO(self.test_timeseries))
-        enhydris_api.post_tsdata(v['base_url'], cookies, ts)
+        ts = pd.read_csv(StringIO(self.test_timeseries), parse_dates=True, index_col=0)
+        enhydris_api.post_tsdata(v['base_url'], cookies, ts_id, ts)
 
         # Get its last date
         date = enhydris_api.get_ts_end_date(v['base_url'], cookies, ts_id)

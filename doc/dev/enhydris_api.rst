@@ -61,17 +61,16 @@ Enhydris API.
    Deletes the specified model. See :func:`get_model` for the
    parameters.
 
-.. function:: read_tsdata(base_url, session_cookies, ts)
+.. function:: read_tsdata(base_url, session_cookies)
 
-   Retrieves the time series data into *ts*, which must be a
-   :class:`~timeseries.Timeseries` object.
+   Retrieves the time series data into a pandas dataframe indexed by date that
+   it returns.
 
-.. function:: post_tsdata(base_url, session_cookies, timeseries)
+.. function:: post_tsdata(base_url, session_cookies, timeseries_id, ts)
 
    Posts a time series to Enhydris "api/tsdata", appending the records
    to any already existing. *session_cookies* is the value returned
-   from :func:`.login`; *timeseries* is a
-   :class:`~timeseries.Timeseries` object that has :attr:`id` defined.
+   from :func:`.login`; *ts* is a pandas dataframe indexed by date.
 
 .. function:: get_ts_end_date(base_url, session_cookies, ts_id)
 
