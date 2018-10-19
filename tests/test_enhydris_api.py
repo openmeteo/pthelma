@@ -124,6 +124,7 @@ class PostTsDataTestCase(TestCase):
             'variable': v['variable_id'],
             'unit_of_measurement': v['unit_of_measurement_id'],
             'time_zone': v['time_zone_id'],
+            'precision': 0,
         }
         ts_id = enhydris_api.post_model(v['base_url'], cookies, 'Timeseries',
                                         j)
