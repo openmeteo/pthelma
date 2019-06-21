@@ -1,14 +1,24 @@
 pthelma
 =======
 
-``pthelma`` is a Python library with utilities for hydrological and
-meteorological time series processing, including a program
-(``loggertodb``) that parses files by meteorological loggers and
-uploads its data to a database. So that timeseries handling is fast
-and memory-efficient, some parts of ``pthelma`` are front-ends to
-the `dickinson library`_, which is written in C.
+``pthelma`` is obsolete.
 
-For more information about ``pthelma``, read `its documentation`_.
+It has been replaced by the following packages:
 
-.. _dickinson library: https://github.com/openmeteo/dickinson/
-.. _its documentation: http://pthelma.readthedocs.org/
+* enhydris-api-client_
+* enhydris-cache_
+* evaporation_
+* loggertodb_
+* haggregate_
+* hspatial_
+* htimeseries_
+* swb_
+
+.. _enhydris-api-client: https://github.com/openmeteo/enhydris-api-client
+.. _enhydris-cache: https://github.com/openmeteo/enhydris-cache
+.. _evaporation: https://github.com/openmeteo/evaporation
+.. _loggertodb: https://github.com/openmeteo/loggertodb
+.. _haggregate: https://github.com/openmeteo/haggregate
+.. _hspatial: https://github.com/openmeteo/hspatial
+.. _htimeseries: https://github.com/openmeteo/htimeseries
+.. _swb: https://github.com/openmeteo/swb

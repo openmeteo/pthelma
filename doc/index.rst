@@ -1,6 +1,31 @@
 Pthelma
 =======
 
+Deprecation notice
+------------------
+
+``pthelma`` is obsolete.
+
+It has been replaced by the following packages:
+
+* enhydris-api-client_
+* enhydris-cache_
+* evaporation_
+* loggertodb_
+* haggregate_
+* hspatial_
+* htimeseries_
+* swb_
+
+.. _enhydris-api-client: https://github.com/openmeteo/enhydris-api-client
+.. _enhydris-cache: https://enhydris-cache.readthedocs.io/
+.. _evaporation: https://evaporation.readthedocs.io/
+.. _loggertodb: https://loggertodb.readthedocs.io/
+.. _haggregate: https://haggregate.readthedocs.io/
+.. _hspatial: https://hspatial.readthedocs.io/
+.. _htimeseries: https://github.com/openmeteo/htimeseries
+.. _swb: https://swb.readthedocs.io/
+
 User documentation
 ------------------
 
