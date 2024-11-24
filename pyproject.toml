@@ -43,6 +43,7 @@ classifiers = [
 
 [project.scripts]
 spatialize = "hspatial.cli:main"
+vaporize = "evaporation.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/openmeteo/pthelma"

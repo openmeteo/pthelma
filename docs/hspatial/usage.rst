@@ -1,3 +1,5 @@
+.. _hspatial_usage:
+
 =====
 Usage
 =====
@@ -80,11 +82,13 @@ Parameters
 ----------
 
 .. confval:: loglevel
+   :noindex:
 
    Optional. Can have the values ``ERROR``, ``WARNING``, ``INFO``, ``DEBUG``.
    The default is ``WARNING``.
 
 .. confval:: logfile
+   :noindex:
 
    Optional. The full pathname of a log file. If unspecified, log
    messages will go to the standard error.

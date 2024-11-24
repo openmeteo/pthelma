@@ -11,6 +11,15 @@ htimeseries
 
    htimeseries
 
+evaporation - Calculation of evaporation and transpiration
+==========================================================
+
+.. toctree::
+   :maxdepth: 1
+
+   evaporation/usage
+   evaporation/api
+
 hspatial - Spatial integration of time series
 =============================================
 

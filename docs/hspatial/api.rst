@@ -1,4 +1,4 @@
-.. _api:
+.. _hspatial_api:
 
 ===
 API
