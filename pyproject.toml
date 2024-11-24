@@ -8,9 +8,18 @@ name = "pthelma"
 requires-python = ">=3.10"
 dependencies = [
     "pandas>=2.2,<3",
-    "iso8601",
-    "textbisect",
+    "iso8601>=2.1,<3",
+    "textbisect>=0.1,<1",
     "tzdata",
+    "Click>=7.0,<9",
+    "simpletail>=1,<2",
+    "affine>=2.4,<3",
+    "gdal>=1.10,<4",
+    "django>=3.2,<6",
+
+    # numpy<2 is needed for gdal; otherwise numpy>=2 may be installed through
+    # pandas, which is unsuitable.
+    "numpy<2",
 ]
 authors = [
     {name = "Antonis Christofides", email = "antonis@antonischristofides.com"},
@@ -31,6 +40,9 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
 ]
+
+[project.scripts]
+spatialize = "hspatial.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/openmeteo/pthelma"
