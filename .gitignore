@@ -34,4 +34,7 @@ nosetests.xml
 .pydevproject
 
 man/loggertodb.1
-doc/_build
+docs/_build
+
+# setuptools-scm
+_version.py

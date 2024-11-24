@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=61.0", "setuptools-scm>=7.1"]
+build-backend = "setuptools.build_meta"
+
+[project]
+dynamic = ["version"]
+name = "pthelma"
+requires-python = ">=3.10"
+dependencies = [
+    "pandas>=2.2,<3",
+    "iso8601",
+    "textbisect",
+    "tzdata",
+]
+authors = [
+    {name = "Antonis Christofides", email = "antonis@antonischristofides.com"},
+]
+maintainers = [
+    {name = "Antonis Christofides", email = "antonis@antonischristofides.com"},
+]
+description = "Utilities for hydrological and meteorological time series processing"
+readme = "README.rst"
+keywords = ["time series"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
+[project.urls]
+Homepage = "https://github.com/openmeteo/pthelma"
+Documentation = "https://pthelma.readthedocs.io"
+Repository = "https://github.com/openmeteo/pthelma"
+Changelog = "https://github.com/openmeteo/pthelma/blob/master/CHANGELOG.rst"
+
+[tool.flake8]
+exclude = ["docs"]
+max-line-length = 88
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools_scm]
+write_to = "src/pthelma/_version.py"
