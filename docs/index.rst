@@ -20,6 +20,15 @@ evaporation - Calculation of evaporation and transpiration
    evaporation/usage
    evaporation/api
 
+haggregate - Aggregation of htimeseries to larger steps
+=======================================================
+
+.. toctree::
+   :maxdepth: 1
+
+   haggregate/usage
+   haggregate/api
+
 hspatial - Spatial integration of time series
 =============================================
 
