@@ -11,7 +11,7 @@ on:
 jobs:
   build:
 
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         include:
@@ -30,23 +30,39 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
+    - name: Create and activate venv
+      run: |
+        python -m venv ~/.venv
+        source ~/.venv/bin/activate
+        pip install -U pip 'setuptools>=61'
+
     - uses: actions/checkout@v3
 
     - name: Install Dependencies
       run: |
-        pip install codecov coverage isort flake8 'black<24' twine setuptools build
-        pip install -e .
+        sudo apt-get install -y gdal-bin libgdal-dev postgresql-14-postgis-3
+        source ~/.venv/bin/activate
+        # numpy<2 is needed early to compile regularize.pyx and for gdal to contain
+        # support for gdal array
+        pip install 'numpy<2'
+        python -c "import numpy; print(numpy.get_include())"
+        CPLUS_INCLUDE_PATH=/usr/include/gdal C_INCLUDE_PATH=/usr/include/gdal pip install --no-build-isolation 'gdal==3.4.1'
+        pip install coverage isort flake8 'black<25' twine setuptools build
+        C_INCLUDE_PATH=`python -c "import numpy; print(numpy.get_include())"` pip install -e .
 
     - name: Run Tests
       run: |
+        source ~/.venv/bin/activate
         black --check .
         flake8 --max-line-length=88 .
-        isort --check-only --diff *.py .
-        python3 -m build
+        isort --check-only --diff --profile=black *.py .
+        C_INCLUDE_PATH=`python -c "import numpy; print(numpy.get_include())"` python -m build
         twine check dist/*
         coverage run --include="./*" --omit="docs/","*/tests/*","_version.py" -m unittest -v
+        coverage json
 
     - name: Upload coverage to Codecov
       if: matrix.include-codecov == true
-      run: |
-        codecov
+      uses: codecov/codecov-action@v4
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}

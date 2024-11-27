@@ -1,6 +1,21 @@
 pthelma
 =======
 
+.. image:: https://github.com/openmeteo/pthelma/actions/workflows/run-tests-automatically.yml/badge.svg
+    :alt: Build button
+    :target: https://github.com/openmeteo/pthelma/actions/workflows/run-tests-automatically.yml
+
+.. image:: https://codecov.io/github/openmeteo/pthelma/coverage.svg?branch=master
+    :alt: Coverage
+    :target: https://codecov.io/gh/openmeteo/pthelma
+
+.. image:: https://img.shields.io/pypi/v/pthelma.svg
+        :target: https://pypi.python.org/pypi/pthelma
+
+.. image:: https://pyup.io/repos/github/openmeteo/pthelma/shield.svg
+         :target: https://pyup.io/repos/github/openmeteo/pthelma/
+         :alt: Updates
+
 A Python library with utilities for hydrological and meteorological time
 series processing.
 
