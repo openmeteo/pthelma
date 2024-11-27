@@ -39,6 +39,16 @@ hspatial - Spatial integration of time series
    hspatial/api
    hspatial/testutils
 
+Enhydris utilities
+==================
+
+.. toctree::
+   :maxdepth: 1
+
+   enhydris_api_client
+   enhydris_cache/usage
+   enhydris_cache/api
+
 Meta
 ====
 

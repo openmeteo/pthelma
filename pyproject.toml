@@ -16,6 +16,7 @@ dependencies = [
     "affine>=2.4,<3",
     "gdal>=1.10,<4",
     "django>=3.2,<6",
+    "requests>=1,<3",
 
     # numpy<2 is needed for gdal; otherwise numpy>=2 may be installed through
     # pandas, which is unsuitable.
@@ -45,6 +46,7 @@ classifiers = [
 spatialize = "hspatial.cli:main"
 vaporize = "evaporation.cli:main"
 haggregate = "haggregate.cli:main"
+enhydris-cache = "enhydris_cache.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/openmeteo/pthelma"
