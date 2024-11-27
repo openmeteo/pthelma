@@ -1,8 +1,8 @@
 .. _haggregate_usage:
 
-=====
-Usage
-=====
+==================================================
+haggregate - Aggregate htimeseries to larger steps
+==================================================
 
 Synopsis
 ========

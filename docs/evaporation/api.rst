@@ -1,8 +1,8 @@
 .. _evaporation_api:
 
-===
-API
-===
+===============
+evaporation API
+===============
 
 ``from evaporation import PenmanMonteith``
 

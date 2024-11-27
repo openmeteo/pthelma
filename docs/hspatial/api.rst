@@ -1,8 +1,8 @@
 .. _hspatial_api:
 
-===
-API
-===
+==============
+hspatial - API
+==============
 
 ``import hspatial``
 

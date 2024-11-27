@@ -1,8 +1,8 @@
 .. _evaporation_usage:
 
-=====
-Usage
-=====
+==================================================
+vaporize - Calculate evaporation and transpiration
+==================================================
 
 Synopsis
 ========

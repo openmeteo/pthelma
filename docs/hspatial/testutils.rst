@@ -1,8 +1,8 @@
 .. _testutils:
 
-==============
-Test utilities
-==============
+=======================
+hspatial test utilities
+=======================
 
 ``from hspatial.test import setup_test_raster``
 

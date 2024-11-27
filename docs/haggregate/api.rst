@@ -1,6 +1,6 @@
-===
-API
-===
+==============
+haggregate API
+==============
 
 .. function:: haggregate.regularize(ts, new_date_flag="DATEINSERT", mode=haggregate.RegularizationMode.INTERVAL)
 

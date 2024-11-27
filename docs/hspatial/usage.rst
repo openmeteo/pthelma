@@ -1,8 +1,8 @@
 .. _hspatial_usage:
 
-=====
-Usage
-=====
+============================================
+spatialize - Spatially integrate time series
+============================================
 
 Synopsis
 ========
