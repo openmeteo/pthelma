@@ -1,0 +1,1 @@
+setuptools_scm>=7.1
