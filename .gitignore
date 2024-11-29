@@ -33,8 +33,10 @@ nosetests.xml
 .project
 .pydevproject
 
-man/loggertodb.1
 docs/_build
 
 # setuptools-scm
 _version.py
+
+# cython
+src/haggregate/regularize.c
