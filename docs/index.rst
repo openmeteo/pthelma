@@ -4,6 +4,14 @@ pthelma - Utilities for hydrological and meteorological time series processing
 
 
 .. toctree::
+   :maxdepth: 1
+
+   install
+   license
+   changelog
+
+
+.. toctree::
    :maxdepth: 2
 
    htimeseries
@@ -37,10 +45,3 @@ pthelma - Utilities for hydrological and meteorological time series processing
    enhydris_api_client
    enhydris_cache/usage
    enhydris_cache/api
-
-
-.. toctree::
-   :maxdepth: 1
-
-   license
-   changelog
