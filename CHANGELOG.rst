@@ -2,10 +2,18 @@
 Changelog
 =========
 
-1.0.0 (2024-11)
-===============
+1.0.0 (2024-11-29)
+==================
 
 This is a different pthelma from the old 0.14, which had been abandoned
 in favor of a number of separate packages. However, maintaining all
 these separate packages was too cumbersome and now we re-combine them
 here.
+
+The packages recombined in pthelma 1.0.0 are:
+  * htimeseries 8.0
+  * hspatial 4.1
+  * evaporation 2.0
+  * haggregate 3.1
+  * enhydris-api-client 4.0
+  * enhydris-cache 2.0
