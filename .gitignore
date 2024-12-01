@@ -40,3 +40,4 @@ _version.py
 
 # cython
 src/haggregate/regularize.c
+src/rocc/calculation.c

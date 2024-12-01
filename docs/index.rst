@@ -29,6 +29,7 @@ pthelma - Utilities for hydrological and meteorological time series processing
 
    haggregate/usage
    haggregate/api
+   rocc
 
 
 .. toctree::

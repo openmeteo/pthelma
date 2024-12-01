@@ -1,6 +1,6 @@
 [build-system]
 # numpy<2 is not just a dependency, it's a build dependency, because it's
-# needed to build regularize.pyx (and the _gdal_array thing, which gdal won't
+# needed to build some .pyx files (and the _gdal_array thing, which gdal won't
 # build if numpy is not available at build time). It's at "<2" because of gdal;
 # pthelma can also use ">=2".
 requires = ["setuptools>=61.0", "setuptools-scm>=7.1", "cython", "numpy<2"]
