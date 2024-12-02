@@ -68,7 +68,7 @@ class HourlySumTestCase(TestCase):
         self.ts = HTimeseries(
             StringIO(tenmin_test_timeseries), default_tzinfo=ZoneInfo("Etc/GMT-2")
         )
-        self.result = aggregate(self.ts, "1H", "sum", min_count=3, missing_flag="MISS")
+        self.result = aggregate(self.ts, "1h", "sum", min_count=3, missing_flag="MISS")
 
     def test_length(self):
         self.assertEqual(len(self.result.data), 4)
@@ -106,12 +106,12 @@ class TimestampIrregularityTestCase(TestCase):
             default_tzinfo=ZoneInfo("Etc/GMT-2"),
         )
         with self.assertRaises(AggregateError):
-            aggregate(ts, "1H", "sum")
+            aggregate(ts, "1h", "sum")
 
 
 class WrongTimeStepTestCase(TestCase):
     def test_raises_exception(self):
-        msg = "The target step can currently only be 1H or 1D"
+        msg = "The target step can currently only be 1h or 1D"
         with self.assertRaisesRegex(AggregateError, msg):
             aggregate(HTimeseries(), "5D", "sum")
 
@@ -123,7 +123,7 @@ class HourlySumWithLargerMinCountTestCase(TestCase):
         self.ts = HTimeseries(
             StringIO(tenmin_test_timeseries), default_tzinfo=ZoneInfo("Etc/GMT-2")
         )
-        self.result = aggregate(self.ts, "1H", "sum", min_count=4, missing_flag="MISS")
+        self.result = aggregate(self.ts, "1h", "sum", min_count=4, missing_flag="MISS")
 
     def test_length(self):
         self.assertEqual(len(self.result.data), 3)
@@ -143,7 +143,7 @@ class HourlyMeanTestCase(TestCase):
         self.ts = HTimeseries(
             StringIO(tenmin_test_timeseries), default_tzinfo=ZoneInfo("Etc/GMT-2")
         )
-        self.result = aggregate(self.ts, "1H", "mean", min_count=3, missing_flag="MISS")
+        self.result = aggregate(self.ts, "1h", "mean", min_count=3, missing_flag="MISS")
 
     def test_length(self):
         self.assertEqual(len(self.result.data), 4)
@@ -176,7 +176,7 @@ class HourlyMeanWithOffsetTestCase(TestCase):
         )
         self.result = aggregate(
             self.ts,
-            "1H",
+            "1h",
             "mean",
             min_count=3,
             missing_flag="MISS",
@@ -214,7 +214,7 @@ class HourlyMeanWithNegativeOffsetTestCase(TestCase):
         )
         self.result = aggregate(
             self.ts,
-            "1H",
+            "1h",
             "mean",
             min_count=3,
             missing_flag="MISS",
@@ -250,7 +250,7 @@ class HourlyMaxTestCase(TestCase):
         self.ts = HTimeseries(
             StringIO(tenmin_test_timeseries), default_tzinfo=ZoneInfo("Etc/GMT-2")
         )
-        self.result = aggregate(self.ts, "1H", "max", min_count=3, missing_flag="MISS")
+        self.result = aggregate(self.ts, "1h", "max", min_count=3, missing_flag="MISS")
 
     def test_length(self):
         self.assertEqual(len(self.result.data), 4)
@@ -273,7 +273,7 @@ class HourlyMinTestCase(TestCase):
         self.ts = HTimeseries(
             StringIO(tenmin_test_timeseries), default_tzinfo=ZoneInfo("Etc/GMT-2")
         )
-        self.result = aggregate(self.ts, "1H", "min", min_count=3, missing_flag="MISS")
+        self.result = aggregate(self.ts, "1h", "min", min_count=3, missing_flag="MISS")
 
     def test_length(self):
         self.assertEqual(len(self.result.data), 4)
@@ -294,7 +294,7 @@ class HourlyMinTestCase(TestCase):
 class AggregateEmptyTestCase(TestCase):
     def test_completely_empty(self):
         ts = HTimeseries()
-        result = aggregate(ts, "1H", "sum", min_count=3, missing_flag="MISS")
+        result = aggregate(ts, "1h", "sum", min_count=3, missing_flag="MISS")
         self.assertEqual(len(result.data), 0)
 
     def test_empty_result_from_nonempty_source(self):
@@ -310,7 +310,7 @@ class AggregateEmptyTestCase(TestCase):
             ),
             default_tzinfo=ZoneInfo("Etc/GMT-2"),
         )
-        result = aggregate(ts, "1H", "sum", min_count=4, missing_flag="MISS")
+        result = aggregate(ts, "1h", "sum", min_count=4, missing_flag="MISS")
         self.assertEqual(len(result.data), 0)
 
 
@@ -320,7 +320,7 @@ class AllMissAggregateTestCase(TestCase):
             StringIO(tenmin_allmiss_test_timeseries),
             default_tzinfo=ZoneInfo("Etc/GMT-2"),
         )
-        self.result = aggregate(self.ts, "1H", "sum", min_count=1, missing_flag="MISS")
+        self.result = aggregate(self.ts, "1h", "sum", min_count=1, missing_flag="MISS")
 
     def test_length(self):
         self.assertEqual(len(self.result.data), 1)
@@ -338,7 +338,7 @@ class SetsMetadataTestCase(TestCase):
         self.ts.precision = 1
         self.ts.comment = "world"
         self.ts.timezone = "EET (+0200)"
-        self.result = aggregate(self.ts, "1H", "sum", min_count=3, missing_flag="MISS")
+        self.result = aggregate(self.ts, "1h", "sum", min_count=3, missing_flag="MISS")
 
     def test_sets_title(self):
         self.assertEqual(self.result.title, "Aggregated hello")
@@ -353,7 +353,7 @@ class SetsMetadataTestCase(TestCase):
         )
 
     def test_sets_time_step(self):
-        self.assertEqual(self.result.time_step, "1H")
+        self.assertEqual(self.result.time_step, "1h")
 
     def test_sets_timezone(self):
         self.assertEqual(self.result.timezone, "EET (+0200)")

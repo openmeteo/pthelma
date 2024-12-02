@@ -53,7 +53,7 @@ explanatory comments that follow it:
     loglevel = INFO
     logfile = /var/log/haggregate/haggregate.log
     base_dir = /var/cache/timeseries/
-    target_step = 1H
+    target_step = 1h
     min_count = 2
     missing_flag = DATEINSERT
 
@@ -69,7 +69,7 @@ explanatory comments that follow it:
 
 With the above configuration file, ``haggregate`` will log information
 in the file specified by ``logfile``. It will aggregate the
-specified time series into hourly (``1H``). The filenames specified with
+specified time series into hourly (``1h``). The filenames specified with
 :option:`source_file` and :option:`target_file` are relative to
 ``base_dir``. For the temperature, source records will be
 averaged, whereas for rainfall they will be summed.
@@ -108,8 +108,8 @@ General parameters
 .. option:: target_step
 
    A string specifying the target time step, as a pandas "frequency".
-   Examples of steps are "1D" for day, "1H" for hour, "1T" or "1min" for
-   minute. You can also use larger multipliers, like "30T" for 30 minutes.
+   Examples of steps are "1D" for day, "1h" for hour, "1min" for
+   minute. You can also use larger multipliers, like "30min" for 30 minutes.
    The program hasn't been tested for monthly or larger time steps.
 
 .. option:: target_timestamp_offset

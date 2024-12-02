@@ -106,7 +106,7 @@ class SourceTimeseries(HTimeseries):
                 )
         except ValueError:
             raise CannotInferFrequency()
-        first_timestamp = (current_range[0] - pd.Timedelta("1S")).floor(target_step)
+        first_timestamp = (current_range[0] - pd.Timedelta("1s")).floor(target_step)
         end_timestamp = current_range[-1].ceil(target_step)
         new_range = pd.date_range(first_timestamp, end_timestamp, freq=self.freq)
         self.data = self.data.reindex(new_range)
@@ -116,8 +116,8 @@ class AggregatedTimeseries(HTimeseries):
     def set_metadata(self, source_timeseries):
         for attr in attrs:
             setattr(self, attr, getattr(source_timeseries, attr, None))
-        if self.time_step not in ("1H", "1D"):
-            raise AggregateError("The target step can currently only be 1H or 1D")
+        if self.time_step not in ("1h", "1D"):
+            raise AggregateError("The target step can currently only be 1h or 1D")
         if hasattr(source_timeseries, "title"):
             self.title = "Aggregated " + source_timeseries.title
         if hasattr(source_timeseries, "comment"):
@@ -140,7 +140,7 @@ class AggregatedTimeseries(HTimeseries):
 
 
 def _get_offset_in_minutes(timestamp_offset):
-    m = re.match(r"(-?)(\d*)(T|min)$", timestamp_offset)
+    m = re.match(r"(-?)(\d*)min$", timestamp_offset)
     if not m:
         raise AggregateError(
             "The target timestamp offset can currently only be a number of minutes "
