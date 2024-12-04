@@ -153,10 +153,10 @@ class AppConfig:
         self.time_step = s
 
     def _check_time_step(self, s):
-        if s not in ("D", "H"):
+        if s not in ("D", "h"):
             raise WrongValueError(
                 '"{}" is not an appropriate time step; in this version of '
-                "vaporize, the step must be either D or H.".format(s)
+                "vaporize, the step must be either D or h.".format(s)
             )
 
     def _parse_unit_converters(self):
@@ -410,11 +410,11 @@ class ProcessAtPoint:
         self.pet.unit = "mm"
         self.pet.timezone = self.timezone
         self.pet.variable = "Potential Evapotranspiration"
-        self.pet.precision = 2 if self.config.time_step == "H" else 1
+        self.pet.precision = 2 if self.config.time_step == "h" else 1
         self.pet.location = self.location
 
     def _determine_variables_to_use_in_calculation(self):
-        if self.config.time_step == "H":
+        if self.config.time_step == "h":
             vars = ["temperature", "humidity", "wind_speed", "solar_radiation"]
             if "pressure" in self.input_timeseries:
                 vars.append("pressure")
@@ -569,7 +569,7 @@ class ProcessSpatial:
             self._read_input_geofile(var, timestamp)
 
     def _get_variables(self):
-        if self.config.time_step == "H":
+        if self.config.time_step == "h":
             return {
                 "temperature",
                 "humidity",

@@ -18,7 +18,7 @@ rocc - Rate-of-change check for time series
          thresholds=(
             Threshold("10min", 10),
             Threshold("20min", 15),
-            Threshold("H", 40),
+            Threshold("h", 40),
          ),
          symmetric=True,
          flag="MYFLAG",

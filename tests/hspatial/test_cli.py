@@ -518,9 +518,9 @@ class AppTestCase(TestCase):
 
         # Hourly
         with open(self.filenames[0], "w") as f:
-            f.write("Time_step=H\n\n")
+            f.write("Time_step=h\n\n")
         with open(self.filenames[1], "w") as f:
-            f.write("Time_step=H\n\n")
+            f.write("Time_step=h\n\n")
         self.assertEqual(application._date_fmt, "%Y-%m-%d %H:%M%z")
 
         # Daily

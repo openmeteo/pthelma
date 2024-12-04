@@ -45,7 +45,7 @@ class PenmanMonteith(object):
         self.unit_converters = unit_converters
 
     def calculate(self, **kwargs):
-        if self.time_step == "H":
+        if self.time_step == "h":
             return self.calculate_hourly(**kwargs)
         elif self.time_step == "D":
             return self.calculate_daily(**kwargs)

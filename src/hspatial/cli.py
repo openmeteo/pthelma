@@ -145,7 +145,7 @@ class App:
         """
         Determine date_fmt based on time series time step.
         """
-        if self._time_step.endswith("min") or self._time_step.endswith("H"):
+        if self._time_step.endswith("min") or self._time_step.endswith("h"):
             return "%Y-%m-%d %H:%M%z"
         elif self._time_step.endswith("D"):
             return "%Y-%m-%d"

@@ -44,7 +44,7 @@ evaporation API
    (negative for west or south). Only *latitude* needs to be specified
    for calculating daily evaporation.
 
-   *time_step* is a string: "D" for daily, "H" for hourly.
+   *time_step* is a string: "D" for daily, "h" for hourly.
 
    In order to estimate the outgoing radiation, the ratio of incoming
    solar radiation to clear sky solar radiation is used as a
