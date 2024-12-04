@@ -2,6 +2,12 @@
 Changelog
 =========
 
+2.0.0 (2024-12-04)
+==================
+
+We now use "h" instead of "H", and generally we use modern pandas time
+step ("frequency") designations.
+
 1.1.0 (2024-12-01)
 ==================
 
