@@ -43,8 +43,9 @@ class ConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
+                    f"""\
                     [General]
+                    logfile = {os.path.join(self.tempdir, "logfile")}
                     loglevel = HELLO
                     """
                 )
@@ -57,8 +58,9 @@ class ConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
+                    f"""\
                     [General]
+                    logfile = {os.path.join(self.tempdir, "logfile")}
                     loglevel = WARNING
 
                     [Temperature]
@@ -77,8 +79,9 @@ class ConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
+                    f"""\
                     [General]
+                    logfile = {os.path.join(self.tempdir, "logfile")}
                     loglevel = WARNING
 
                     [Temperature]
@@ -97,8 +100,9 @@ class ConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
+                    f"""\
                     [General]
+                    logfile = {os.path.join(self.tempdir, "logfile")}
                     loglevel = WARNING
 
                     [Temperature]
@@ -117,8 +121,9 @@ class ConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
+                    f"""\
                     [General]
+                    logfile = {os.path.join(self.tempdir, "logfile")}
                     loglevel = WARNING
 
                     [Temperature]
@@ -137,8 +142,9 @@ class ConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
+                    f"""\
                     [General]
+                    logfile = {os.path.join(self.tempdir, "logfile")}
                     loglevel = WARNING
 
                     [Temperature]
@@ -157,8 +163,9 @@ class ConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
+                    f"""\
                     [General]
+                    logfile = {os.path.join(self.tempdir, "logfile")}
                     loglevel = WARNING
 
                     [Temperature]
@@ -177,8 +184,9 @@ class ConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
+                    f"""\
                     [General]
+                    logfile = {os.path.join(self.tempdir, "logfile")}
                     loglevel = WARNING
 
                     [Temperature]
@@ -197,8 +205,9 @@ class ConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
+                    f"""\
                     [General]
+                    logfile = {os.path.join(self.tempdir, "logfile")}
                     loglevel = WARNING
 
                     [Temperature]
@@ -217,8 +226,9 @@ class ConfigurationTestCase(TestCase):
     def test_correct_configuration_executes(self, m):
         with open(self.configfilename, "w") as f:
             f.write(
-                """\
+                f"""\
                     [General]
+                    logfile = {os.path.join(self.tempdir, "logfile")}
                     loglevel = WARNING
 
                     [Temperature]
@@ -236,8 +246,9 @@ class ConfigurationTestCase(TestCase):
     def test_missing_auth_token_makes_it_none(self, m):
         with open(self.configfilename, "w") as f:
             f.write(
-                """\
+                f"""\
                     [General]
+                    logfile = {os.path.join(self.tempdir, "logfile")}
                     loglevel = WARNING
 
                     [Temperature]
@@ -258,9 +269,9 @@ class ConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
+                    f"""\
                     [General]
-                    logfile = {}
+                    logfile = {logfilename}
                     loglevel = WARNING
 
                     [Temperature]
@@ -269,9 +280,7 @@ class ConfigurationTestCase(TestCase):
                     timeseries_group_id = 5850
                     timeseries_id = 58505
                     file = /tmp/temperature.hts
-                    """.format(
-                        logfilename
-                    )
+                    """
                 )
             )
         cli.App(self.configfilename).run()
@@ -365,27 +374,28 @@ class EnhydrisCacheE2eTestCase(TestCase):
         with open(self.config_file, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
+                    f"""\
                     [General]
+                    logfile = {os.path.join(self.tempdir, "logfile")}
                     cache_dir = {self.tempdir}
 
                     [timeseries1]
-                    base_url = {base_url}
+                    base_url = {self.parms["base_url"]}
                     station_id = {self.station_id}
                     timeseries_group_id = {self.timeseries_group_id}
                     timeseries_id = {self.timeseries1_id}
                     file = file1
-                    auth_token = {self.parms[token]}
+                    auth_token = {self.parms["token"]}
 
                     [timeseries2]
-                    base_url = {base_url}
+                    base_url = {self.parms["base_url"]}
                     station_id = {self.station_id}
                     timeseries_group_id = {self.timeseries_group_id}
                     timeseries_id = {self.timeseries2_id}
                     file = file2
-                    auth_token = {self.parms[token]}
+                    auth_token = {self.parms["token"]}
                     """
-                ).format(self=self, base_url=self.parms["base_url"])
+                )
             )
 
     def tearDown(self):

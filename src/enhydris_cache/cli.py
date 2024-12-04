@@ -2,7 +2,6 @@ import configparser
 import datetime as dt
 import logging
 import os
-import sys
 import traceback
 
 import click
@@ -81,7 +80,6 @@ class AppConfig:
         try:
             self._parse_config()
         except (OSError, configparser.Error) as e:
-            sys.stderr.write(str(e))
             raise click.ClickException(str(e))
 
     def _parse_config(self):

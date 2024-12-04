@@ -57,7 +57,8 @@ class ConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
                     epsg = 2100
                     output_dir = /var/opt/hspatial
                     filename_prefix = rainfall
@@ -77,7 +78,8 @@ class ConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
                     loglevel = HELLO
                     mask = /etc/hspatial/mask.tif
                     epsg = 2100
@@ -99,7 +101,8 @@ class ConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
                     mask = /etc/hspatial/mask.tif
                     output_dir = /var/opt/hspatial
                     filename_prefix = rainfall
@@ -119,7 +122,8 @@ class ConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
                     mask = /etc/hspatial/mask.tif
                     epsg = hello
                     output_dir = /var/opt/hspatial
@@ -140,7 +144,8 @@ class ConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
                     mask = /etc/hspatial/mask.tif
                     epsg = 2100
                     output_dir = /var/opt/hspatial
@@ -160,7 +165,8 @@ class ConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
                     mask = /etc/hspatial/mask.tif
                     epsg = 2100
                     filename_prefix = rainfall
@@ -180,7 +186,8 @@ class ConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
                     mask = /etc/hspatial/mask.tif
                     epsg = 2100
                     output_dir = /var/opt/hspatial
@@ -200,7 +207,8 @@ class ConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
                     mask = /etc/hspatial/mask.tif
                     epsg = 2100
                     output_dir = /var/opt/hspatial
@@ -221,7 +229,8 @@ class ConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
                     mask = /etc/hspatial/mask.tif
                     epsg = 2100
                     output_dir = /var/opt/hspatial
@@ -241,7 +250,8 @@ class ConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
                     mask = /etc/hspatial/mask.tif
                     epsg = 2100
                     output_dir = /var/opt/hspatial
@@ -259,7 +269,8 @@ class ConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
                     mask = /etc/hspatial/mask.tif
                     epsg = 2100
                     output_dir = /var/opt/hspatial
@@ -282,7 +293,8 @@ class ConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
                     mask = /etc/hspatial/mask.tif
                     epsg = 2100
                     output_dir = /var/opt/hspatial
@@ -304,8 +316,8 @@ class ConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
-                    logfile = {}
+                    f"""\
+                    logfile = {logfilename}
                     mask = /etc/hspatial/mask.tif
                     epsg = 2100
                     output_dir = /var/opt/hspatial
@@ -315,9 +327,7 @@ class ConfigurationTestCase(TestCase):
                     files = /var/opt/timeseries/inputfile1.hts
                             /var/opt/timeseries/inputfile2.hts
                             /var/opt/timeseries/inputfile3.hts
-                    """.format(
-                        logfilename
-                    )
+                    """
                 )
             )
         cli.App(self.configfilename).run()
@@ -372,18 +382,18 @@ class AppTestCase(TestCase):
         with open(self.config_file, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
-                [General]
-                mask = {0.mask_file}
-                epsg = 2100
-                output_dir = {0.output_dir}
-                filename_prefix = rainfall
-                number_of_output_files = {1}
-                method = idw
-                files = {0.filenames[0]}
-                        {0.filenames[1]}
-                """
-                ).format(self, number_of_output_files)
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
+                    mask = {self.mask_file}
+                    epsg = 2100
+                    output_dir = {self.output_dir}
+                    filename_prefix = rainfall
+                    number_of_output_files = {number_of_output_files}
+                    method = idw
+                    files = {self.filenames[0]}
+                            {self.filenames[1]}
+                    """
+                )
             )
 
     def _create_mask_file(self):

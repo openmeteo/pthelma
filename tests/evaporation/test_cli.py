@@ -65,7 +65,8 @@ class WrongPointConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
                     base_dir = {self.tempdir}
                     albedo = 0.23
                     nighttime_solar_radiation_ratio = 0.8
@@ -74,9 +75,7 @@ class WrongPointConfigurationTestCase(TestCase):
                     unit_converter_pressure = x / 10.0
                     unit_converter_solar_radiation = x * 3600 /1e6
                     loglevel = NONEXISTENT_LOG_LEVEL
-                    """.format(
-                        self=self
-                    )
+                    """
                 )
             )
         msg = "loglevel must be one of ERROR, WARNING, INFO, DEBUG"
@@ -87,13 +86,14 @@ class WrongPointConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
                     base_dir = {self.tempdir}
                     albedo = 0.23
                     nighttime_solar_radiation_ratio = 0.8
                     elevation = 8
                     """
-                ).format(self=self)
+                )
             )
         with self.assertRaisesRegex(click.ClickException, "time_step"):
             cli.App(self.configfilename).run()
@@ -102,13 +102,14 @@ class WrongPointConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
                     base_dir = {self.tempdir}
                     nighttime_solar_radiation_ratio = 0.8
                     elevation = 8
                     time_step = H
                     """
-                ).format(self=self)
+                )
             )
         with self.assertRaisesRegex(click.ClickException, "albedo"):
             cli.App(self.configfilename).run()
@@ -128,13 +129,14 @@ class WrongSpatialConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
-                base_dir = {self.tempdir}
-                albedo = 0.23
-                nighttime_solar_radiation_ratio = 0.8
-                time_step = H
-                """
-                ).format(self=self)
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
+                    base_dir = {self.tempdir}
+                    albedo = 0.23
+                    nighttime_solar_radiation_ratio = 0.8
+                    time_step = H
+                    """
+                )
             )
         with self.assertRaisesRegex(click.ClickException, "elevation"):
             cli.App(self.configfilename).run()
@@ -143,14 +145,15 @@ class WrongSpatialConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
-                base_dir = {self.tempdir}
-                time_step = H
-                albedo = 2
-                nighttime_solar_radiation_ratio = 0.8
-                elevation = 8
-                """
-                ).format(self=self)
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
+                    base_dir = {self.tempdir}
+                    time_step = H
+                    albedo = 2
+                    nighttime_solar_radiation_ratio = 0.8
+                    elevation = 8
+                    """
+                )
             )
         with self.assertRaisesRegex(ValueError, "Albedo must be between 0.0 and 1.0"):
             cli.App(self.configfilename).run()
@@ -159,14 +162,15 @@ class WrongSpatialConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
-                base_dir = {self.tempdir}
-                time_step = H
-                albedo = a01.tiff a02.tiff a11.tiff a12.tiff
-                nighttime_solar_radiation_ratio = 0.8
-                elevation = 8
-                """
-                ).format(self=self)
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
+                    base_dir = {self.tempdir}
+                    time_step = H
+                    albedo = a01.tiff a02.tiff a11.tiff a12.tiff
+                    nighttime_solar_radiation_ratio = 0.8
+                    elevation = 8
+                    """
+                )
             )
         msg = "Albedo must be either one item or 12 space-separated items"
         with self.assertRaisesRegex(ValueError, msg):
@@ -176,15 +180,16 @@ class WrongSpatialConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
-                base_dir = {self.tempdir}
-                time_step = H
-                albedo = 1 2 0.34 0.24 0.45 0.4
-                        0.34 0.12 a00.tif 0.78 0.78 2
-                nighttime_solar_radiation_ratio = 0.8
-                elevation = 8
-                """
-                ).format(self=self)
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
+                    base_dir = {self.tempdir}
+                    time_step = H
+                    albedo = 1 2 0.34 0.24 0.45 0.4
+                            0.34 0.12 a00.tif 0.78 0.78 2
+                    nighttime_solar_radiation_ratio = 0.8
+                    elevation = 8
+                    """
+                )
             )
         with self.assertRaisesRegex(ValueError, "Albedo must be between 0.0 and 1.0"):
             cli.App(self.configfilename).run()
@@ -205,7 +210,8 @@ class CorrectPointConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
                     base_dir = {self.tempdir}
                     albedo = 0.23
                     nighttime_solar_radiation_ratio = 0.8
@@ -213,7 +219,7 @@ class CorrectPointConfigurationTestCase(TestCase):
                     unit_converter_pressure = x / 10.0
                     unit_converter_solar_radiation = x * 3600 /1e6
                     """
-                ).format(self=self)
+                )
             )
         cli.App(self.configfilename).run()
         m.return_value.execute.assert_called_once_with()
@@ -223,13 +229,14 @@ class CorrectPointConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
-                base_dir = {self.tempdir}
-                time_step = H
-                albedo = 0.23
-                nighttime_solar_radiation_ratio = 0.8
-                """
-                ).format(self=self)
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
+                    base_dir = {self.tempdir}
+                    time_step = H
+                    albedo = 0.23
+                    nighttime_solar_radiation_ratio = 0.8
+                    """
+                )
             )
         cli.App(self.configfilename).run()
         m.return_value.execute.assert_called_once_with()
@@ -271,14 +278,15 @@ class CorrectSpatialConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
-                base_dir = {self.tempdir}
-                time_step = H
-                albedo = a00.tif
-                nighttime_solar_radiation_ratio = 0.8
-                elevation = 8
-                """
-                ).format(self=self)
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
+                    base_dir = {self.tempdir}
+                    time_step = H
+                    albedo = a00.tif
+                    nighttime_solar_radiation_ratio = 0.8
+                    elevation = 8
+                    """
+                )
             )
         cli.App(self.configfilename).run()
         m.return_value.execute.assert_called_once_with()
@@ -288,15 +296,16 @@ class CorrectSpatialConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
-                base_dir = {self.tempdir}
-                time_step = H
-                albedo = a01.tif a02.tif a03.tif a04.tif a05.tif a06.tif
-                         a07.tif a08.tif a09.tif a10.tif a11.tif a12.tif
-                nighttime_solar_radiation_ratio = 0.8
-                elevation = 8
-                """
-                ).format(self=self)
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
+                    base_dir = {self.tempdir}
+                    time_step = H
+                    albedo = a01.tif a02.tif a03.tif a04.tif a05.tif a06.tif
+                            a07.tif a08.tif a09.tif a10.tif a11.tif a12.tif
+                    nighttime_solar_radiation_ratio = 0.8
+                    elevation = 8
+                    """
+                )
             )
         cli.App(self.configfilename).run()
         m.return_value.execute.assert_called_once_with()
@@ -306,15 +315,16 @@ class CorrectSpatialConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
-                base_dir = {self.tempdir}
-                time_step = H
-                albedo = 0.23 a02.tif a03.tif a04.tif a05.tif a06.tif
-                         a07.tif a08.tif a09.tif a10.tif a11.tif a12.tif
-                nighttime_solar_radiation_ratio = 0.8
-                elevation = 8
-                """
-                ).format(self=self)
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
+                    base_dir = {self.tempdir}
+                    time_step = H
+                    albedo = 0.23 a02.tif a03.tif a04.tif a05.tif a06.tif
+                            a07.tif a08.tif a09.tif a10.tif a11.tif a12.tif
+                    nighttime_solar_radiation_ratio = 0.8
+                    elevation = 8
+                    """
+                )
             )
         cli.App(self.configfilename).run()
         m.return_value.execute.assert_called_once_with()
@@ -324,15 +334,16 @@ class CorrectSpatialConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
-                base_dir = {self.tempdir}
-                time_step = H
-                albedo = 0.10 0.23 0.34 0.24 0.45 0.46
-                         0.34 0.12 0.14 0.78 0.78 0.12
-                nighttime_solar_radiation_ratio = 0.8
-                elevation = 8
-                """
-                ).format(self=self)
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
+                    base_dir = {self.tempdir}
+                    time_step = H
+                    albedo = 0.10 0.23 0.34 0.24 0.45 0.46
+                            0.34 0.12 0.14 0.78 0.78 0.12
+                    nighttime_solar_radiation_ratio = 0.8
+                    elevation = 8
+                    """
+                )
             )
         cli.App(self.configfilename).run()
         m.return_value.execute.assert_called_once_with()
@@ -342,15 +353,16 @@ class CorrectSpatialConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
-                base_dir = {self.tempdir}
-                time_step = H
-                albedo = a00.tif a00.tif a00.tif a00.tif a00.tif a00.tif
-                         a00.tif a00.tif a00.tif a00.tif a00.tif a00.tif
-                nighttime_solar_radiation_ratio = 0.8
-                elevation = 8
-                """
-                ).format(self=self)
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
+                    base_dir = {self.tempdir}
+                    time_step = H
+                    albedo = a00.tif a00.tif a00.tif a00.tif a00.tif a00.tif
+                            a00.tif a00.tif a00.tif a00.tif a00.tif a00.tif
+                    nighttime_solar_radiation_ratio = 0.8
+                    elevation = 8
+                    """
+                )
             )
         cli.App(self.configfilename).run()
         m.return_value.execute.assert_called_once_with()
@@ -360,15 +372,16 @@ class CorrectSpatialConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
-                base_dir = {self.tempdir}
-                time_step = H
-                albedo = a00.tif 0.23 a00.tif a00.tif a00.tif a00.tif
-                         a00.tif a00.tif 0.23 a00.tif 0.23 a00.tif
-                nighttime_solar_radiation_ratio = 0.8
-                elevation = 8
-                """
-                ).format(self=self)
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
+                    base_dir = {self.tempdir}
+                    time_step = H
+                    albedo = a00.tif 0.23 a00.tif a00.tif a00.tif a00.tif
+                            a00.tif a00.tif 0.23 a00.tif 0.23 a00.tif
+                    nighttime_solar_radiation_ratio = 0.8
+                    elevation = 8
+                    """
+                )
             )
         cli.App(self.configfilename).run()
         m.return_value.execute.assert_called_once_with()
@@ -378,15 +391,16 @@ class CorrectSpatialConfigurationTestCase(TestCase):
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
-                base_dir = {self.tempdir}
-                time_step = H
-                albedo = 0.10 0.23 0.34 0.24 0.45 0.46
-                         0.34 0.12 0.14 0.78 0.78 0.12
-                nighttime_solar_radiation_ratio = 0.8
-                elevation = 8
-                """
-                ).format(self=self)
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
+                    base_dir = {self.tempdir}
+                    time_step = H
+                    albedo = 0.10 0.23 0.34 0.24 0.45 0.46
+                            0.34 0.12 0.14 0.78 0.78 0.12
+                    nighttime_solar_radiation_ratio = 0.8
+                    elevation = 8
+                    """
+                )
             )
         cli.App(self.configfilename).run()
         m.return_value.execute.assert_called_once_with()
@@ -459,12 +473,13 @@ class HtsTestCase(TestCase):
         with open(self.config_file, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
                     base_dir = {self.tempdir}
                     albedo = 0.23
                     time_step = {time_step}
                     """
-                ).format(self=self, time_step=time_step)
+                )
             )
             if time_step == "H":
                 f.write(
@@ -608,21 +623,22 @@ class SpatialTestCase(TestCase):
         with open(self.config_file, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
-                base_dir = {self.tempdir}
-                albedo = 0.23
-                nighttime_solar_radiation_ratio = 0.8
-                elevation = 8
-                time_step = H
-                unit_converter_pressure = x / 10.0
-                unit_converter_solar_radiation = x * 3600 / 1e6
-                temperature_prefix = temperature-notz
-                humidity_prefix = humidity-notz
-                wind_speed_prefix = wind_speed-notz
-                solar_radiation_prefix = solar_radiation-notz
-                pressure_prefix = pressure-notz
-                """
-                ).format(self=self)
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
+                    base_dir = {self.tempdir}
+                    albedo = 0.23
+                    nighttime_solar_radiation_ratio = 0.8
+                    elevation = 8
+                    time_step = H
+                    unit_converter_pressure = x / 10.0
+                    unit_converter_solar_radiation = x * 3600 / 1e6
+                    temperature_prefix = temperature-notz
+                    humidity_prefix = humidity-notz
+                    wind_speed_prefix = wind_speed-notz
+                    solar_radiation_prefix = solar_radiation-notz
+                    pressure_prefix = pressure-notz
+                    """
+                )
             )
 
         # Verify the output file doesn't exist yet
@@ -657,13 +673,14 @@ class SpatialTestCase(TestCase):
         with open(self.config_file, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
-                base_dir = {self.tempdir}
-                albedo = 0.23
-                elevation = 100
-                time_step = D
-                """
-                ).format(self=self)
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
+                    base_dir = {self.tempdir}
+                    albedo = 0.23
+                    elevation = 100
+                    time_step = D
+                    """
+                )
             )
 
         # Verify the output file doesn't exist yet
@@ -722,13 +739,14 @@ class SpatialTestCase(TestCase):
         with open(self.config_file, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
-                base_dir = {self.tempdir}
-                albedo = 0.23
-                elevation = 100
-                time_step = D
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
+                    base_dir = {self.tempdir}
+                    albedo = 0.23
+                    elevation = 100
+                    time_step = D
                 """
-                ).format(self=self)
+                )
             )
 
         # Verify the output file doesn't exist yet
@@ -786,16 +804,17 @@ class SpatialTestCase(TestCase):
         with open(self.config_file, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
-                base_dir = {self.tempdir}
-                albedo = 0.23
-                nighttime_solar_radiation_ratio = 0.8
-                elevation = 8
-                time_step = H
-                unit_converter_pressure = x / 10.0
-                unit_converter_solar_radiation = x * 3600 / 1e6
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
+                    base_dir = {self.tempdir}
+                    albedo = 0.23
+                    nighttime_solar_radiation_ratio = 0.8
+                    elevation = 8
+                    time_step = H
+                    unit_converter_pressure = x / 10.0
+                    unit_converter_solar_radiation = x * 3600 / 1e6
                 """
-                ).format(self=self)
+                )
             )
 
         # Verify the output file doesn't exist yet
@@ -854,15 +873,16 @@ class SpatialTestCase(TestCase):
         with open(self.config_file, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
-                base_dir = {self.tempdir}
-                albedo = 0.23
-                nighttime_solar_radiation_ratio = 0.8
-                elevation = 8
-                time_step = H
-                unit_converter_solar_radiation = x * 3600 / 1e6
-                """
-                ).format(self=self)
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
+                    base_dir = {self.tempdir}
+                    albedo = 0.23
+                    nighttime_solar_radiation_ratio = 0.8
+                    elevation = 8
+                    time_step = H
+                    unit_converter_solar_radiation = x * 3600 / 1e6
+                    """
+                )
             )
 
         # Verify the output file doesn't exist yet
@@ -913,16 +933,17 @@ class SpatialTestCase(TestCase):
         with open(self.config_file, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
-                base_dir = {self.tempdir}
-                albedo = 0.23
-                nighttime_solar_radiation_ratio = 0.8
-                elevation = 8
-                time_step = H
-                unit_converter_pressure = x / 10.0
-                unit_converter_solar_radiation = x * 3600 / 1e6
-                """
-                ).format(self=self)
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
+                    base_dir = {self.tempdir}
+                    albedo = 0.23
+                    nighttime_solar_radiation_ratio = 0.8
+                    elevation = 8
+                    time_step = H
+                    unit_converter_pressure = x / 10.0
+                    unit_converter_solar_radiation = x * 3600 / 1e6
+                    """
+                )
             )
 
         # Execute and check exception
@@ -947,16 +968,17 @@ class SpatialTestCase(TestCase):
         with open(self.config_file, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
-                base_dir = {self.tempdir}
-                albedo = 0.23
-                nighttime_solar_radiation_ratio = 0.8
-                elevation = dem.tif
-                time_step = H
-                unit_converter_pressure = x / 10.0
-                unit_converter_solar_radiation = x * 3600 / 1e6
-                """
-                ).format(self=self)
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
+                    base_dir = {self.tempdir}
+                    albedo = 0.23
+                    nighttime_solar_radiation_ratio = 0.8
+                    elevation = dem.tif
+                    time_step = H
+                    unit_converter_pressure = x / 10.0
+                    unit_converter_solar_radiation = x * 3600 / 1e6
+                    """
+                )
             )
 
         # Verify the output file doesn't exist yet
@@ -1008,16 +1030,17 @@ class SpatialTestCase(TestCase):
         with open(self.config_file, "w") as f:
             f.write(
                 textwrap.dedent(
-                    """\
-                base_dir = {self.tempdir}
-                albedo = 0.23
-                nighttime_solar_radiation_ratio = 0.8
-                elevation = dem.tif
-                time_step = H
-                unit_converter_pressure = x / 10.0
-                unit_converter_solar_radiation = x * 3600 / 1e6
-                """
-                ).format(self=self)
+                    f"""\
+                    logfile = {os.path.join(self.tempdir, "logfile")}
+                    base_dir = {self.tempdir}
+                    albedo = 0.23
+                    nighttime_solar_radiation_ratio = 0.8
+                    elevation = dem.tif
+                    time_step = H
+                    unit_converter_pressure = x / 10.0
+                    unit_converter_solar_radiation = x * 3600 / 1e6
+                    """
+                )
             )
 
         # Verify the output file doesn't exist yet

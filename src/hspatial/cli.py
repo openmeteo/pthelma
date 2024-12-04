@@ -2,7 +2,6 @@ import configparser
 import datetime as dt
 import logging
 import os
-import sys
 import traceback
 from glob import glob
 from io import StringIO
@@ -100,7 +99,7 @@ class App:
                         0, iso8601.parse_date(datestring, default_timezone=timezone)
                     )
                 except iso8601.ParseError as e:
-                    raise iso8601.ParseError(
+                    raise click.ClickException(
                         str(e)
                         + " (file {}, {} lines from the end)".format(filename, i + 1)
                     )
@@ -221,7 +220,6 @@ class AppConfig:
         try:
             self._parse_config()
         except (OSError, configparser.Error) as e:
-            sys.stderr.write(str(e))
             raise click.ClickException(str(e))
 
     def _parse_config(self):
