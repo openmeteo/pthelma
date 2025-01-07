@@ -34,7 +34,14 @@ haggregate API
    than *min_count* source records corresponding, the resulting
    destination record is null; otherwise, the destination record is
    derived even though some records are missing.  In that case, the flag
-   specified by *missing_flag* is raised in the destination record.
+   specified by *missing_flag* is raised in the destination record. If
+   missing flag contains the string ``{}``, it is replaced with the
+   number of missing records. The recommended setting for *missing_flag*
+   is ``MISSING{}``, which, for example, will result in ``MISSING3``
+   when three records are missing. The default for *missing_flag* is
+   ``MISS`` for backwards compatibility (it was ``MISS`` for some years,
+   however this was undocumented), but this is deprecated; use
+   ``MISSING{}``.
 
    If an error occurs, such as *ts* not having a strictly regular step,
    :exc:`AggregateError` (or a subclass) is raised.

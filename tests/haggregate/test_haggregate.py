@@ -75,7 +75,6 @@ class HourlySumTestCase(TestCase):
 
     def test_value_1(self):
         self.assertAlmostEqual(self.result.data.loc["2008-02-07 10:00"].value, 31.25)
-        self.assertEqual(self.result.data["flags"].loc["2008-02-07 10:00"], "MISS")
 
     def test_value_2(self):
         self.assertAlmostEqual(self.result.data.loc["2008-02-07 11:00"].value, 65.47)
@@ -85,6 +84,25 @@ class HourlySumTestCase(TestCase):
 
     def test_value_4(self):
         self.assertAlmostEqual(self.result.data.loc["2008-02-07 13:00"].value, 72.77)
+
+
+class MissingFlag(TestCase):
+    def _aggregate(self, missing_flag):
+        self.ts = HTimeseries(
+            StringIO(tenmin_test_timeseries), default_tzinfo=ZoneInfo("Etc/GMT-2")
+        )
+        self.ts.data = self.ts.data.iloc[1:]
+        self.result = aggregate(
+            self.ts, "1h", "sum", min_count=2, missing_flag=missing_flag
+        )
+
+    def test_flag_without_num_missing(self):
+        self._aggregate(missing_flag="MISS")
+        self.assertEqual(self.result.data["flags"].loc["2008-02-07 10:00"], "MISS")
+
+    def test_flag_with_num_missing(self):
+        self._aggregate(missing_flag="MISSING{}")
+        self.assertEqual(self.result.data["flags"].loc["2008-02-07 10:00"], "MISSING4")
 
 
 class TimestampIrregularityTestCase(TestCase):

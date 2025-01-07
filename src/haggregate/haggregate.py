@@ -75,8 +75,8 @@ class Aggregation:
     def get_result_flags(self):
         max_count = int(pd.Timedelta(self.result.time_step) / self.source.freq)
         values_count = self.resampler.count()
-        self.result.data["flags"] = (values_count < max_count).apply(
-            lambda x: self.missing_flag if x else ""
+        self.result.data["flags"] = (max_count - values_count).apply(
+            lambda x: self.missing_flag.format(x) if x else ""
         )
 
 

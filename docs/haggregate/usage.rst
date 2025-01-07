@@ -55,7 +55,7 @@ explanatory comments that follow it:
     base_dir = /var/cache/timeseries/
     target_step = 1h
     min_count = 2
-    missing_flag = DATEINSERT
+    missing_flag = MISSING{}
 
     [temperature]
     source_file = temperature-10min.hts
@@ -133,7 +133,8 @@ General parameters
    to a destination record, the resulting destination record is null;
    otherwise, the destination record is derived even though some records
    are missing. In that case, the flag specified by
-   :option:`missing_flag` is raised in the destination record.
+   :option:`missing_flag` is raised in the destination record. See
+   :meth:`~haggregate.aggregate` for details on :option:`missing_flag`.
 
 Time series sections
 --------------------

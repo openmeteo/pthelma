@@ -2,6 +2,14 @@
 Changelog
 =========
 
+
+DEV
+===
+
+* haggregate: The ``missing_flag`` parameter to ``aggregate()`` can now
+  include the substring "{}", which will be replaced with the number of
+  missing values.
+
 2.0.0 (2024-12-04)
 ==================
 
