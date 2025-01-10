@@ -3,8 +3,8 @@ Changelog
 =========
 
 
-DEV
-===
+2.1.0 (2025-01-10)
+==================
 
 * haggregate: The ``missing_flag`` parameter to ``aggregate()`` can now
   include the substring "{}", which will be replaced with the number of
