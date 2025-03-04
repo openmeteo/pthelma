@@ -4,14 +4,15 @@
 evaporation API
 ===============
 
-``from evaporation import PenmanMonteith``
+Basic stuff
+===========
 
-.. class:: PenmanMonteith(albedo, elevation, latitude, time_step, longitude=None, nighttime_solar_radiation_ratio=None, unit_converters={})
+.. class:: evaporation.PenmanMonteith(albedo, elevation, latitude, time_step, longitude=None, nighttime_solar_radiation_ratio=None, unit_converters={})
 
    Calculates evapotranspiration according to the Penman-Monteith
-   equation. The methodology used is that of Allen et al. (1998).
-   Details can be found in the code, which has comments indicating
-   which equations it uses.
+   equation. The methodology used is that of FAO56_.  Details can be
+   found in the code, which has comments indicating which equations it
+   uses.
 
    First the class is initialized with some parameters that are
    constant for the area of interest; then, the :meth:`calculate`
@@ -52,7 +53,7 @@ evaporation API
    evaporation, this does not work during the night, in which case
    *nighttime_solar_radiation_ratio* is used as a rough approximation
    of that ratio. It should be a scalar or array between 0.4 and 0.8;
-   see Allen et al. (1998), top of page 75.
+   see FAO56_, top of page 75.
 
    The meteorological values that will be supplied after class
    initialization to the :meth:`calculate` method are supposed to be
@@ -99,10 +100,20 @@ evaporation API
       evapotranspiration for the hour that ends at *adatetime*, which
       must be a timezone-aware :class:`~datetime.datetime` object.
 
+Helpers
+=======
+
+.. function:: evaporation.cloud2radiation(cloud_cover: float, latitude: float, longitude: float, timestamp: date)
+
+   Uses the Angstrom formula, FAO56_ eq. 35 p. 50, to make an estimation
+   of solar radiation (returned as an int in W/m²) given cloud cover
+   (received as a fractional number such as 0.25). 
 
 
 References
-----------
+==========
+
+.. _fao56:
 
 R. G. Allen, L. S. Pereira, D. Raes, and M. Smith, Crop evapotranspiration -
 Guidelines for computing crop water requirements, FAO Irrigation and drainage

@@ -4,7 +4,7 @@ from unittest import TestCase
 
 import numpy as np
 
-from evaporation import PenmanMonteith
+from evaporation import PenmanMonteith, cloud2radiation
 
 
 class SenegalTzinfo(dt.tzinfo):
@@ -281,3 +281,16 @@ class PenmanMonteithTestCase(TestCase):
             adatetime=dt.datetime(2014, 10, 1, 15, 0, tzinfo=senegal_tzinfo),
         )
         self.assertAlmostEqual(result, 0.63, places=2)
+
+
+class Cloud2RadiationTestCase(TestCase):
+    def test_daily(self):
+        # We test using the example at the bottom of FAO56 p. 50, except that we
+        # replace n/N with (1 - cloud_cover).
+        cloud_cover = 1 - 7.1 / 10.9
+        latitude = -(22 + 54 / 60)
+        longitude = 0  # Irrelevant
+        date = dt.date(2025, 5, 15)
+        result = cloud2radiation(cloud_cover, latitude, longitude, date)
+        expected_result = 14.5 * 1e6 / 86400
+        self.assertTrue(abs(result - expected_result) < 1)

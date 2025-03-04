@@ -70,3 +70,6 @@ write_to = "src/pthelma/_version.py"
 # python for x86_64, but found x86" error. Pypy builds also occasionally cause
 # errors.
 skip = "pp* cp313-*"
+
+[tool.isort]
+skip = ["_version.py"]

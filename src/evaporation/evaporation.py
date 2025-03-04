@@ -435,3 +435,19 @@ class PenmanMonteith(object):
             warnings.simplefilter("ignore", RuntimeWarning)
             denominator = (temperature + 237.3) ** 2
             return numerator / denominator
+
+
+def cloud2radiation(cloud_cover, latitude, longitude, date):
+    a_s = 0.25
+    b_s = 0.50
+    dummy = 0.5  # Values not being used by get_extraterrestial_radiation
+    pm = PenmanMonteith(
+        albedo=dummy,
+        elevation=dummy,
+        latitude=latitude,
+        longitude=longitude,
+        time_step="D",
+    )
+    etrad = pm.get_extraterrestrial_radiation(date)[0]
+    etrad *= 1e6 / 86400  # convert from MJ/m/h to W/s
+    return (a_s + b_s * (1 - cloud_cover)) * etrad

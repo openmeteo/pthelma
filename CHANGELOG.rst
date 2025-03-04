@@ -2,6 +2,11 @@
 Changelog
 =========
 
+2.2.0 (2025-03-04)
+==================
+
+Added function "evaporation.cloud2radiation()" that estimates average
+daily solar radiation given cloud cover.
 
 2.1.1 (2025-02-21)
 ==================
