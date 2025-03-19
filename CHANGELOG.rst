@@ -2,6 +2,12 @@
 Changelog
 =========
 
+2.2.1 (2025-03-19)
+==================
+
+The hspatial.integrate() function now accepts GeoDjango objects as some
+of its arguments in addition to plain GDAL objects.
+
 2.2.0 (2025-03-04)
 ==================
 

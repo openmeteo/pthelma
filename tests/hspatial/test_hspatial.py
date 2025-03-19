@@ -106,7 +106,6 @@ class IntegrateTestCase(TestCase):
 
     def tearDown(self):
         self.data_source = None
-        self.raster = None
 
     def test_integrate_idw(self):
         hspatial.integrate(
@@ -114,6 +113,58 @@ class IntegrateTestCase(TestCase):
         )
         result = self.target_band.ReadAsArray()
         nodatavalue = self.target_band.GetNoDataValue()
+
+        # All masked points and only those must be no data
+        # (^ is bitwise xor in Python)
+        self.assertTrue(((result == nodatavalue) ^ (self.mask != 0)).all())
+
+        self.assertAlmostEqual(result[3, 3], 62.971, places=3)
+        self.assertAlmostEqual(result[6, 14], 34.838, places=3)
+        self.assertAlmostEqual(result[4, 13], 30.737, places=3)
+
+
+class IntegrateWithGeoDjangoObjectsTestCase(IntegrateTestCase):
+    """This is exactly the same as IntegrateTestCase, except that instead of using gdal
+    objects for the mask and target_band, it uses django.contrib.gis.gdal objects."""
+
+    def setUp(self):
+        # We will test on a 7x15 grid
+        self.mask = np.zeros((7, 15), np.float32)
+        self.mask[3, 3] = 1
+        self.mask[6, 14] = 1
+        self.mask[4, 13] = 1
+        self.dataset = GDALRaster(
+            {
+                "srid": 4326,
+                "width": 15,
+                "height": 7,
+                "datatype": gdal.GDT_Float32,
+                "bands": [{"data": self.mask}, {}],
+            }
+        )
+
+        # Our grid represents a 70x150m area, lower-left co-ordinates (0, 0).
+        self.dataset.geotransform = (0, 10, 0, 70, 0, -10)
+
+        self.target_band = self.dataset.bands[1]
+
+        # Now the data layer, with three points
+        self.data_source = ogr.GetDriverByName("memory").CreateDataSource("tmp")
+        self.data_layer = self.data_source.CreateLayer("test")
+        self.data_layer.CreateField(ogr.FieldDefn("value", ogr.OFTReal))
+        add_point_to_layer(self.data_layer, 75.2, 10.7, 37.4)
+        add_point_to_layer(self.data_layer, 125.7, 19.0, 24.0)
+        add_point_to_layer(self.data_layer, 9.8, 57.1, 95.4)
+
+    def tearDown(self):
+        self.data_source = None
+
+    def test_integrate_idw(self):
+        hspatial.integrate(
+            self.dataset, self.data_layer, self.target_band, hspatial.idw
+        )
+        result = self.target_band.data()
+        nodatavalue = self.target_band.nodata_value
 
         # All masked points and only those must be no data
         # (^ is bitwise xor in Python)

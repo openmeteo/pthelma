@@ -29,16 +29,21 @@ hspatial - API
    Performs integration on an entire surface.
 
    *mask* is a gdal dataset whose first band is the mask; the
-   gridpoints of the mask have value zero or non-zero. *data_layer* is
-   an :class:`ogr.Layer` object containing one or more points with
-   values (all *data_layer* features must be points and must also have
-   a *value* attribute, which may, however, have the value
-   :const:`NaN`). *target_band* is a band on which the result will be
-   written; it must have the same GeoTransform as *mask*, and these
-   two must be in the same co-ordinate reference system as
-   *data_layer*. *funct* is a python function whose first two
-   arguments are an :class:`ogr.Point` and *data_layer*, and *kwargs*
-   is a dictionary with keyword arguments to be given to *funct*.
+   gridpoints of the mask have value zero or non-zero. *mask* can also be a
+   :class:`django.contrib.gis.gdal.GDALRaster` object.
+
+   *data_layer* is an :class:`ogr.Layer` object containing one or more points
+   with values (all *data_layer* features must be points and must also have a
+   *value* attribute, which may, however, have the value :const:`NaN`).
+
+   *target_band* is a band on which the result will be written; it must have
+   the same GeoTransform as *mask*, and these two must be in the same
+   co-ordinate reference system as *data_layer*. *target_band* can be either a
+   :class:`django.contrib.gis.gdal.GDALBand` object or a gdal band object.
+
+   *funct* is a python function
+   whose first two arguments are an :class:`ogr.Point` and *data_layer*, and
+   *kwargs* is a dictionary with keyword arguments to be given to *funct*.
 
    This function calls *funct* for each non-zero gridpoint of the
    mask.

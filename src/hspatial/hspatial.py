@@ -45,12 +45,16 @@ def idw(point, data_layer, alpha=1):
 
 
 def integrate(dataset, data_layer, target_band, funct, kwargs={}):
-    mask = dataset.GetRasterBand(1).ReadAsArray() != 0
+    try:
+        mask = dataset.GetRasterBand(1).ReadAsArray() != 0
+        x_left, x_step, d1, y_top, d2, y_step = dataset.GetGeoTransform()
+    except AttributeError:
+        mask = dataset.bands[0].data() != 0
+        x_left, x_step, d1, y_top, d2, y_step = dataset.geotransform
 
     # Create an array with the x co-ordinate of each grid point, and
     # one with the y co-ordinate of each grid point
     height, width = mask.shape
-    x_left, x_step, d1, y_top, d2, y_step = dataset.GetGeoTransform()
     xcoords = np.arange(x_left + x_step / 2.0, x_left + x_step * width, x_step)
     ycoords = np.arange(y_top + y_step / 2.0, y_top + y_step * height, y_step)
     xarray, yarray = np.meshgrid(xcoords, ycoords)
@@ -68,8 +72,12 @@ def integrate(dataset, data_layer, target_band, funct, kwargs={}):
     # Make the calculation
     result = interpolate(xarray, yarray, mask)
     result[np.isnan(result)] = NODATAVALUE
-    target_band.SetNoDataValue(NODATAVALUE)
-    target_band.WriteArray(result)
+    try:
+        target_band.SetNoDataValue(NODATAVALUE)
+        target_band.WriteArray(result)
+    except AttributeError:
+        target_band.nodata_value = NODATAVALUE
+        target_band.data(data=result)
 
 
 def create_ogr_layer_from_timeseries(filenames, epsg, data_source):
