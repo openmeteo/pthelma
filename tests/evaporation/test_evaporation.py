@@ -55,7 +55,7 @@ class PenmanMonteithTestCase(TestCase):
     def _get_daily_vars(self):
         unit_converters = {
             # Eq. 47 p. 56
-            "wind_speed": lambda x: x * 4.87 / math.log(67.8 * 10 - 5.42)
+            "wind_speed": lambda x: (x * 4.87 / math.log(67.8 * 10 - 5.42))
         }
         self.pmclassvars = {
             "albedo": 0.23,
