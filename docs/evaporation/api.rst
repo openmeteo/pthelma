@@ -66,16 +66,17 @@ Basic stuff
    humidity                  %
    wind speed                m/s
    pressure                  kPa
-   solar radiation           MJ/m²/h
+   solar radiation           MJ/m²/step
    ========================  =====================
    
    If they are in different units, *unit_converters* is a dictionary
    with functions to convert them. For example, if you have pressure 
-   in hPa and solar radiation in W/m², you should specify this::
+   in hPa and solar radiation in W/m² and are calculating hourly, you
+   should specify this::
 
       unit_converters = {
           'pressure': lambda x: x / 10.0,
-          'solar_radiation': lambda x: x * 3600 / 1e6,
+          'solar_radiation': lambda x: x * 3600 / 1e6,  # or 86400 for daily
       }
 
    Any variable whose name is not found in *unit_converters* is used

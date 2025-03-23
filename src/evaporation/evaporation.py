@@ -449,5 +449,5 @@ def cloud2radiation(cloud_cover, latitude, longitude, date):
         time_step="D",
     )
     etrad = pm.get_extraterrestrial_radiation(date)[0]
-    etrad *= 1e6 / 86400  # convert from MJ/m/h to W/s
+    etrad *= 1e6 / 86400  # convert from MJ/m/day to W/s
     return (a_s + b_s * (1 - cloud_cover)) * etrad
