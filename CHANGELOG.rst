@@ -2,6 +2,12 @@
 Changelog
 =========
 
+2.2.2 (2025-03-23)
+==================
+
+Fixed an error in daily evaporation calculation where, if the pressure
+was provided, it was not converted with the unit converter.
+
 2.2.1 (2025-03-19)
 ==================
 

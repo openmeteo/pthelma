@@ -96,7 +96,7 @@ class PenmanMonteith(object):
                 variables["temperature_max"] + variables["temperature_min"]
             ) / 2
         variables["temperature_mean"] = temperature_mean
-        gamma = self.get_psychrometric_constant(temperature_mean, pressure)
+        gamma = self.get_psychrometric_constant(temperature_mean, variables["pressure"])
         return self.penman_monteith_daily(
             incoming_solar_radiation=variables["solar_radiation"],
             clear_sky_solar_radiation=r_so,

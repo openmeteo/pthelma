@@ -28,47 +28,51 @@ senegal_tzinfo = SenegalTzinfo()
 
 
 class PenmanMonteithTestCase(TestCase):
-    def test_daily(self):
+    def test_daily_plain(self):
         # Apply Allen et al. (1998) Example 18 page 72.
+        self._get_daily_vars()
+        result = PenmanMonteith(**self.pmclassvars).calculate(**self.pmvars)
+        self.assertAlmostEqual(result, 3.9, places=1)
 
+    def test_daily_with_solar_radiation(self):
+        # Same as above, but instead of sunshine duration we provide the solar radiation
+        # directly. Should get the same result.
+        self._get_daily_vars()
+        del self.pmvars["sunshine_duration"]
+        self.pmvars["solar_radiation"] = 22.07
+        result = PenmanMonteith(**self.pmclassvars).calculate(**self.pmvars)
+        self.assertAlmostEqual(result, 3.9, places=1)
+
+    def test_daily_with_pressure(self):
+        # Same as above, but instead of letting it calculate pressure we provide it
+        # directly. Should get the same result.
+        self._get_daily_vars()
+        self.pmclassvars["unit_converters"]["pressure"] = lambda x: x / 10
+        self.pmvars["pressure"] = 1001
+        result = PenmanMonteith(**self.pmclassvars).calculate(**self.pmvars)
+        self.assertAlmostEqual(result, 3.9, places=1)
+
+    def _get_daily_vars(self):
         unit_converters = {
             # Eq. 47 p. 56
-            "wind_speed": lambda x: x
-            * 4.87
-            / math.log(67.8 * 10 - 5.42)
+            "wind_speed": lambda x: x * 4.87 / math.log(67.8 * 10 - 5.42)
         }
-
-        pm = PenmanMonteith(
-            albedo=0.23,
-            elevation=100,
-            latitude=50.8,
-            time_step="D",
-            unit_converters=unit_converters,
-        )
-
-        result = pm.calculate(
-            temperature_max=21.5,
-            temperature_min=12.3,
-            humidity_max=84,
-            humidity_min=63,
-            wind_speed=2.78,
-            sunshine_duration=9.25,
-            adatetime=dt.date(2014, 7, 6),
-        )
-        self.assertAlmostEqual(result, 3.9, places=1)
-
-        # We try the same calculation, but instead of sunshine duration we
-        # provide the solar radiation directly. Should get the same result.
-        result = pm.calculate(
-            temperature_max=21.5,
-            temperature_min=12.3,
-            humidity_max=84,
-            humidity_min=63,
-            wind_speed=2.78,
-            solar_radiation=22.07,
-            adatetime=dt.date(2014, 7, 6),
-        )
-        self.assertAlmostEqual(result, 3.9, places=1)
+        self.pmclassvars = {
+            "albedo": 0.23,
+            "elevation": 100,
+            "latitude": 50.8,
+            "time_step": "D",
+            "unit_converters": unit_converters,
+        }
+        self.pmvars = {
+            "temperature_max": 21.5,
+            "temperature_min": 12.3,
+            "humidity_max": 84,
+            "humidity_min": 63,
+            "wind_speed": 2.78,
+            "sunshine_duration": 9.25,
+            "adatetime": dt.date(2014, 7, 6),
+        }
 
     def test_daily_grid(self):
         # We use a 2x1 grid, where point 1, 1 is the same as Example 18, and
