@@ -75,8 +75,9 @@ class PenmanMonteithTestCase(TestCase):
         }
 
     def test_daily_grid(self):
-        # We use a 2x1 grid, where point 1, 1 is the same as Example 18, and
-        # point 1, 2 has some different values.
+        # We use a 1x3 grid, where point (1, 1) is the same as Example 18,
+        # point (1, 2) has some different values, and the elevation at point
+        # (1, 3) is NaN to signify a nodata point.
 
         unit_converters = {
             # Eq. 47 p. 56
@@ -87,33 +88,33 @@ class PenmanMonteithTestCase(TestCase):
 
         pm = PenmanMonteith(
             albedo=0.23,
-            elevation=100,
+            elevation=np.array([100, 100, float("nan")]),
             latitude=50.8,
             time_step="D",
             unit_converters=unit_converters,
         )
         result = pm.calculate(
-            temperature_max=np.array([21.5, 28]),
-            temperature_min=np.array([12.3, 15]),
-            humidity_max=np.array([84, 70]),
-            humidity_min=np.array([63, 60]),
-            wind_speed=np.array([2.78, 3]),
-            sunshine_duration=np.array([9.25, 9]),
+            temperature_max=np.array([21.5, 28, 28]),
+            temperature_min=np.array([12.3, 15, 15]),
+            humidity_max=np.array([84, 70, 70]),
+            humidity_min=np.array([63, 60, 60]),
+            wind_speed=np.array([2.78, 3, 3]),
+            sunshine_duration=np.array([9.25, 9, 9]),
             adatetime=dt.date(2014, 7, 6),
         )
-        np.testing.assert_almost_equal(result, np.array([3.9, 4.8]), decimal=1)
+        np.testing.assert_allclose(result, np.array([3.9, 4.8, float("nan")]), atol=0.1)
 
         # Same thing with solar radiation instead of sunshine duration
         result = pm.calculate(
-            temperature_max=np.array([21.5, 28]),
-            temperature_min=np.array([12.3, 15]),
-            humidity_max=np.array([84, 70]),
-            humidity_min=np.array([63, 60]),
-            wind_speed=np.array([2.78, 3]),
-            solar_radiation=np.array([22.07, 21.62]),
+            temperature_max=np.array([21.5, 28, 28]),
+            temperature_min=np.array([12.3, 15, 15]),
+            humidity_max=np.array([84, 70, 70]),
+            humidity_min=np.array([63, 60, 60]),
+            wind_speed=np.array([2.78, 3, 3]),
+            solar_radiation=np.array([22.07, 21.62, 21.62]),
             adatetime=dt.date(2014, 7, 6),
         )
-        np.testing.assert_almost_equal(result, np.array([3.9, 4.8]), decimal=1)
+        np.testing.assert_allclose(result, np.array([3.9, 4.8, float("nan")]), atol=0.1)
 
     def test_hourly(self):
         # Apply Allen et al. (1998) Example 19 page 75.

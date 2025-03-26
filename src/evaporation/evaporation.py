@@ -408,12 +408,18 @@ class PenmanMonteith(object):
                 incoming_solar_radiation / clear_sky_solar_radiation,
                 self.nighttime_solar_radiation_ratio,
             )
-        solar_radiation_ratio = np.maximum(solar_radiation_ratio, 0.3)
-        solar_radiation_ratio = np.minimum(solar_radiation_ratio, 1.0)
+            solar_radiation_ratio = np.where(
+                np.isnan(clear_sky_solar_radiation), float("nan"), solar_radiation_ratio
+            )
+            solar_radiation_ratio = np.maximum(solar_radiation_ratio, 0.3)
+            solar_radiation_ratio = np.minimum(solar_radiation_ratio, 1.0)
 
         factor3 = 1.35 * solar_radiation_ratio - 0.35
 
-        return factor1 * factor2 * factor3
+        result = factor1 * factor2 * factor3
+        if isinstance(result, np.ndarray):
+            result = np.array(result, dtype=float)
+        return result
 
     def get_saturation_vapour_pressure(self, temperature):
         "Allen et al. (1998), p. 36, eq. 11."

@@ -2,6 +2,13 @@
 Changelog
 =========
 
+2.2.3 (2025-03-26)
+==================
+
+Fixed an edge case in daily evaporation calculation: if an array was
+provided and it had NaN at some point of the elevation raster, it was
+crashing—now it returns NaN at that point in the result.
+
 2.2.2 (2025-03-23)
 ==================
 
