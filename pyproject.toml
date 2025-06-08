@@ -13,7 +13,7 @@ dependencies = [
     "pandas>=2.2,<3",
     # numpy is indirectly required by pandas anyway, but we need to specify
     # that it be <2.
-    "numpy<2",
+    "numpy>=1.26,<2",
     "iso8601>=2.1,<3",
     "textbisect>=0.1,<1",
     "tzdata",
