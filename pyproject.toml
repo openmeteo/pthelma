@@ -41,6 +41,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
 
 [project.scripts]
@@ -64,12 +65,6 @@ package-dir = {"" = "src"}
 
 [tool.setuptools_scm]
 write_to = "src/pthelma/_version.py"
-
-[tool.cibuildwheel]
-# As of November 2024, building on Windows for Python 3.13 causes a "Need
-# python for x86_64, but found x86" error. Pypy builds also occasionally cause
-# errors.
-skip = "pp* cp313-*"
 
 [tool.isort]
 skip = ["_version.py"]

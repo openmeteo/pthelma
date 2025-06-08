@@ -19,6 +19,8 @@ jobs:
           - python-version: "3.11"
             include-codecov: false
           - python-version: "3.12"
+            include-codecov: false
+          - python-version: "3.13"
             include-codecov: true
 
     steps:
