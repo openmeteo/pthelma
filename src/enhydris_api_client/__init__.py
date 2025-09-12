@@ -9,6 +9,10 @@ import requests
 from htimeseries import HTimeseries
 
 
+class MalformedResponseError(Exception):
+    pass
+
+
 class EnhydrisApiClient:
     def __init__(self, base_url, token=None):
         self.base_url = base_url
@@ -69,6 +73,21 @@ class EnhydrisApiClient:
         key = self.response.json()["key"]
         self.session.headers.update({"Authorization": f"token {key}"})
         return key
+
+    def list_stations(self):
+        url = urljoin(self.base_url, "api/stations/")
+        while url:
+            try:
+                self.response = self.session.get(url)
+                self.check_response()
+                data = self.response.json()
+                for station in data["results"]:
+                    yield station
+                url = data["next"]
+            except (KeyError, TypeError) as e:
+                raise MalformedResponseError(
+                    f"Malformed response from server: {str(e)}"
+                )
 
     def get_station(self, station_id):
         url = urljoin(self.base_url, f"api/stations/{station_id}/")

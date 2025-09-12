@@ -37,7 +37,8 @@ Reference
       it in subsequent requests. The method will be removed in future
       versions.
 
-   .. method:: get_station(self, id)
+   .. method:: list_stations(self)
+               get_station(self, id)
                post_station(self, data)
                put_station(self, station_id, data)
                patch_station(self, station_id, data)
@@ -47,8 +48,10 @@ Reference
       ``data`` argument (for those methods that receive one) is a
       dictionary.  :meth:`~EnhydrisApiClient.get_station` returns a
       dictionary with the data for the station.
-      ``~EnhydrisApiClient.post_station`` returns the created station's
-      id.
+      :meth:`~EnhydrisApiClient.post_station` returns the created
+      station's id. :meth:`~EnhydrisApiClient.list_stations` returns a
+      generator object that in each iteration provides a dictionary with
+      the station's data.
 
    .. method:: get_timeseries_group(self, station_id, timeseries_group_id)
                post_timeseries_group(self, station_id, timeseries_group_id, data)
