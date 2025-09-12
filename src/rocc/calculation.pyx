@@ -2,6 +2,7 @@
 import datetime as dt
 
 cimport numpy as np
+
 np.import_array()
 
 from cpython cimport array

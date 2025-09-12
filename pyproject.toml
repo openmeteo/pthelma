@@ -67,3 +67,4 @@ write_to = "src/pthelma/_version.py"
 
 [tool.isort]
 skip = ["_version.py"]
+extra_standard_library = ["libc"]

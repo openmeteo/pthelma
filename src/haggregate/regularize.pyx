@@ -2,13 +2,14 @@
 # distutils: define_macros=CYTHON_TRACE=1
 
 import datetime as dt
+from libc.math cimport isnan
 
 cimport numpy as np
+
 np.import_array()
 
 import numpy as np
 import pandas as pd
-from libc.math cimport isnan
 from pandas.tseries.frequencies import to_offset
 
 from htimeseries import HTimeseries
