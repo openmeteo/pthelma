@@ -3,11 +3,7 @@ import math
 import textwrap
 from io import StringIO
 from unittest import TestCase
-
-try:
-    from zoneinfo import ZoneInfo
-except ImportError:
-    from backports.zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo
 
 import numpy as np
 

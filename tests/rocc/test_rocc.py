@@ -1,11 +1,7 @@
 import textwrap
 from io import StringIO
 from unittest import TestCase
-
-try:
-    from zoneinfo import ZoneInfo
-except ImportError:
-    from backports.zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo
 
 from htimeseries import HTimeseries
 from rocc import Threshold, rocc

@@ -2,7 +2,10 @@
 # distutils: define_macros=CYTHON_TRACE=1
 
 import datetime as dt
+
 cimport numpy as np
+np.import_array()
+
 import numpy as np
 import pandas as pd
 from libc.math cimport isnan
@@ -63,7 +66,7 @@ def regularize(ts, new_date_flag="DATEINSERT", mode=RM.INTERVAL):
     # supported by numba and Cython
     max_flags_length = max(ts.data["flags"].str.len()) + 1 + len(new_date_flag)
     flags_dtype = "U" + str(max_flags_length)
-    ts_index = ts.data.index.values.astype(long)
+    ts_index = ts.data.index.values.astype(np.int64)
     ts_values = ts.data["value"].values
     ts_flags = ts.data["flags"].values.astype(flags_dtype)
     result_step = np.timedelta64(step).astype(int) * 1000

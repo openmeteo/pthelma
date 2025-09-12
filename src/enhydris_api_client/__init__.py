@@ -1,11 +1,7 @@
 from copy import copy
 from io import StringIO
 from urllib.parse import urljoin
-
-try:
-    from zoneinfo import ZoneInfo
-except ImportError:
-    from backports.zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo
 
 import iso8601
 import requests

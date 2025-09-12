@@ -2,6 +2,8 @@
 import datetime as dt
 
 cimport numpy as np
+np.import_array()
+
 from cpython cimport array
 
 import numpy as np
@@ -42,7 +44,7 @@ class Rocc:
         flag_lengths = self.htimeseries.data["flags"].str.len()
         max_flag_length = 0 if flag_lengths.empty else max(flag_lengths)
         flags_dtype = "U" + str(max_flag_length + 1 + len(self.flag))
-        self.ts_index = self.htimeseries.data.index.values.astype(long)
+        self.ts_index = self.htimeseries.data.index.values.astype(np.int64)
         self.ts_values = self.htimeseries.data["value"].values
         self.ts_flags = self.htimeseries.data["flags"].values.astype(flags_dtype)
         try:

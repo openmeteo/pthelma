@@ -10,7 +10,7 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         include:
@@ -19,6 +19,8 @@ jobs:
           - python-version: "3.11"
             include-codecov: false
           - python-version: "3.12"
+            include-codecov: false
+          - python-version: "3.13"
             include-codecov: true
 
     steps:
@@ -38,11 +40,11 @@ jobs:
     - name: Install Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y gdal-bin libgdal-dev postgresql-14-postgis-3
+        sudo apt-get install -y gdal-bin libgdal-dev postgresql-16-postgis-3
         source ~/.venv/bin/activate
         # numpy<2 is needed for gdal to contain support for gdal array
         pip install 'numpy<2'
-        CPLUS_INCLUDE_PATH=/usr/include/gdal C_INCLUDE_PATH=/usr/include/gdal pip install --no-build-isolation 'gdal==3.4.1'
+        CPLUS_INCLUDE_PATH=/usr/include/gdal C_INCLUDE_PATH=/usr/include/gdal pip install --no-build-isolation 'gdal==3.8.4'
         pip install coverage isort flake8 'black<25' twine setuptools build
         pip install -e .
 
