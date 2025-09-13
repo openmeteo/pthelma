@@ -36,7 +36,7 @@ daily solar radiation given cloud cover.
 2.1.1 (2025-02-21)
 ==================
 
-We now depend on numpy<1, because some modules are not yet compatible
+We now depend on numpy<2, because some modules are not yet compatible
 with numpy 2.
 
 2.1.0 (2025-01-10)
