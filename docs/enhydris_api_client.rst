@@ -53,7 +53,8 @@ Reference
       generator object that in each iteration provides a dictionary with
       the station's data.
 
-   .. method:: get_timeseries_group(self, station_id, timeseries_group_id)
+   .. method:: list_timeseries_groups(self, station_id)
+               get_timeseries_group(self, station_id, timeseries_group_id)
                post_timeseries_group(self, station_id, timeseries_group_id, data)
                put_timeseries_group(self, station_id, timeseries_group_id, data)
                patch_timeseries_group(self, station_id, timeseries_group_id, data)

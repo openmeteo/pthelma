@@ -119,6 +119,21 @@ class EnhydrisApiClient:
         self.response = self.session.delete(url)
         self.check_response(expected_status_code=204)
 
+    def list_timeseries_groups(self, station_id):
+        url = urljoin(self.base_url, f"api/stations/{station_id}/timeseriesgroups/")
+        while url:
+            try:
+                self.response = self.session.get(url)
+                self.check_response()
+                data = self.response.json()
+                for tg in data["results"]:
+                    yield tg
+                url = data["next"]
+            except (KeyError, TypeError) as e:
+                raise MalformedResponseError(
+                    f"Malformed response from server: {str(e)}"
+                )
+
     def get_timeseries_group(self, station_id, timeseries_group_id):
         url = urljoin(
             self.base_url,

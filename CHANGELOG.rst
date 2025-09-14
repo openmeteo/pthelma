@@ -2,6 +2,11 @@
 Changelog
 =========
 
+2.4.0 (2025-09-14)
+==================
+
+* Added ``enhydris_api_client.EnhydrisApiClient.list_timeseries_groups()``.
+
 2.3.1 (2025-09-14)
 ==================
 
