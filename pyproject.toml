@@ -40,7 +40,6 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
 ]
 
 [project.scripts]
@@ -64,6 +63,14 @@ package-dir = {"" = "src"}
 
 [tool.setuptools_scm]
 write_to = "src/pthelma/_version.py"
+
+[tool.cibuildwheel]
+# We can't support Python 3.13 yet, as numpy<2 isn't supported there. While we
+# are ready to upgrade to numpy 2, GDAL<3.9 doesn't support numpy 2. We
+# need to wait until Ubuntu 26.04 is released (24.04 has GDAL 3.8).
+# For the time being we also don't support Pypy (failing Pypy builds could be
+# related to the numpy<2 problem, but I'm not certain).
+skip = "pp* cp313-*"
 
 [tool.isort]
 skip = ["_version.py"]

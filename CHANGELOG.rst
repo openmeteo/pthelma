@@ -2,10 +2,16 @@
 Changelog
 =========
 
+2.3.1 (2025-09-14)
+==================
+
+* This release REMOVES Python 3.13 compatibility which was wrongly added
+  in 2.3.0. We can't add Python 3.13 compatibility before Ubuntu 26.04
+  is released (see comment in pyproject.toml for more).
+
 2.3.0 (2025-09-13)
 ==================
 
-* Compatible with Python 3.13.
 * Added ``enhydris_api_client.EnhydrisApiClient.list_stations()``.
 
 2.2.3 (2025-03-26)
