@@ -2,6 +2,11 @@
 Changelog
 =========
 
+2.4.1 (2025-09-17)
+==================
+
+* Fixed rocc not working properly with negative thresholds.
+
 2.4.0 (2025-09-14)
 ==================
 
