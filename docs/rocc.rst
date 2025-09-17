@@ -71,7 +71,7 @@ rocc - Rate-of-change check for time series
    subject to change.
 
    If ``symmetric`` is ``True``, it is the absolute value of the change
-   that matters, not its direction. In this case, ``allowed_diff`` must be
-   positive. If ``symmetric`` is ``False`` (the default), only rates larger
-   than positive ``allow_diff`` or rates smaller than negative
-   ``allow_diff`` are flagged.
+   that matters, not its direction. In this case, ``allowed_diff`` should
+   be positive (its sign is actually ignored). If ``symmetric`` is
+   ``False`` (the default), only rates larger than positive ``allow_diff``
+   or rates smaller than negative ``allow_diff`` fail.

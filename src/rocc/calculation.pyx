@@ -135,10 +135,13 @@ def _record_fails_check(
     cdef double diff
 
     for ti in range(len(threshold_deltas)):
+        threshold = threshold_allowed_diffs[ti]
+        if symmetric:
+            threshold = abs(threshold)
         diff = _record_fails_threshold(
             record_index,
             threshold_deltas[ti],
-            threshold_allowed_diffs[ti],
+            threshold,
             ts_index,
             ts_values,
             symmetric,
@@ -149,11 +152,11 @@ def _record_fails_check(
                 np.datetime64(timestamp, "ns") + np.timedelta64(ts_utc_offset_minutes, "m")
             )[:16]
             diffsign = '+' if diff > 0 else ''
-            thresholdsign = '-' if diff < 0 else ''
+            thresholdsign = '-' if symmetric and diff < 0 else ''
             cmpsign = '>' if diff > 0 else '<'
             failures.append(
                 f"{datestr}  {diffsign}{diff} in {thresholds[ti].delta_t} "
-                f"({cmpsign} {thresholdsign}{threshold_allowed_diffs[ti]})"
+                f"({cmpsign} {thresholdsign}{threshold})"
             )
             return True
     return False
@@ -177,8 +180,12 @@ def _record_fails_threshold(
             return False
         diff = current_value - ts_values[i];
         fails = (
-            diff > threshold_allowed_diff
-            or (symmetric and diff < -threshold_allowed_diff)
+            not symmetric and
+            (
+                (threshold_allowed_diff > 0 and diff > threshold_allowed_diff)
+                or (threshold_allowed_diff < 0 and diff < threshold_allowed_diff)
+            )
+            or (symmetric and abs(diff) > abs(threshold_allowed_diff))
         )
         if fails:
             return diff
