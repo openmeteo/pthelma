@@ -1,3 +1,4 @@
+import datetime as dt
 import textwrap
 from io import StringIO
 from unittest import TestCase
@@ -13,7 +14,7 @@ class RoccTestCase(TestCase):
         2020-10-06 14:30,24.0,
         2020-10-06 14:40,25.0,
         2020-10-06 14:50,36.0,SOMEFLAG
-        2020-10-06 15:01,51.0,
+        2020-10-06 15:01,50.0,
         2020-10-06 15:21,55.0,
         2020-10-06 15:31,65.0,
         2020-10-06 15:41,75.0,
@@ -50,7 +51,7 @@ class RoccTestCase(TestCase):
                 2020-10-06 14:30,24.0,
                 2020-10-06 14:40,25.0,
                 2020-10-06 14:50,36.0,SOMEFLAG TEMPORAL
-                2020-10-06 15:01,51.0,
+                2020-10-06 15:01,50.0,
                 2020-10-06 15:21,55.0,
                 2020-10-06 15:31,65.0,
                 2020-10-06 15:41,75.0,TEMPORAL
@@ -93,7 +94,7 @@ class RoccNegativeTestCase(TestCase):
         2020-10-06 14:30,24.0,
         2020-10-06 14:40,25.0,
         2020-10-06 14:50,36.0,SOMEFLAG
-        2020-10-06 15:01,51.0,
+        2020-10-06 15:01,50.0,
         2020-10-06 15:21,55.0,
         2020-10-06 15:31,65.0,
         2020-10-06 15:41,75.0,
@@ -129,7 +130,7 @@ class RoccNegativeTestCase(TestCase):
                 2020-10-06 14:30,24.0,
                 2020-10-06 14:40,25.0,
                 2020-10-06 14:50,36.0,SOMEFLAG TEMPORAL
-                2020-10-06 15:01,51.0,
+                2020-10-06 15:01,50.0,
                 2020-10-06 15:21,55.0,
                 2020-10-06 15:31,65.0,
                 2020-10-06 15:41,75.0,
@@ -149,13 +150,13 @@ class RoccNegativeTestCase(TestCase):
         )
 
 
-class RoccSymmetricCase(TestCase):
+class RoccSymmetricTestCase(TestCase):
     test_data = textwrap.dedent(
         """\
         2020-10-06 14:30,76.0,
         2020-10-06 14:40,75.0,SOMEFLAG
         2020-10-06 14:50,64.0,SOMEFLAG
-        2020-10-06 15:01,49.0,
+        2020-10-06 15:01,50,
         2020-10-06 15:21,45.0,
         2020-10-06 15:31,35.0,
         2020-10-06 15:41,25.0,
@@ -188,7 +189,7 @@ class RoccSymmetricCase(TestCase):
                 2020-10-06 14:30,76.0,
                 2020-10-06 14:40,75.0,SOMEFLAG
                 2020-10-06 14:50,64.0,SOMEFLAG
-                2020-10-06 15:01,49.0,
+                2020-10-06 15:01,50.0,
                 2020-10-06 15:21,45.0,
                 2020-10-06 15:31,35.0,
                 2020-10-06 15:41,25.0,
@@ -217,7 +218,7 @@ class RoccSymmetricCase(TestCase):
                 2020-10-06 14:30,76.0,
                 2020-10-06 14:40,75.0,SOMEFLAG
                 2020-10-06 14:50,64.0,SOMEFLAG TEMPORAL
-                2020-10-06 15:01,49.0,
+                2020-10-06 15:01,50.0,
                 2020-10-06 15:21,45.0,
                 2020-10-06 15:31,35.0,
                 2020-10-06 15:41,25.0,TEMPORAL
@@ -253,3 +254,166 @@ class RoccEmptyCase(TestCase):
         ahtimeseries = HTimeseries()
         rocc(timeseries=ahtimeseries, thresholds=[Threshold("10min", 10)])
         self.assertTrue(ahtimeseries.data.empty)
+
+
+class RoccImpliedThresholdsTestCase(TestCase):
+    def _create_htimeseries(self, test_data):
+        self.ahtimeseries = HTimeseries(
+            StringIO(test_data), default_tzinfo=dt.timezone.utc
+        )
+        self.ahtimeseries.precision = 2
+
+    def _run_rocc(self, thresholds, symmetric=False):
+        self.return_value = rocc(
+            timeseries=self.ahtimeseries, thresholds=thresholds, symmetric=symmetric
+        )
+        result = StringIO()
+        self.ahtimeseries.write(result)
+        result = result.getvalue().replace("\r\n", "\n")
+        return result
+
+    def test_positive_ok(self):
+        test_data = textwrap.dedent(
+            """\
+            2020-10-06 14:30,25.00,
+            2020-10-06 15:00,49.99,
+            """
+        )
+        self._create_htimeseries(test_data)
+        result = self._run_rocc(
+            thresholds=(
+                Threshold("10min", 10),
+                Threshold("20min", 15),
+            ),
+        )
+        self.assertEqual(
+            result,
+            textwrap.dedent(
+                """\
+                2020-10-06 14:30,25.00,
+                2020-10-06 15:00,49.99,
+                """
+            ),
+        )
+
+    def test_positive_not_ok(self):
+        test_data = textwrap.dedent(
+            """\
+            2020-10-06 14:30,25.00,
+            2020-10-06 15:00,50.01,
+            """
+        )
+        self._create_htimeseries(test_data)
+        result = self._run_rocc(
+            thresholds=(
+                Threshold("10min", 10),
+                Threshold("20min", 15),
+            ),
+        )
+        self.assertEqual(
+            result,
+            textwrap.dedent(
+                """\
+                2020-10-06 14:30,25.00,
+                2020-10-06 15:00,50.01,TEMPORAL
+                """
+            ),
+        )
+
+    def test_negative_ok(self):
+        test_data = textwrap.dedent(
+            """\
+            2020-10-06 14:30,75.00,
+            2020-10-06 15:00,50.01,
+            """
+        )
+        self._create_htimeseries(test_data)
+        result = self._run_rocc(
+            thresholds=(
+                Threshold("10min", -10),
+                Threshold("20min", -15),
+            ),
+        )
+        self.assertEqual(
+            result,
+            textwrap.dedent(
+                """\
+                2020-10-06 14:30,75.00,
+                2020-10-06 15:00,50.01,
+                """
+            ),
+        )
+
+    def test_negative_not_ok(self):
+        test_data = textwrap.dedent(
+            """\
+            2020-10-06 14:30,75.00,
+            2020-10-06 15:00,49.99,
+            """
+        )
+        self._create_htimeseries(test_data)
+        result = self._run_rocc(
+            thresholds=(
+                Threshold("10min", -10),
+                Threshold("20min", -15),
+            ),
+        )
+        self.assertEqual(
+            result,
+            textwrap.dedent(
+                """\
+                2020-10-06 14:30,75.00,
+                2020-10-06 15:00,49.99,TEMPORAL
+                """
+            ),
+        )
+
+    def test_symmetric_ok(self):
+        test_data = textwrap.dedent(
+            """\
+            2020-10-06 14:30,50.00,
+            2020-10-06 15:00,74.99,
+            """
+        )
+        self._create_htimeseries(test_data)
+        result = self._run_rocc(
+            thresholds=(
+                Threshold("10min", 10),
+                Threshold("20min", -15),
+            ),
+            symmetric=True,
+        )
+        self.assertEqual(
+            result,
+            textwrap.dedent(
+                """\
+                2020-10-06 14:30,50.00,
+                2020-10-06 15:00,74.99,
+                """
+            ),
+        )
+
+    def test_symmetric_not_ok(self):
+        test_data = textwrap.dedent(
+            """\
+            2020-10-06 14:30,75.00,
+            2020-10-06 15:00,49.99,
+            """
+        )
+        self._create_htimeseries(test_data)
+        result = self._run_rocc(
+            thresholds=(
+                Threshold("10min", 10),
+                Threshold("20min", -15),
+            ),
+            symmetric=True,
+        )
+        self.assertEqual(
+            result,
+            textwrap.dedent(
+                """\
+                2020-10-06 14:30,75.00,
+                2020-10-06 15:00,49.99,TEMPORAL
+                """
+            ),
+        )

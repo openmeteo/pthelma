@@ -74,4 +74,4 @@ skip = "pp* cp313-*"
 
 [tool.isort]
 skip = ["_version.py"]
-extra_standard_library = ["libc"]
+extra_standard_library = ["cpython", "libc"]

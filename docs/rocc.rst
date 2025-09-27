@@ -18,7 +18,7 @@ rocc - Rate-of-change check for time series
          thresholds=(
             Threshold("10min", 10),
             Threshold("20min", 15),
-            Threshold("h", 40),
+            Threshold("1h", 40),
          ),
          symmetric=True,
          flag="MYFLAG",
@@ -69,6 +69,29 @@ rocc - Rate-of-change check for time series
 
    The return value should only be used for consumption by humans; it is
    subject to change.
+
+   If a 10min threshold is 10, then a 20min threshold of 20 is
+   automatically implied, and a 30min threshold of 30, and so on. The
+   implied thresholds can be overriden with lower values.  Likewise, if
+   the 10min threshold is 10, and the (explicit) 20min threshold is 15,
+   then a 30min threshold of 25, and so on, is implied. The implied
+   thresholds are checked only against the previous valid record (a
+   valid record is one that has not already failed the rate-of-change
+   check), so, with the thresholds ``"10min", 10`` and ``"20min", 15``,
+   the second record of the following will fail the check::
+
+      2020-10-06 14:30,25.00,
+      2020-10-06 15:00,50.01,
+
+   The explicit thresholds, on the other hand, are checked against all
+   applicable previous valid records.
+
+   The implied thresholds are checked only if the difference between the
+   timestamp of the current record and the timestamp of the previous
+   valid record is up to 100 times the explicit threshold with the
+   largest time step. So with the thresholds ``"10min", 2`` and ``"1h",
+   6``, if a record is more than 100 hours after the previous valid
+   record will always pass.
 
    If ``symmetric`` is ``True``, it is the absolute value of the change
    that matters, not its direction. In this case, ``allowed_diff`` should

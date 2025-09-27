@@ -2,6 +2,15 @@
 Changelog
 =========
 
+2.5.0 (2025-09-27)
+==================
+
+Large improvements in the operation of rocc:
+
+* It now supports implied thresholds
+* It now only compares each record to previous records that have not
+  failed the check.
+
 2.4.1 (2025-09-17)
 ==================
 
