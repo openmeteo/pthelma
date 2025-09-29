@@ -265,7 +265,7 @@ cdef class Rocc:
         if remainder > 0:
             # Find first threshold with correct sign and add it to result
             if self.symmetric:
-                result += self.threshold_allowed_diffs[0]
+                result += abs(self.threshold_allowed_diffs[0])
             elif negative:
                 for i in range(self.len_thresholds):
                     if self.threshold_allowed_diffs[i] < 0:

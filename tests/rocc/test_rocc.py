@@ -441,3 +441,18 @@ class RoccImpliedThresholdsTestCase(TestCase):
                 """
             ),
         )
+
+    def test_check_delta_remainder_with_symmetric_and_negative_threshold(self):
+        test_data = textwrap.dedent(
+            """\
+            2023-10-13 08:40,12.30,
+            2023-10-13 08:51,14.30,
+            """
+        )
+        self._create_htimeseries(test_data)
+        result = self._run_rocc(
+            thresholds=(Threshold("10min", -1),),
+            symmetric=True,
+        )
+
+        self.assertEqual(result, test_data)
