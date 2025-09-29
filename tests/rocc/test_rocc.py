@@ -201,10 +201,10 @@ class RoccSymmetricTestCase(TestCase):
     def test_with_symmetric(self):
         output = rocc(
             timeseries=self.ahtimeseries,
-            thresholds=(
-                Threshold("10min", 10),
+            thresholds=(  # Keep in strange order to test for possible errors
                 Threshold("20min", -15),
                 Threshold("h", 40),
+                Threshold("10min", 10),
             ),
             symmetric=True,
         )

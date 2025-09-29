@@ -55,7 +55,10 @@ cdef class Rocc:
         if flag is None:
             flag = ""
         self.htimeseries = timeseries
-        self.thresholds = thresholds
+        self.thresholds = sorted(
+            thresholds,
+            key=lambda t: (self._get_delta_t_transformed(t.delta_t), t.allowed_diff),
+        )
         self.symmetric = symmetric
         self.flag = flag or ""
         self.failures = []
@@ -71,6 +74,11 @@ cdef class Rocc:
         PyBytes_AsStringAndSize(self.rocc_flag, &self.p_rocc_flag, &n)
         self.rocc_flag_len_bytes = n
 
+    def _get_delta_t_transformed(self, delta_t):
+        if not delta_t[0].isdigit():
+            delta_t = "1" + delta_t
+        return int(pd.Timedelta(delta_t).to_timedelta64())
+
     def execute(self):
         self._do_actual_job()
         self._transform_to_pandas()
@@ -81,22 +89,9 @@ cdef class Rocc:
         self.threshold_deltas = array.array("l")
         self.threshold_allowed_diffs = array.array("d")
 
-        deltas = [
-            int(self._get_delta_t_transformed(threshold.delta_t)) for threshold in self.thresholds
-        ]
-        allowed_diffs = [threshold.allowed_diff for threshold in self.thresholds]
-
-        # Sort thresholds by delta_t
-        sorted_thresholds = sorted(zip(deltas, allowed_diffs))
-
-        for delta, allowed_diff in sorted_thresholds:
-            self.threshold_deltas.append(delta)
-            self.threshold_allowed_diffs.append(allowed_diff)
-
-    def _get_delta_t_transformed(self, delta_t):
-        if not delta_t[0].isdigit():
-            delta_t = "1" + delta_t
-        return pd.Timedelta(delta_t).to_timedelta64()
+        for t in self.thresholds:
+            self.threshold_deltas.append(self._get_delta_t_transformed(t.delta_t))
+            self.threshold_allowed_diffs.append(t.allowed_diff)
 
     @cython.warn.undeclared(False)
     def _transform_to_plain_numpy(self):
