@@ -117,13 +117,13 @@ cdef class Rocc:
 
         for i in range(self.ts_index.size):
             record_passes_check = self._record_passes_check(i, last_valid_index)
-            if record_passes_check:
-                last_valid_index = i
-            else:
+            if not record_passes_check:
                 self.n_failed_indexes += 1
                 self.failed_indexes[self.n_failed_indexes - 1] = i
                 if self.flag:
                     self._add_flag(i)
+            elif not isnan(self.ts_values[i]):
+                last_valid_index = i
 
     @cython.warn.undeclared(False)
     def _transform_to_pandas(self):

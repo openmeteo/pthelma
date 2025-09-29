@@ -417,3 +417,27 @@ class RoccImpliedThresholdsTestCase(TestCase):
                 """
             ),
         )
+
+    def test_compare_to_previous_not_null_record(self):
+        test_data = textwrap.dedent(
+            """\
+            2023-10-13 08:40,12.3,
+            2023-10-13 09:20,,RANGE
+            2023-10-13 09:30,-6.8,
+            """
+        )
+        self._create_htimeseries(test_data)
+        result = self._run_rocc(
+            thresholds=(Threshold("10min", 1),),
+            symmetric=True,
+        )
+        self.assertEqual(
+            result,
+            textwrap.dedent(
+                """\
+                2023-10-13 08:40,12.30,
+                2023-10-13 09:20,,RANGE
+                2023-10-13 09:30,-6.80,TEMPORAL
+                """
+            ),
+        )
