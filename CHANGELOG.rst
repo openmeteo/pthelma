@@ -2,6 +2,14 @@
 Changelog
 =========
 
+2.5.2 (2025-09-30)
+==================
+
+* Rocc is now much faster when there is a considerable number of records
+  that fail the test.
+* Rocc can now be passed a progress callback (the purpose of this is for
+  debugging speed issues).
+
 2.5.1 (2025-09-29)
 ==================
 

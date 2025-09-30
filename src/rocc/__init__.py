@@ -5,5 +5,18 @@ from .calculation import Rocc
 Threshold = namedtuple("Threshold", ["delta_t", "allowed_diff"])
 
 
-def rocc(*, timeseries, thresholds, symmetric=False, flag="TEMPORAL"):
-    return Rocc(timeseries, thresholds, symmetric, flag).execute()
+def rocc(
+    *,
+    timeseries,
+    thresholds,
+    symmetric=False,
+    flag="TEMPORAL",
+    progress_callback=lambda x: None,
+):
+    return Rocc(
+        timeseries,
+        thresholds,
+        symmetric,
+        flag,
+        progress_callback=progress_callback,
+    ).execute()

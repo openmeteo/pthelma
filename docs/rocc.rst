@@ -7,7 +7,7 @@ rocc - Rate-of-change check for time series
    A named tuple whose items are :attr:`delta_t` (a pandas interval
    specification) and :attr:`allowed_diff` (a floating point number).
 
-.. function:: rocc.rocc(ahtimeseries, thresholds, symmetric=False, flag="TEMPORAL")
+.. function:: rocc.rocc(ahtimeseries, thresholds, symmetric=False, flag="TEMPORAL", progress_callback=lambda x: None)
 
    Example ::
 
@@ -31,6 +31,10 @@ rocc - Rate-of-change check for time series
    value of the time series changes by more than the specified
    threshold. The offending records are flagged with the specified
    ``flag``.
+
+   ``progress_callback`` is a function that is periodically called
+   (every 10 thousand records processed) with the percentage completed
+   (as a number between 0 and 1).
 
    It returns a list of strings describing where the thresholds have been
    exceeded.

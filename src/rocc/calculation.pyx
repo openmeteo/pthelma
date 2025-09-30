@@ -12,7 +12,6 @@ import cython
 from cpython cimport array
 from cpython.bytes cimport PyBytes_AsStringAndSize
 from libc.math cimport NAN, isnan
-from libc.stdint cimport int64_t, uint32_t
 from libc.string cimport memcpy
 
 import numpy as np
@@ -31,25 +30,25 @@ cdef class Rocc:
     cdef array.array threshold_deltas
     cdef array.array threshold_allowed_diffs
     cdef long[:] ts_index
-    cdef array.array failed_indexes
-    cdef long n_failed_indexes
+    cdef np.uint8_t[:] failed_mask
     cdef double[:] ts_values
     cdef int max_flags_length
     cdef bytes rocc_flag
     cdef char *p_rocc_flag
     cdef int rocc_flag_len_bytes
-    cdef uint32_t[:, :] ts_flags
+    cdef np.uint32_t[:, :] ts_flags
     cdef array.array buf
     cdef bint symmetric
     cdef str flag
     cdef list failures
-    cdef int64_t largest_delta
-    cdef int64_t smallest_delta
+    cdef np.int64_t largest_delta
+    cdef np.int64_t smallest_delta
     cdef int len_thresholds
     cdef int ts_utc_offset_minutes
+    cdef object progress_callback
 
     @cython.warn.undeclared(False)
-    def __init__(self, timeseries, thresholds, symmetric, flag):
+    def __init__(self, timeseries, thresholds, symmetric, flag, progress_callback):
         cdef Py_ssize_t n
 
         if flag is None:
@@ -73,6 +72,7 @@ cdef class Rocc:
         self.rocc_flag_len_bytes = len(self.rocc_flag)
         PyBytes_AsStringAndSize(self.rocc_flag, &self.p_rocc_flag, &n)
         self.rocc_flag_len_bytes = n
+        self.progress_callback = progress_callback
 
     def _get_delta_t_transformed(self, delta_t):
         if not delta_t[0].isdigit():
@@ -100,8 +100,7 @@ cdef class Rocc:
         self.max_flags_length = max_existing_flags_length + 1 + len(self.flag)
         flags_dtype = f"U{self.max_flags_length}"
         self.ts_index = self.htimeseries.data.index.values.astype(np.int64)
-        self.failed_indexes = array.array("l", [0] * self.ts_index.size)
-        self.n_failed_indexes = 0
+        self.failed_mask = np.zeros(self.ts_index.size, dtype=np.uint8)
         self.ts_values = self.htimeseries.data["value"].values
         flags = self.htimeseries.data["flags"].values
         self.ts_flags = flags.astype(flags_dtype).view(np.uint32).reshape(-1, self.max_flags_length)
@@ -112,14 +111,15 @@ cdef class Rocc:
         self.ts_utc_offset_minutes = int(utc_offset.total_seconds() / 60)
 
     cdef _do_actual_job(self):
-        cdef int i, record_fails_check, last_valid_index = -1
+        cdef int i, last_valid_index = -1
         cdef bint record_passes_check
 
         for i in range(self.ts_index.size):
+            if i % 10000 == 0:
+                self.progress_callback(i / self.ts_index.size)
             record_passes_check = self._record_passes_check(i, last_valid_index)
             if not record_passes_check:
-                self.n_failed_indexes += 1
-                self.failed_indexes[self.n_failed_indexes - 1] = i
+                self.failed_mask[i] = 1
                 if self.flag:
                     self._add_flag(i)
             elif not isnan(self.ts_values[i]):
@@ -147,7 +147,7 @@ cdef class Rocc:
     cdef bint _record_passes_check(self, int record_index, int last_valid_index):
         cdef int ti
         cdef double diff, threshold, max_allowed_diff
-        cdef int64_t delta, timestamp, delta_t
+        cdef np.int64_t delta, timestamp, delta_t
         cdef str datestr, diffsign, thresholdsign, cmpsign, max_allowed_diff_sign
         cdef bint fails
 
@@ -205,7 +205,7 @@ cdef class Rocc:
     cdef double _record_fails_explicit_threshold(
         self,
         int record_index,
-        int64_t threshold_delta,
+        np.int64_t threshold_delta,
         double threshold_allowed_diff,
     ):
         cdef double current_value = self.ts_values[record_index]
@@ -216,7 +216,7 @@ cdef class Rocc:
         for i in range(record_index - 1, -1, -1):
             if current_timestamp - self.ts_index[i] > threshold_delta:
                 return NAN
-            if self._failed_indexes_contains(i):
+            if self.failed_mask[i]:
                 continue
             diff = current_value - self.ts_values[i]
             fails = (
@@ -230,14 +230,6 @@ cdef class Rocc:
             if fails:
                 return diff
         return NAN
-
-    cdef bint _failed_indexes_contains(self, int i):
-        cdef int j
-
-        for j in range(self.n_failed_indexes):
-            if self.failed_indexes[j] == i:
-                return True
-        return False
 
     cdef double _get_max_allowed_diff(self, long delta_t, bint negative):
         cdef int pick, i
