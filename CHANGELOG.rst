@@ -2,6 +2,11 @@
 Changelog
 =========
 
+2.6.0 (2025-10-01)
+==================
+
+* haggregate now accepts any fixed time step, not just "1h" and "1D".
+
 2.5.2 (2025-09-30)
 ==================
 

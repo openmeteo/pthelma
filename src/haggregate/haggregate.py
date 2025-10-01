@@ -1,4 +1,3 @@
-import re
 from enum import Enum
 
 import numpy as np
@@ -116,8 +115,13 @@ class AggregatedTimeseries(HTimeseries):
     def set_metadata(self, source_timeseries):
         for attr in attrs:
             setattr(self, attr, getattr(source_timeseries, attr, None))
-        if self.time_step not in ("1h", "1D"):
-            raise AggregateError("The target step can currently only be 1h or 1D")
+        try:
+            if pd.Timedelta(self.time_step) <= pd.Timedelta(0):
+                raise ValueError("Non-positive time step")
+        except ValueError as e:
+            raise AggregateError(
+                "The target step must be a positive, fixed duration such as 1h or 1D"
+            ) from e
         if hasattr(source_timeseries, "title"):
             self.title = "Aggregated " + source_timeseries.title
         if hasattr(source_timeseries, "comment"):
@@ -137,17 +141,6 @@ class AggregatedTimeseries(HTimeseries):
             periods = target_timestamp_offset.startswith("-") and 1 or -1
             freq = target_timestamp_offset.lstrip("-")
             self.data = self.data.shift(periods, freq=freq)
-
-
-def _get_offset_in_minutes(timestamp_offset):
-    m = re.match(r"(-?)(\d*)min$", timestamp_offset)
-    if not m:
-        raise AggregateError(
-            "The target timestamp offset can currently only be a number of minutes "
-            "such as 1min"
-        )
-    sign = m.group(1) == "-" and -1 or 1
-    return sign * int(m.group(2))
 
 
 class RegularizationMode(Enum):

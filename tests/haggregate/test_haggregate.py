@@ -124,10 +124,19 @@ class TimestampIrregularityTestCase(TestCase):
 
 
 class WrongTimeStepTestCase(TestCase):
-    def test_raises_exception(self):
-        msg = "The target step can currently only be 1h or 1D"
-        with self.assertRaisesRegex(AggregateError, msg):
-            aggregate(HTimeseries(), "5D", "sum")
+    msg = "The target step must be a positive, fixed duration such as 1h or 1D"
+
+    def test_monthly(self):
+        with self.assertRaisesRegex(AggregateError, self.msg):
+            aggregate(HTimeseries(), "1M", "sum")
+
+    def test_zero(self):
+        with self.assertRaisesRegex(AggregateError, self.msg):
+            aggregate(HTimeseries(), "0s", "sum")
+
+    def test_negative(self):
+        with self.assertRaisesRegex(AggregateError, self.msg):
+            aggregate(HTimeseries(), "-1h", "sum")
 
 
 class HourlySumWithLargerMinCountTestCase(TestCase):
@@ -303,6 +312,31 @@ class HourlyMinTestCase(TestCase):
 
     def test_value_4(self):
         self.assertAlmostEqual(self.result.data.loc["2008-02-07 13:00"].value, 11.91)
+
+
+class ThreeHourlyAggregationTestCase(TestCase):
+    def setUp(self):
+        self.ts = HTimeseries(
+            StringIO(tenmin_test_timeseries), default_tzinfo=ZoneInfo("Etc/GMT-2")
+        )
+        self.result = aggregate(
+            self.ts, "3h", "sum", min_count=2, missing_flag="MISSING{}"
+        )
+
+    def test_length(self):
+        self.assertEqual(len(self.result.data), 2)
+
+    def test_value_1(self):
+        self.assertAlmostEqual(self.result.data.loc["2008-02-07 12:00"].value, 166.01)
+
+    def test_value_2(self):
+        self.assertAlmostEqual(self.result.data.loc["2008-02-07 15:00"].value, 85.08)
+
+    def test_flags_1(self):
+        self.assertEqual(self.result.data["flags"].loc["2008-02-07 12:00"], "MISSING3")
+
+    def test_flags_2(self):
+        self.assertEqual(self.result.data["flags"].loc["2008-02-07 15:00"], "MISSING11")
 
 
 class AggregateEmptyTestCase(TestCase):
