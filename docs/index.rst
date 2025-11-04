@@ -12,9 +12,10 @@ pthelma - Utilities for hydrological and meteorological time series processing
 
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    htimeseries
+   textbisect
 
 
 .. toctree::
