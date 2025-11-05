@@ -152,9 +152,7 @@ class PenmanMonteith(object):
         wind_speed_c = cast(Numeric, variables["wind_speed"])
         pressure_c = cast(Numeric, variables["pressure"])
         solar_radiation_c = cast(Numeric, variables["solar_radiation"])
-        gamma = self.get_psychrometric_constant(
-            temperature_c, pressure_c
-        )
+        gamma = self.get_psychrometric_constant(temperature_c, pressure_c)
         extraterrestrial_radiation = self.get_extraterrestrial_radiation(adatetime)
         r_so = cast(Numeric, extraterrestrial_radiation) * (
             0.75 + 2e-5 * self.elevation
@@ -472,7 +470,9 @@ class PenmanMonteith(object):
         coefficient = np.where(incoming_solar_radiation > 0.05, 0.1, 0.5)
         return coefficient * rn
 
-    def get_saturation_vapour_pressure_curve_slope(self, temperature: Numeric) -> Numeric:
+    def get_saturation_vapour_pressure_curve_slope(
+        self, temperature: Numeric
+    ) -> Numeric:
         "Allen et al. (1998), p. 37, eq. 13."
         numerator = 4098 * self.get_saturation_vapour_pressure(temperature)
         with warnings.catch_warnings():

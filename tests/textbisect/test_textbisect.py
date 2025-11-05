@@ -1,8 +1,7 @@
 import textwrap
 from io import StringIO
-from unittest import TestCase
-
 from typing import Any, Union
+from unittest import TestCase
 
 from textbisect import text_bisect, text_bisect_left, text_bisect_right
 
@@ -96,7 +95,7 @@ class TextBisectTestCaseBase(TestCase):
     @staticmethod
     def KEY(x: str) -> str:
         return x
-    
+
     def _do_test(
         self,
         search_term: str,

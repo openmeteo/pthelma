@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Callable, Iterable, NamedTuple
 
 from .calculation import Rocc
 
-
 if TYPE_CHECKING:  # pragma: no cover - used for type checkers only
     from htimeseries import HTimeseries
 

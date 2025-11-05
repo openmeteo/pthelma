@@ -528,7 +528,9 @@ class ExtractPointFromRasterWhenOutsideCRSLimitsTestCase(TestCase):
         with self.assertRaises(RuntimeError):
             hspatial.extract_point_from_raster(point, self.fp)
 
-    def test_fails_gracefully_when_geos_point_is_really_outside_crs_limits(self) -> None:
+    def test_fails_gracefully_when_geos_point_is_really_outside_crs_limits(
+        self,
+    ) -> None:
         point = GeoDjangoPoint(125.0, 85.0)
         with self.assertRaises(RuntimeError):
             hspatial.extract_point_from_raster(point, self.fp)

@@ -282,6 +282,7 @@ class AppConfig:
 
 class ProcessAtPoint:
     timezone: str | None
+
     def __init__(self, config):
         self.config = config
 

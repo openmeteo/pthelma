@@ -4,7 +4,7 @@ import datetime as dt
 import textwrap
 from copy import copy
 from io import StringIO
-from typing import Any, Callable, Dict, Optional, cast
+from typing import Any, Callable, Dict, cast
 from unittest import mock
 
 import pandas as pd
@@ -55,9 +55,7 @@ def mock_session(**kwargs: Any) -> mock._patch:
                 f"(got {status_code!r} for {method})"
             )
         if status_code < 200 or status_code >= 400:
-            method_side_effect = (
-                f"{method}.return_value.raise_for_status.side_effect"
-            )
+            method_side_effect = f"{method}.return_value.raise_for_status.side_effect"
             patch_kwargs[method_side_effect] = requests.HTTPError
     for old_key in list(patch_kwargs.keys()):
         patch_kwargs[f"return_value.{old_key}"] = patch_kwargs.pop(old_key)

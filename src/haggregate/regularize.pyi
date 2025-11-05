@@ -4,8 +4,7 @@ from htimeseries import HTimeseries
 
 from .haggregate import RegularizationMode
 
-class RegularizeError(Exception):
-    ...
+class RegularizeError(Exception): ...
 
 def regularize(
     ts: HTimeseries,

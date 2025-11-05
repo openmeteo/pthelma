@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import datetime as dt
 from enum import Enum
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Optional
 
 import numpy as np
 import pandas as pd

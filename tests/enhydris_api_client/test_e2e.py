@@ -9,7 +9,6 @@ from typing import Any, Dict
 from unittest import TestCase, skipUnless
 from zoneinfo import ZoneInfo
 
-import pandas as pd
 import requests
 
 from enhydris_api_client import EnhydrisApiClient

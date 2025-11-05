@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime as dt
 from copy import copy
 from io import StringIO
-from typing import Any, Dict, Generator, Iterable, Optional
+from typing import Any, Dict, Generator, Iterable, Optional, cast
 from urllib.parse import urljoin
 from zoneinfo import ZoneInfo
 
@@ -11,7 +11,6 @@ import iso8601
 import pandas as pd
 import requests
 from requests import Response, Session
-from typing import cast
 
 from htimeseries import HTimeseries
 
@@ -82,7 +81,7 @@ class EnhydrisApiClient:
 
     def get_token(self, username: str, password: str) -> Optional[str]:
         if not username:
-            return
+            return None
 
         # Get a csrftoken
         login_url = urljoin(self.base_url, "api/auth/login/")
@@ -138,7 +137,9 @@ class EnhydrisApiClient:
         self.response = self.session.delete(url)
         self.check_response(expected_status_code=204)
 
-    def list_timeseries_groups(self, station_id: int) -> Generator[JSONDict, None, None]:
+    def list_timeseries_groups(
+        self, station_id: int
+    ) -> Generator[JSONDict, None, None]:
         url = urljoin(self.base_url, f"api/stations/{station_id}/timeseriesgroups/")
         while url:
             try:
@@ -153,7 +154,9 @@ class EnhydrisApiClient:
                     f"Malformed response from server: {str(e)}"
                 )
 
-    def get_timeseries_group(self, station_id: int, timeseries_group_id: int) -> JSONDict:
+    def get_timeseries_group(
+        self, station_id: int, timeseries_group_id: int
+    ) -> JSONDict:
         url = urljoin(
             self.base_url,
             f"api/stations/{station_id}/timeseriesgroups/{timeseries_group_id}/",
@@ -189,7 +192,9 @@ class EnhydrisApiClient:
         self.response = self.session.patch(url, data=data)
         self.check_response()
 
-    def delete_timeseries_group(self, station_id: int, timeseries_group_id: int) -> None:
+    def delete_timeseries_group(
+        self, station_id: int, timeseries_group_id: int
+    ) -> None:
         url = urljoin(
             self.base_url,
             f"api/stations/{station_id}/timeseriesgroups/{timeseries_group_id}/",
@@ -197,7 +202,9 @@ class EnhydrisApiClient:
         self.response = self.session.delete(url)
         self.check_response(expected_status_code=204)
 
-    def list_timeseries(self, station_id: int, timeseries_group_id: int) -> Iterable[JSONDict]:
+    def list_timeseries(
+        self, station_id: int, timeseries_group_id: int
+    ) -> Iterable[JSONDict]:
         url = urljoin(
             self.base_url,
             f"api/stations/{station_id}/timeseriesgroups/{timeseries_group_id}/"

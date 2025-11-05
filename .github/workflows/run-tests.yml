@@ -45,7 +45,7 @@ jobs:
         # numpy<2 is needed for gdal to contain support for gdal array
         pip install 'numpy<2'
         CPLUS_INCLUDE_PATH=/usr/include/gdal C_INCLUDE_PATH=/usr/include/gdal pip install --no-build-isolation 'gdal==3.8.4'
-        pip install coverage isort flake8 'black<25' twine setuptools build pyright
+        pip install coverage isort flake8 'black<25' twine setuptools build pyright setuptools_scm cython
         pip install -e .
 
     - name: Run Tests

@@ -1,6 +1,5 @@
 from io import SEEK_END
-
-from typing import Callable, IO, Union
+from typing import IO, Callable, Union
 
 
 class TextBisector:

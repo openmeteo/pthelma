@@ -1,6 +1,8 @@
 import datetime as dt
+
 import numpy as np
 from osgeo import gdal, osr
+
 
 def setup_test_raster(
     filename: str,

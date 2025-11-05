@@ -5,8 +5,8 @@ import datetime as dt
 import logging
 import os
 import sys
-from typing import Optional
 import traceback
+from typing import Optional
 
 import click
 

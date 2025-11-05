@@ -149,7 +149,7 @@ class PostStationTestCase(TestCase):
 
 class PutStationTestCase(TestCase):
     @mock_session()
-    def test_makes_request(self,m: MagicMock) -> None:
+    def test_makes_request(self, m: MagicMock) -> None:
         self.client = EnhydrisApiClient("https://mydomain.com")
         self.client.put_station(42, data={"location": "Syria"})
         m.return_value.put.assert_called_once_with(
@@ -159,7 +159,7 @@ class PutStationTestCase(TestCase):
 
 class PatchStationTestCase(TestCase):
     @mock_session()
-    def test_makes_request(self,m: MagicMock) -> None:
+    def test_makes_request(self, m: MagicMock) -> None:
         self.client = EnhydrisApiClient("https://mydomain.com")
         self.client.patch_station(42, data={"location": "Syria"})
         m.return_value.patch.assert_called_once_with(

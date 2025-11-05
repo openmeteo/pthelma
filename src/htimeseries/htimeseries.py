@@ -9,6 +9,7 @@ from typing import IO, Any, Callable, Dict, List, Optional, Sequence, Tuple, Uni
 import numpy as np
 import pandas as pd
 from pandas.tseries.frequencies import to_offset
+
 from textbisect import text_bisect_left
 
 from .timezone_utils import TzinfoFromString
@@ -147,7 +148,7 @@ class MetadataWriter:
         if self.version <= 2 or not getattr(self.htimeseries, "location", None):
             return
         assert self.htimeseries.location is not None
-            
+
         if self.htimeseries.location.get("altitude") is None:
             return
         altitude = self.htimeseries.location["altitude"]

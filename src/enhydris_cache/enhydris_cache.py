@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import datetime as dt
-from typing import Mapping, Sequence, TypedDict, cast
+from typing import Sequence, TypedDict, cast
 
 import pandas as pd
 
@@ -16,6 +16,7 @@ class TimeseriesGroup(TypedDict):
     timeseries_id: int
     auth_token: str | None
     file: str
+
 
 class TimeseriesCache(object):
     def __init__(self, timeseries_group: Sequence[TimeseriesGroup]) -> None:

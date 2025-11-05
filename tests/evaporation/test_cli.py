@@ -308,9 +308,7 @@ class CorrectSpatialConfigurationTestCase(TestCase):
         m.return_value.execute.assert_called_once_with()
 
     @patch("evaporation.cli.ProcessSpatial")
-    def test_seasonal_albedo_configuration_as_12_grids(
-        self, m: MagicMock
-    ) -> None:
+    def test_seasonal_albedo_configuration_as_12_grids(self, m: MagicMock) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -413,9 +411,7 @@ class CorrectSpatialConfigurationTestCase(TestCase):
         m.return_value.execute.assert_called_once_with()
 
     @patch("evaporation.cli.ProcessSpatial")
-    def test_seasonal_albedo_configuration_as_12_numbers(
-        self, m: MagicMock
-    ) -> None:
+    def test_seasonal_albedo_configuration_as_12_numbers(self, m: MagicMock) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(

@@ -311,7 +311,9 @@ class HTimeseriesWriteFileTestCase(TestCase):
             names=("date", "value", "flags"),
             dtype={"value": np.float64, "flags": str},
         ).asfreq("10min")
-        data.index = cast(pd.DatetimeIndex, data.index).tz_localize(dt.timezone(dt.timedelta(hours=2)))
+        data.index = cast(pd.DatetimeIndex, data.index).tz_localize(
+            dt.timezone(dt.timedelta(hours=2))
+        )
         self.reference_ts = HTimeseries(data=data)
         self.reference_ts.unit = "°C"
         self.reference_ts.title = "A test 10-min time series"

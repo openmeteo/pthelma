@@ -4,8 +4,8 @@ import configparser
 import datetime as dt
 import logging
 import os
-from typing import Any, Dict, Sequence
 import traceback
+from typing import Any, Dict, Sequence
 
 import click
 
