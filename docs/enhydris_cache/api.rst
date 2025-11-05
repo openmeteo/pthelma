@@ -12,9 +12,10 @@ enhydris-cache API
    is downloaded from Enhydris using the Enhydris web service API.
    *timeseries_groups* is a list; each item is a dictionary
    representing an Enhydris time series; its keys are *base_url*,
-   *auth_token*, *id*, and *file*; the latter is the filename of
-   the file to which the time series will be cached (absolute or
-   relative to the current working directory).
+   *auth_token*, *station_id*, *timeseries_group_id*, *timeseries_id*,
+   and *file*; the latter is the filename of the file to which the
+   time series will be cached (absolute or relative to the current
+   working directory).
 
    .. method:: update()
 

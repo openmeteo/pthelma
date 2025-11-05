@@ -6,13 +6,15 @@ import tempfile
 import textwrap
 from io import StringIO
 from pathlib import Path
+from typing import Any, TextIO, cast
 from unittest import TestCase
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import click
 import numpy as np
 import pandas as pd
-from click.testing import CliRunner
+from click.testing import CliRunner, Result
+from numpy.typing import NDArray
 from osgeo import gdal, osr
 
 from evaporation import cli
@@ -23,7 +25,7 @@ from .test_evaporation import senegal_tzinfo
 gdal.UseExceptions()
 
 
-def create_geotiff_file(filename, value):
+def create_geotiff_file(filename: str, value: NDArray[np.float_]) -> None:
     geo_transform = (-16.25, 1.0, 0, 16.217, 0, 1.0)
     wgs84 = osr.SpatialReference()
     wgs84.ImportFromEPSG(4326)
@@ -38,30 +40,35 @@ def create_geotiff_file(filename, value):
 
 
 class NonExistentConfigFileTestCase(TestCase):
-    def setUp(self):
+    result: Result
+
+    def setUp(self) -> None:
         runner = CliRunner(mix_stderr=False)
         self.result = runner.invoke(cli.main, ["nonexistent.conf"])
 
-    def test_exit_status(self):
+    def test_exit_status(self) -> None:
         self.assertEqual(self.result.exit_code, 1)
 
-    def test_error_message(self):
+    def test_error_message(self) -> None:
         self.assertIn(
             "No such file or directory: 'nonexistent.conf'", self.result.stderr
         )
 
 
 class WrongPointConfigurationTestCase(TestCase):
-    def setUp(self):
+    tempdir: str
+    configfilename: str
+
+    def setUp(self) -> None:
         self.tempdir = tempfile.mkdtemp()
         self.configfilename = os.path.join(self.tempdir, "evaporation.conf")
         htsfilename = os.path.join(self.tempdir, "wind_speed.hts")
         Path(htsfilename).touch()
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         shutil.rmtree(self.tempdir)
 
-    def test_nonexistent_log_level_raises_error(self):
+    def test_nonexistent_log_level_raises_error(self) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -82,7 +89,7 @@ class WrongPointConfigurationTestCase(TestCase):
         with self.assertRaisesRegex(click.ClickException, msg):
             cli.App(self.configfilename).run()
 
-    def test_missing_step_raises_error(self):
+    def test_missing_step_raises_error(self) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -98,7 +105,7 @@ class WrongPointConfigurationTestCase(TestCase):
         with self.assertRaisesRegex(click.ClickException, "time_step"):
             cli.App(self.configfilename).run()
 
-    def test_missing_albedo_raises_error(self):
+    def test_missing_albedo_raises_error(self) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -116,16 +123,19 @@ class WrongPointConfigurationTestCase(TestCase):
 
 
 class WrongSpatialConfigurationTestCase(TestCase):
-    def setUp(self):
+    tempdir: str
+    configfilename: str
+
+    def setUp(self) -> None:
         self.tempdir = tempfile.mkdtemp()
         self.configfilename = os.path.join(self.tempdir, "evaporation.conf")
         htsfilename = os.path.join(self.tempdir, "wind_speed.tif")
         Path(htsfilename).touch()
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         shutil.rmtree(self.tempdir)
 
-    def test_missing_elevation_raises_error(self):
+    def test_missing_elevation_raises_error(self) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -141,7 +151,7 @@ class WrongSpatialConfigurationTestCase(TestCase):
         with self.assertRaisesRegex(click.ClickException, "elevation"):
             cli.App(self.configfilename).run()
 
-    def test_single_albedo_with_wrong_domain_float_inputs(self):
+    def test_single_albedo_with_wrong_domain_float_inputs(self) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -158,7 +168,7 @@ class WrongSpatialConfigurationTestCase(TestCase):
         with self.assertRaisesRegex(ValueError, "Albedo must be between 0.0 and 1.0"):
             cli.App(self.configfilename).run()
 
-    def test_seasonal_albedo_configuration_with_not_enough_arguments(self):
+    def test_seasonal_albedo_configuration_with_not_enough_arguments(self) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -176,7 +186,7 @@ class WrongSpatialConfigurationTestCase(TestCase):
         with self.assertRaisesRegex(ValueError, msg):
             cli.App(self.configfilename).run()
 
-    def test_seasonal_albedo_with_wrong_domain_mixin_inputs(self):
+    def test_seasonal_albedo_with_wrong_domain_mixin_inputs(self) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -196,17 +206,20 @@ class WrongSpatialConfigurationTestCase(TestCase):
 
 
 class CorrectPointConfigurationTestCase(TestCase):
-    def setUp(self):
+    tempdir: str
+    configfilename: str
+
+    def setUp(self) -> None:
         self.tempdir = tempfile.mkdtemp()
         self.configfilename = os.path.join(self.tempdir, "evaporation.conf")
         htsfilename = os.path.join(self.tempdir, "wind_speed.hts")
         Path(htsfilename).touch()
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         shutil.rmtree(self.tempdir)
 
     @patch("evaporation.cli.ProcessAtPoint")
-    def test_executes(self, m):
+    def test_executes(self, m: MagicMock) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -225,7 +238,7 @@ class CorrectPointConfigurationTestCase(TestCase):
         m.return_value.execute.assert_called_once_with()
 
     @patch("evaporation.cli.ProcessAtPoint")
-    def test_albedo_configuration_as_one_number(self, m):
+    def test_albedo_configuration_as_one_number(self, m: MagicMock) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -243,14 +256,17 @@ class CorrectPointConfigurationTestCase(TestCase):
 
 
 class CorrectSpatialConfigurationTestCase(TestCase):
-    def setUp(self):
+    tempdir: str
+    configfilename: str
+
+    def setUp(self) -> None:
         self.tempdir = tempfile.mkdtemp()
         self.configfilename = os.path.join(self.tempdir, "evaporation.conf")
         htsfilename = os.path.join(self.tempdir, "wind_speed.tif")
         Path(htsfilename).touch()
         self._create_albedo_files()
 
-    def _create_albedo_files(self):
+    def _create_albedo_files(self) -> None:
         items = (
             "00",
             "01",
@@ -270,11 +286,11 @@ class CorrectSpatialConfigurationTestCase(TestCase):
             filename = os.path.join(self.tempdir, "a{}.tif".format(item))
             create_geotiff_file(filename, np.array([[0.23, 0.44]]))
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         shutil.rmtree(self.tempdir)
 
     @patch("evaporation.cli.ProcessSpatial")
-    def test_albedo_configuration_as_one_grid(self, m):
+    def test_albedo_configuration_as_one_grid(self, m: MagicMock) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -292,7 +308,9 @@ class CorrectSpatialConfigurationTestCase(TestCase):
         m.return_value.execute.assert_called_once_with()
 
     @patch("evaporation.cli.ProcessSpatial")
-    def test_seasonal_albedo_configuration_as_12_grids(self, m):
+    def test_seasonal_albedo_configuration_as_12_grids(
+        self, m: MagicMock
+    ) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -311,7 +329,9 @@ class CorrectSpatialConfigurationTestCase(TestCase):
         m.return_value.execute.assert_called_once_with()
 
     @patch("evaporation.cli.ProcessSpatial")
-    def test_seasonal_albedo_configuration_as_mix_numbers_and_grids(self, m):
+    def test_seasonal_albedo_configuration_as_mix_numbers_and_grids(
+        self, m: MagicMock
+    ) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -330,7 +350,9 @@ class CorrectSpatialConfigurationTestCase(TestCase):
         m.return_value.execute.assert_called_once_with()
 
     @patch("evaporation.cli.ProcessSpatial")
-    def test_run_app_seasonal_albedo_with_float_sample_inputs(self, m):
+    def test_run_app_seasonal_albedo_with_float_sample_inputs(
+        self, m: MagicMock
+    ) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -349,7 +371,9 @@ class CorrectSpatialConfigurationTestCase(TestCase):
         m.return_value.execute.assert_called_once_with()
 
     @patch("evaporation.cli.ProcessSpatial")
-    def test_run_app_with_seasonal_albedo_with_grid_sample_inputs(self, m):
+    def test_run_app_with_seasonal_albedo_with_grid_sample_inputs(
+        self, m: MagicMock
+    ) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -368,7 +392,9 @@ class CorrectSpatialConfigurationTestCase(TestCase):
         m.return_value.execute.assert_called_once_with()
 
     @patch("evaporation.cli.ProcessSpatial")
-    def test_run_app_with_seasonal_albedo_with_mix_sample_inputs(self, m):
+    def test_run_app_with_seasonal_albedo_with_mix_sample_inputs(
+        self, m: MagicMock
+    ) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -387,7 +413,9 @@ class CorrectSpatialConfigurationTestCase(TestCase):
         m.return_value.execute.assert_called_once_with()
 
     @patch("evaporation.cli.ProcessSpatial")
-    def test_seasonal_albedo_configuration_as_12_numbers(self, m):
+    def test_seasonal_albedo_configuration_as_12_numbers(
+        self, m: MagicMock
+    ) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -408,7 +436,7 @@ class CorrectSpatialConfigurationTestCase(TestCase):
 
 class CorrectConfigurationWithLogFileTestCase(TestCase):
     @patch("evaporation.cli.ProcessAtPoint")
-    def test_creates_log_file(self, *args):
+    def test_creates_log_file(self, *args: MagicMock) -> None:
         with tempfile.TemporaryDirectory() as dirname:
             configfilename = os.path.join(dirname, "evaporation.conf")
             logfilename = os.path.join(dirname, "vaporize.log")
@@ -433,16 +461,27 @@ class CorrectConfigurationWithLogFileTestCase(TestCase):
 
 
 class HtsTestCase(TestCase):
-    def setUp(self):
+    tempdir: str
+    config_file: str
+    savedcwd: str
+    saved_stderr: TextIO
+
+    def setUp(self) -> None:
         self.tempdir = tempfile.mkdtemp()
         self.config_file = os.path.join(self.tempdir, "vaporize.conf")
         self.savedcwd = os.getcwd()
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         os.chdir(self.savedcwd)
         shutil.rmtree(self.tempdir)
 
-    def setup_input_file(self, step, basename, value, missing=None):
+    def setup_input_file(
+        self,
+        step: str,
+        basename: str,
+        value: Any,
+        missing: str | None = None,
+    ) -> None:
         filename = os.path.join(self.tempdir, basename + ".hts")
         timestamp = step == "hourly" and "2014-10-01 15:00" or "2014-07-06"
         with open(filename, "w") as f:
@@ -454,14 +493,14 @@ class HtsTestCase(TestCase):
                 f.write("Altitude={}\n".format(step == "hourly" and "8" or "100"))
             f.write("\n{},{},\n".format(timestamp, value))
 
-    def setup_hourly_input_files(self, missing=None):
+    def setup_hourly_input_files(self, missing: str | None = None) -> None:
         self.setup_input_file("hourly", "temperature", 38, missing=missing)
         self.setup_input_file("hourly", "humidity", 52, missing=missing)
         self.setup_input_file("hourly", "wind_speed", 3.3, missing=missing)
         self.setup_input_file("hourly", "pressure", 1013, missing=missing)
         self.setup_input_file("hourly", "solar_radiation", 681, missing=missing)
 
-    def setup_daily_input_files(self):
+    def setup_daily_input_files(self) -> None:
         self.setup_input_file("daily", "temperature_max", 21.5)
         self.setup_input_file("daily", "temperature_min", 12.3)
         self.setup_input_file("daily", "humidity_max", 84)
@@ -469,7 +508,7 @@ class HtsTestCase(TestCase):
         self.setup_input_file("daily", "wind_speed", 2.078)
         self.setup_input_file("daily", "sunshine_duration", 9.25)
 
-    def setup_config_file(self, time_step):
+    def setup_config_file(self, time_step: str) -> None:
         with open(self.config_file, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -492,7 +531,7 @@ class HtsTestCase(TestCase):
                     )
                 )
 
-    def test_hourly(self):
+    def test_hourly(self) -> None:
         self.setup_hourly_input_files()
         self.setup_config_file("h")
 
@@ -506,16 +545,18 @@ class HtsTestCase(TestCase):
         # Check that it has created a file and that the file is correct
         with open(result_filename) as f:
             t = HTimeseries(f)
+        tz = cast(pd.DatetimeIndex, t.data.index).tz
         expected_result = pd.DataFrame(
             data={"value": [0.63], "flags": [""]},
-            columns=("value", "flags"),
-            index=[dt.datetime(2014, 10, 1, 15, 0, tzinfo=t.data.index.tz)],
+            columns=("value", "flags"),  # type: ignore
+            index=[dt.datetime(2014, 10, 1, 15, 0, tzinfo=tz)],  # type: ignore
         )
         expected_result.index.name = "date"
         pd.testing.assert_frame_equal(t.data, expected_result, atol=1e-3)
-        self.assertEqual(t.data.index.tz.offset, dt.timedelta(hours=-1))
+        tz = cast(pd.DatetimeIndex, t.data.index).tz
+        self.assertEqual(tz.offset, dt.timedelta(hours=-1))  # type: ignore
 
-    def test_daily(self):
+    def test_daily(self) -> None:
         self.setup_daily_input_files()
         self.setup_config_file("D")
 
@@ -529,16 +570,18 @@ class HtsTestCase(TestCase):
         # Check that it has created a file and that the file is correct
         with open(result_filename) as f:
             t = HTimeseries(f)
+        tz = cast(pd.DatetimeIndex, t.data.index).tz
         expected_result = pd.DataFrame(
             data={"value": [3.9], "flags": [""]},
-            columns=["value", "flags"],
-            index=[dt.datetime(2014, 7, 6, tzinfo=t.data.index.tz)],
+            columns=["value", "flags"],  # type: ignore
+            index=[dt.datetime(2014, 7, 6, tzinfo=tz)],  # type: ignore
         )
         expected_result.index.name = "date"
         pd.testing.assert_frame_equal(t.data, expected_result, atol=1e-3)
-        self.assertEqual(t.data.index.tz.offset, dt.timedelta(hours=-1))
+        tz = cast(pd.DatetimeIndex, t.data.index).tz
+        self.assertEqual(tz.offset, dt.timedelta(hours=-1))  # type: ignore
 
-    def test_missing_location(self):
+    def test_missing_location(self) -> None:
         self.setup_hourly_input_files(missing="location")
         self.setup_config_file("h")
         msg = (
@@ -548,7 +591,7 @@ class HtsTestCase(TestCase):
         with self.assertRaisesRegex(click.ClickException, msg):
             cli.App(self.config_file).run()
 
-    def test_missing_altitude(self):
+    def test_missing_altitude(self) -> None:
         self.setup_hourly_input_files(missing="altitude")
         self.setup_config_file("h")
         msg = (
@@ -560,7 +603,18 @@ class HtsTestCase(TestCase):
 
 
 class SpatialTestCase(TestCase):
-    def setup_input_file(self, variable, value, with_date=True):
+    tempdir: str
+    config_file: str
+    savedcwd: str
+    saved_stderr: TextIO
+    timestamp: dt.date | dt.datetime
+
+    def setup_input_file(
+        self,
+        variable: str,
+        value: Any,
+        with_date: bool = True,
+    ) -> None:
         """
         Saves value, which is an np array, to a GeoTIFF file whose name is
         based on variable.
@@ -590,7 +644,7 @@ class SpatialTestCase(TestCase):
             # Close the dataset
             f = None
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.tempdir = tempfile.mkdtemp()
         self.config_file = os.path.join(self.tempdir, "vaporize.conf")
         self.savedcwd = os.getcwd()
@@ -607,11 +661,11 @@ class SpatialTestCase(TestCase):
         # Save standard error (some tests change it)
         self.saved_stderr = sys.stderr
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         os.chdir(self.savedcwd)
         shutil.rmtree(self.tempdir)
 
-    def test_execute_notz(self):
+    def test_execute_notz(self) -> None:
         # Prepare input files without time zone
         self.timestamp = dt.datetime(2014, 10, 1, 15, 0)
         self.setup_input_file("temperature-notz", np.array([[38.0, 28.0]]))
@@ -655,7 +709,7 @@ class SpatialTestCase(TestCase):
         # Verify the output file still doesn't exist
         self.assertFalse(os.path.exists(result_filename))
 
-    def test_execute_daily(self):
+    def test_execute_daily(self) -> None:
         # Prepare input files
         self.timestamp = dt.date(2014, 7, 6)
         self.setup_input_file("temperature_max", np.array([[21.5, 28]]))
@@ -719,7 +773,7 @@ class SpatialTestCase(TestCase):
         )
         fp = None
 
-    def test_execute_daily_with_radiation(self):
+    def test_execute_daily_with_radiation(self) -> None:
         """Same as test_execute_daily, except that we use solar radiation
         instead of sunshine duration."""
         # Prepare input files
@@ -785,7 +839,7 @@ class SpatialTestCase(TestCase):
         )
         fp = None
 
-    def test_execute_hourly(self):
+    def test_execute_hourly(self) -> None:
         # Prepare input files
         self.timestamp = dt.datetime(2014, 10, 1, 15, 0, tzinfo=senegal_tzinfo)
         self.setup_input_file("temperature", np.array([[38.0, 28.0]]))
@@ -853,7 +907,7 @@ class SpatialTestCase(TestCase):
         )
         fp = None
 
-    def test_execute_hourly_no_pressure(self):
+    def test_execute_hourly_no_pressure(self) -> None:
         """Same as test_execute_hourly, but does not have pressure an input;
         therefore, it will calculate pressure itself."""
         # Prepare input files
@@ -921,7 +975,7 @@ class SpatialTestCase(TestCase):
         )
         fp = None
 
-    def test_execute_hourly_without_sun(self):
+    def test_execute_hourly_without_sun(self) -> None:
         # Prepare input files, without solar radiation
         self.timestamp = dt.datetime(2014, 10, 1, 15, 0, tzinfo=senegal_tzinfo)
         self.setup_input_file("temperature", np.array([[38.0, 28.0]]))
@@ -951,7 +1005,7 @@ class SpatialTestCase(TestCase):
         with self.assertRaisesRegex(click.ClickException, msg):
             cli.App(self.config_file).run()
 
-    def test_execute_with_dem(self):
+    def test_execute_with_dem(self) -> None:
         """This is essentially the same as test_execute, but uses a GeoTIFF
         with a DEM instead of a constant elevation. The numbers are the same,
         however (all DEM gridpoints have the same value)."""
@@ -1011,7 +1065,7 @@ class SpatialTestCase(TestCase):
         )
         fp = None
 
-    def test_execute_with_nodata(self):
+    def test_execute_with_nodata(self) -> None:
         """This is essentially the same as test_execute, but the gdal rasters
         contain cells with nodata."""
 

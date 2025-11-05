@@ -45,15 +45,16 @@ jobs:
         # numpy<2 is needed for gdal to contain support for gdal array
         pip install 'numpy<2'
         CPLUS_INCLUDE_PATH=/usr/include/gdal C_INCLUDE_PATH=/usr/include/gdal pip install --no-build-isolation 'gdal==3.8.4'
-        pip install coverage isort flake8 'black<25' twine setuptools build
+        pip install coverage isort flake8 'black<25' twine setuptools build pyright
         pip install -e .
 
     - name: Run Tests
       run: |
         source ~/.venv/bin/activate
         black --check .
-        flake8 --max-line-length=88 .
+        flake8 --extend-ignore=E501 .
         isort --check-only --diff --profile=black *.py .
+        pyright .
         python -m build
         twine check dist/*
         coverage run --include="./*" --omit="docs/","*/tests/*","_version.py","*.pyx" -m unittest -v

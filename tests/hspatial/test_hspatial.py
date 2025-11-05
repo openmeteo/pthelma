@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import datetime as dt
 import math
 import os
@@ -6,11 +8,12 @@ import tempfile
 import textwrap
 from stat import S_IREAD, S_IRGRP, S_IROTH
 from time import sleep
+from typing import Callable
 from unittest import TestCase
 
 import numpy as np
 import pandas as pd
-from django.contrib.gis.gdal import GDALRaster
+from django.contrib.gis.gdal import GDALRaster  # type: ignore
 from django.contrib.gis.geos import Point as GeoDjangoPoint
 from osgeo import gdal, ogr, osr
 
@@ -23,7 +26,7 @@ gdal.UseExceptions()
 UTC_PLUS_2 = dt.timezone(dt.timedelta(hours=2))
 
 
-def add_point_to_layer(layer, x, y, value):
+def add_point_to_layer(layer: ogr.Layer, x: float, y: float, value: float) -> None:
     p = ogr.Geometry(ogr.wkbPoint)
     p.AddPoint(x, y)
     f = ogr.Feature(layer.GetLayerDefn())
@@ -33,24 +36,30 @@ def add_point_to_layer(layer, x, y, value):
 
 
 class IdwTestCase(TestCase):
-    def setUp(self):
+    data_layer: ogr.Layer | None
+    point: ogr.Geometry | None
+
+    def setUp(self) -> None:
         self.point = ogr.Geometry(ogr.wkbPoint)
         self.point.AddPoint(5.1, 2.5)
 
         self.data_source = ogr.GetDriverByName("memory").CreateDataSource("tmp")
         self.data_layer = self.data_source.CreateLayer("test")
+        assert self.data_layer is not None
         self.data_layer.CreateField(ogr.FieldDefn("value", ogr.OFTReal))
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         self.data_layer = None
         self.data_source = None
         self.point = None
 
-    def test_idw_single_point(self):
+    def test_idw_single_point(self) -> None:
+        assert self.data_layer is not None and self.point is not None
         add_point_to_layer(self.data_layer, 5.3, 6.4, 42.8)
         self.assertAlmostEqual(hspatial.idw(self.point, self.data_layer), 42.8)
 
-    def test_idw_three_points(self):
+    def test_idw_three_points(self) -> None:
+        assert self.data_layer is not None and self.point is not None
         add_point_to_layer(self.data_layer, 6.4, 7.8, 33.0)
         add_point_to_layer(self.data_layer, 9.5, 7.4, 94.0)
         add_point_to_layer(self.data_layer, 7.1, 4.9, 67.7)
@@ -61,7 +70,8 @@ class IdwTestCase(TestCase):
             hspatial.idw(self.point, self.data_layer, alpha=2.0), 64.188, places=3
         )
 
-    def test_idw_point_with_nan(self):
+    def test_idw_point_with_nan(self) -> None:
+        assert self.data_layer is not None and self.point is not None
         add_point_to_layer(self.data_layer, 6.4, 7.8, 33.0)
         add_point_to_layer(self.data_layer, 9.5, 7.4, 94.0)
         add_point_to_layer(self.data_layer, 7.1, 4.9, 67.7)
@@ -78,7 +88,7 @@ class IntegrateTestCase(TestCase):
     # The calculations for this test have been made manually in
     # data/spatial_calculations.ods, tab test_integrate_idw.
 
-    def setUp(self):
+    def setUp(self) -> None:
         # We will test on a 7x15 grid
         self.mask = np.zeros((7, 15), np.int8)
         self.mask[3, 3] = 1
@@ -104,10 +114,10 @@ class IntegrateTestCase(TestCase):
         add_point_to_layer(self.data_layer, 125.7, 19.0, 24.0)
         add_point_to_layer(self.data_layer, 9.8, 57.1, 95.4)
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         self.data_source = None
 
-    def test_integrate_idw(self):
+    def test_integrate_idw(self) -> None:
         hspatial.integrate(
             self.dataset, self.data_layer, self.target_band, hspatial.idw
         )
@@ -127,7 +137,7 @@ class IntegrateWithGeoDjangoObjectsTestCase(IntegrateTestCase):
     """This is exactly the same as IntegrateTestCase, except that instead of using gdal
     objects for the mask and target_band, it uses django.contrib.gis.gdal objects."""
 
-    def setUp(self):
+    def setUp(self) -> None:
         # We will test on a 7x15 grid
         self.mask = np.zeros((7, 15), np.float32)
         self.mask[3, 3] = 1
@@ -156,10 +166,10 @@ class IntegrateWithGeoDjangoObjectsTestCase(IntegrateTestCase):
         add_point_to_layer(self.data_layer, 125.7, 19.0, 24.0)
         add_point_to_layer(self.data_layer, 9.8, 57.1, 95.4)
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         self.data_source = None
 
-    def test_integrate_idw(self):
+    def test_integrate_idw(self) -> None:
         hspatial.integrate(
             self.dataset, self.data_layer, self.target_band, hspatial.idw
         )
@@ -170,13 +180,13 @@ class IntegrateWithGeoDjangoObjectsTestCase(IntegrateTestCase):
         # (^ is bitwise xor in Python)
         self.assertTrue(((result == nodatavalue) ^ (self.mask != 0)).all())
 
-        self.assertAlmostEqual(result[3, 3], 62.971, places=3)
-        self.assertAlmostEqual(result[6, 14], 34.838, places=3)
-        self.assertAlmostEqual(result[4, 13], 30.737, places=3)
+        self.assertAlmostEqual(result[3, 3], 62.971, places=3)  # type: ignore
+        self.assertAlmostEqual(result[6, 14], 34.838, places=3)  # type: ignore
+        self.assertAlmostEqual(result[4, 13], 30.737, places=3)  # type: ignore
 
 
 class CreateOgrLayerFromTimeseriesTestCase(TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.tempdir = tempfile.mkdtemp()
 
         # Create two time series
@@ -199,10 +209,10 @@ class CreateOgrLayerFromTimeseriesTestCase(TestCase):
                 )
             )
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         shutil.rmtree(self.tempdir)
 
-    def test_create_ogr_layer_from_timeseries(self):
+    def test_create_ogr_layer_from_timeseries(self) -> None:
         data_source = ogr.GetDriverByName("memory").CreateDataSource("tmp")
         filenames = [os.path.join(self.tempdir, x) for x in ("ts1", "ts2")]
         layer = hspatial.create_ogr_layer_from_timeseries(filenames, 2100, data_source)
@@ -244,14 +254,14 @@ class HIntegrateTestCase(TestCase):
     data/spatial_calculations.ods, tab test_h_integrate.
     """
 
-    def create_mask(self):
+    def create_mask(self) -> None:
         mask_array = np.ones((3, 4), np.int8)
         mask_array[0, 2] = 0
         self.mask = gdal.GetDriverByName("mem").Create("mask", 4, 3, 1, gdal.GDT_Byte)
         self.mask.SetGeoTransform((0, 10000, 0, 30000, 0, -10000))
         self.mask.GetRasterBand(1).WriteArray(mask_array)
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.tempdir = tempfile.mkdtemp()
 
         self.filenames = [
@@ -305,10 +315,10 @@ class HIntegrateTestCase(TestCase):
             self.filenames, 2100, self.stations
         )
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         shutil.rmtree(self.tempdir)
 
-    def test_h_integrate(self):
+    def test_h_integrate(self) -> None:
         output_filename_prefix = os.path.join(self.tempdir, "test")
         result_filename = output_filename_prefix + "-2014-04-22-13-00+0200.tif"
         hspatial.h_integrate(
@@ -404,12 +414,12 @@ class HIntegrateTestCase(TestCase):
 
 
 class ExtractPointFromRasterTestCase(TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.tempdir = tempfile.mkdtemp()
         self._setup_test_raster()
         self.fp = gdal.Open(self.filename)
 
-    def _setup_test_raster(self):
+    def _setup_test_raster(self) -> None:
         self.filename = os.path.join(self.tempdir, "test_raster")
         nan = float("nan")
         setup_test_raster(
@@ -418,27 +428,27 @@ class ExtractPointFromRasterTestCase(TestCase):
             dt.datetime(2014, 11, 21, 16, 1),
         )
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         self.fp = None
         shutil.rmtree(self.tempdir)
 
-    def test_top_left_point(self):
+    def test_top_left_point(self) -> None:
         point = hspatial.coordinates2point(22.005, 37.995)
         self.assertAlmostEqual(
             hspatial.extract_point_from_raster(point, self.fp), 1.1, places=2
         )
 
-    def test_top_left_point_as_geodjango(self):
+    def test_top_left_point_as_geodjango(self) -> None:
         point = GeoDjangoPoint(22.005, 37.995)
         self.assertAlmostEqual(
             hspatial.extract_point_from_raster(point, self.fp), 1.1, places=2
         )
 
-    def test_top_middle_point(self):
+    def test_top_middle_point(self) -> None:
         point = hspatial.coordinates2point(22.015, 37.995)
         self.assertTrue(math.isnan(hspatial.extract_point_from_raster(point, self.fp)))
 
-    def test_middle_point(self):
+    def test_middle_point(self) -> None:
         # We use co-ordinates almost to the common corner of the four lower left points,
         # only a little bit towards the center.
         point = hspatial.coordinates2point(22.01001, 37.98001)
@@ -446,7 +456,7 @@ class ExtractPointFromRasterTestCase(TestCase):
             hspatial.extract_point_from_raster(point, self.fp), 2.2, places=2
         )
 
-    def test_middle_point_with_GDALRaster(self):
+    def test_middle_point_with_GDALRaster(self) -> None:
         # Same as test_middle_point(), but uses GDALRaster object instead of a gdal
         # data source.
         point = hspatial.coordinates2point(22.01001, 37.98001)
@@ -455,7 +465,7 @@ class ExtractPointFromRasterTestCase(TestCase):
             hspatial.extract_point_from_raster(point, gdal_raster_object), 2.2, places=2
         )
 
-    def test_bottom_left_point(self):
+    def test_bottom_left_point(self) -> None:
         # Use almost exactly same point as test_middle_point(), only slightly altered
         # so that we get bottom left point instead.
         point = hspatial.coordinates2point(22.00999, 37.97999)
@@ -463,7 +473,7 @@ class ExtractPointFromRasterTestCase(TestCase):
             hspatial.extract_point_from_raster(point, self.fp), 3.1, places=2
         )
 
-    def test_middle_point_with_GRS80(self):
+    def test_middle_point_with_GRS80(self) -> None:
         # Same as test_middle_point(), but with a different reference system, GRS80; the
         # result should be the same.
         point = hspatial.coordinates2point(325077, 4205177, srid=2100)
@@ -471,7 +481,7 @@ class ExtractPointFromRasterTestCase(TestCase):
             hspatial.extract_point_from_raster(point, self.fp), 2.2, places=2
         )
 
-    def test_does_not_modify_srid_of_point(self):
+    def test_does_not_modify_srid_of_point(self) -> None:
         point = hspatial.coordinates2point(325077, 4205177, srid=2100)
         original_spatial_reference = point.GetSpatialReference().ExportToWkt()
         hspatial.extract_point_from_raster(point, self.fp)
@@ -479,7 +489,7 @@ class ExtractPointFromRasterTestCase(TestCase):
             point.GetSpatialReference().ExportToWkt(), original_spatial_reference
         )
 
-    def test_bottom_left_point_with_GRS80(self):
+    def test_bottom_left_point_with_GRS80(self) -> None:
         # Same as test_bottom_left_point(), but with a different reference system,
         # GRS80; the result should be the same.
         point = hspatial.coordinates2point(324076, 4205176, srid=2100)
@@ -487,19 +497,19 @@ class ExtractPointFromRasterTestCase(TestCase):
             hspatial.extract_point_from_raster(point, self.fp), 3.1, places=2
         )
 
-    def test_point_outside_raster(self):
+    def test_point_outside_raster(self) -> None:
         point = hspatial.coordinates2point(21.0, 38.0)
         with self.assertRaises(RuntimeError):
             hspatial.extract_point_from_raster(point, self.fp)
 
 
 class ExtractPointFromRasterWhenOutsideCRSLimitsTestCase(TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.tempdir = tempfile.mkdtemp()
         self._setup_test_raster()
         self.fp = gdal.Open(self.filename)
 
-    def _setup_test_raster(self):
+    def _setup_test_raster(self) -> None:
         self.filename = os.path.join(self.tempdir, "test_raster")
         nan = float("nan")
         setup_test_raster(
@@ -509,32 +519,34 @@ class ExtractPointFromRasterWhenOutsideCRSLimitsTestCase(TestCase):
             srid=2100,
         )
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         self.fp = None
         shutil.rmtree(self.tempdir)
 
-    def test_fails_gracefully_when_osr_point_is_really_outside_crs_limits(self):
+    def test_fails_gracefully_when_osr_point_is_really_outside_crs_limits(self) -> None:
         point = hspatial.coordinates2point(125.0, 85.0)
         with self.assertRaises(RuntimeError):
             hspatial.extract_point_from_raster(point, self.fp)
 
-    def test_fails_gracefully_when_geos_point_is_really_outside_crs_limits(self):
+    def test_fails_gracefully_when_geos_point_is_really_outside_crs_limits(self) -> None:
         point = GeoDjangoPoint(125.0, 85.0)
         with self.assertRaises(RuntimeError):
             hspatial.extract_point_from_raster(point, self.fp)
 
 
 class SetupTestRastersMixin:
+    assertEqual: Callable[[object, object], None]
+
     include_time = True
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.tempdir = tempfile.mkdtemp()
         self._setup_test_rasters()
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         shutil.rmtree(self.tempdir)
 
-    def _setup_test_rasters(self):
+    def _setup_test_rasters(self) -> None:
         self._setup_raster(
             dt.date(2014, 11, 21),
             np.array([[1.1, 1.2, 1.3], [2.1, 2.2, 2.3], [3.1, 3.2, 3.3]]),
@@ -550,38 +562,41 @@ class SetupTestRastersMixin:
             ),
         )
 
-    def _setup_raster(self, date, value):
+    def _setup_raster(self, date: dt.date, value: np.ndarray) -> None:
         filename = self._create_filename(date)
         timestamp = self._create_timestamp(date)
         setup_test_raster(filename, value, timestamp, unit="microkernels")
 
-    def _create_filename(self, date):
+    def _create_filename(self, date: dt.date) -> str:
         result = date.strftime("test-%Y-%m-%d")
         if self.include_time:
             result += "-16-1"
         result += ".tif"
         return os.path.join(self.tempdir, result)
 
-    def _create_timestamp(self, date):
+    def _create_timestamp(self, date: dt.date) -> dt.datetime | dt.date:
         if self.include_time:
             return dt.datetime.combine(date, dt.time(16, 1, tzinfo=UTC_PLUS_2))
         else:
             return date
 
-    def _check_against_expected(self, ts):
+    def _check_against_expected(self, ts: HTimeseries) -> None:
         expected = pd.DataFrame(
             data={"value": [2.2, 22.1, 220.1], "flags": ["", "", ""]},
-            index=self.expected_index,
-            columns=["value", "flags"],
+            index=self.expected_index,  # type: ignore
+            columns=["value", "flags"],  # type: ignore
         )
         expected.index.name = "date"
+        expected_index = pd.DatetimeIndex(expected.index)
+        actual_index = pd.DatetimeIndex(ts.data.index)
+        assert expected_index.tz is not None and actual_index.tz is not None
         self.assertEqual(
-            ts.data.index.tz.utcoffset(None), expected.index.tz.utcoffset(None)
+            actual_index.tz.utcoffset(None), expected_index.tz.utcoffset(None)
         )
         pd.testing.assert_frame_equal(ts.data, expected, check_index_type=False)
 
     @property
-    def expected_index(self):
+    def expected_index(self) -> list[dt.datetime]:
         hour, minute = self.include_time and (16, 1) or (23, 58)
         return [
             dt.datetime(2014, 11, 21, hour, minute, tzinfo=UTC_PLUS_2),
@@ -591,7 +606,7 @@ class SetupTestRastersMixin:
 
 
 class PointTimeseriesGetTestCase(SetupTestRastersMixin, TestCase):
-    def test_with_list_of_files(self):
+    def test_with_list_of_files(self) -> None:
         # Use co-ordinates almost to the common corner of the four lower left points,
         # and only a little bit towards the center.
         point = hspatial.coordinates2point(22.01001, 37.98001)
@@ -605,7 +620,7 @@ class PointTimeseriesGetTestCase(SetupTestRastersMixin, TestCase):
         ).get()
         self._check_against_expected(ts)
 
-    def test_raises_when_no_timezone(self):
+    def test_raises_when_no_timezone(self) -> None:
         point = hspatial.coordinates2point(22.01001, 37.98001)
         filenames = [os.path.join(self.tempdir, "test-2014-11-22-16-1.tif")]
         with self.assertRaises(TypeError):
@@ -613,7 +628,7 @@ class PointTimeseriesGetTestCase(SetupTestRastersMixin, TestCase):
                 point, filenames=filenames, default_time=dt.time(0, 0)
             )
 
-    def test_with_prefix(self):
+    def test_with_prefix(self) -> None:
         # Same as test_with_list_of_files(), but with prefix.
         point = hspatial.coordinates2point(22.01001, 37.98001)
         prefix = os.path.join(self.tempdir, "test")
@@ -622,7 +637,7 @@ class PointTimeseriesGetTestCase(SetupTestRastersMixin, TestCase):
         ).get()
         self._check_against_expected(ts)
 
-    def test_with_prefix_and_geodjango(self):
+    def test_with_prefix_and_geodjango(self) -> None:
         point = hspatial.coordinates2point(22.01001, 37.98001)
         prefix = os.path.join(self.tempdir, "test")
         ts = hspatial.PointTimeseries(
@@ -630,7 +645,7 @@ class PointTimeseriesGetTestCase(SetupTestRastersMixin, TestCase):
         ).get()
         self._check_against_expected(ts)
 
-    def test_unit_of_measurement(self):
+    def test_unit_of_measurement(self) -> None:
         point = hspatial.coordinates2point(22.01001, 37.98001)
         prefix = os.path.join(self.tempdir, "test")
         ts = hspatial.PointTimeseries(
@@ -642,7 +657,7 @@ class PointTimeseriesGetTestCase(SetupTestRastersMixin, TestCase):
 class PointTimeseriesGetDailyTestCase(SetupTestRastersMixin, TestCase):
     include_time = False
 
-    def test_with_list_of_files(self):
+    def test_with_list_of_files(self) -> None:
         # Use co-ordinates almost to the center of the four lower left points, and only
         # a little bit towards the center.
         point = hspatial.coordinates2point(22.01001, 37.98001)
@@ -656,7 +671,7 @@ class PointTimeseriesGetDailyTestCase(SetupTestRastersMixin, TestCase):
         ).get()
         self._check_against_expected(ts)
 
-    def test_with_prefix(self):
+    def test_with_prefix(self) -> None:
         # Same as test_with_list_of_files(), but with prefix.
         point = hspatial.coordinates2point(22.01001, 37.98001)
         prefix = os.path.join(self.tempdir, "test")
@@ -665,7 +680,7 @@ class PointTimeseriesGetDailyTestCase(SetupTestRastersMixin, TestCase):
         ).get()
         self._check_against_expected(ts)
 
-    def test_with_prefix_and_geodjango(self):
+    def test_with_prefix_and_geodjango(self) -> None:
         point = GeoDjangoPoint(22.01001, 37.98001)
         prefix = os.path.join(self.tempdir, "test")
         ts = hspatial.PointTimeseries(
@@ -675,13 +690,13 @@ class PointTimeseriesGetDailyTestCase(SetupTestRastersMixin, TestCase):
 
 
 class PointTimeseriesGetCachedTestCase(SetupTestRastersMixin, TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         super().setUp()
         self.point = hspatial.coordinates2point(22.01001, 37.98001)
         self.prefix = os.path.join(self.tempdir, "test")
         self.dest = os.path.join(self.tempdir, "dest.hts")
 
-    def test_result(self):
+    def test_result(self) -> None:
         result = hspatial.PointTimeseries(
             self.point,
             prefix=self.prefix,
@@ -689,7 +704,7 @@ class PointTimeseriesGetCachedTestCase(SetupTestRastersMixin, TestCase):
         ).get_cached(self.dest)
         self._check_against_expected(result)
 
-    def test_file(self):
+    def test_file(self) -> None:
         hspatial.PointTimeseries(
             self.point,
             prefix=self.prefix,
@@ -698,7 +713,7 @@ class PointTimeseriesGetCachedTestCase(SetupTestRastersMixin, TestCase):
         with open(self.dest, "r", newline="\n") as f:
             self._check_against_expected(HTimeseries(f, default_tzinfo=UTC_PLUS_2))
 
-    def test_version(self):
+    def test_version(self) -> None:
         hspatial.PointTimeseries(
             self.point,
             prefix=self.prefix,
@@ -708,7 +723,7 @@ class PointTimeseriesGetCachedTestCase(SetupTestRastersMixin, TestCase):
             first_line = f.readline()
         self.assertEqual(first_line, "Version=2\n")
 
-    def test_file_is_not_recreated(self):
+    def test_file_is_not_recreated(self) -> None:
         hspatial.PointTimeseries(
             self.point,
             prefix=self.prefix,
@@ -727,7 +742,7 @@ class PointTimeseriesGetCachedTestCase(SetupTestRastersMixin, TestCase):
         with open(self.dest, "r", newline="\n") as f:
             self._check_against_expected(HTimeseries(f, default_tzinfo=UTC_PLUS_2))
 
-    def test_file_is_recreated_when_out_of_date(self):
+    def test_file_is_recreated_when_out_of_date(self) -> None:
         hspatial.PointTimeseries(
             self.point,
             prefix=self.prefix,
@@ -746,7 +761,7 @@ class PointTimeseriesGetCachedTestCase(SetupTestRastersMixin, TestCase):
                 default_time=dt.time(0, 0, tzinfo=UTC_PLUS_2),
             ).get_cached(self.dest)
 
-    def _setup_additional_raster(self):
+    def _setup_additional_raster(self) -> None:
         filename = os.path.join(self.tempdir, "test-2014-11-24-16-1.tif")
         setup_test_raster(
             filename,
@@ -756,7 +771,7 @@ class PointTimeseriesGetCachedTestCase(SetupTestRastersMixin, TestCase):
             dt.datetime(2014, 11, 24, 16, 1),
         )
 
-    def test_start_date(self):
+    def test_start_date(self) -> None:
         start_date = dt.datetime(2014, 11, 22, 16, 1)
         result = hspatial.PointTimeseries(
             self.point,
@@ -766,7 +781,7 @@ class PointTimeseriesGetCachedTestCase(SetupTestRastersMixin, TestCase):
         ).get_cached(self.dest)
         self.assertEqual(result.data.index[0], start_date.replace(tzinfo=UTC_PLUS_2))
 
-    def test_end_date(self):
+    def test_end_date(self) -> None:
         end_date = dt.datetime(2014, 11, 22, 16, 1)
         result = hspatial.PointTimeseries(
             self.point,
@@ -778,7 +793,7 @@ class PointTimeseriesGetCachedTestCase(SetupTestRastersMixin, TestCase):
 
 
 class FilenameWithDateFormatTestCase(TestCase):
-    def test_with_given_datetime_format(self):
+    def test_with_given_datetime_format(self) -> None:
         format = hspatial.FilenameWithDateFormat(
             "myprefix", date_fmt="%d-%m-%Y-%H-%M", tzinfo=UTC_PLUS_2
         )
@@ -787,7 +802,7 @@ class FilenameWithDateFormatTestCase(TestCase):
             dt.datetime(2019, 8, 4, 10, 41, tzinfo=UTC_PLUS_2),
         )
 
-    def test_with_given_date_format(self):
+    def test_with_given_date_format(self) -> None:
         format = hspatial.FilenameWithDateFormat(
             "myprefix", date_fmt="%d-%m-%Y", tzinfo=UTC_PLUS_2
         )
@@ -796,14 +811,14 @@ class FilenameWithDateFormatTestCase(TestCase):
             dt.datetime(2019, 8, 4, tzinfo=UTC_PLUS_2),
         )
 
-    def test_datetime_with_auto_format(self):
+    def test_datetime_with_auto_format(self) -> None:
         format = hspatial.FilenameWithDateFormat("myprefix", tzinfo=UTC_PLUS_2)
         self.assertEqual(
             format.get_date("myprefix-2019-8-4-10-41.tif"),
             dt.datetime(2019, 8, 4, 10, 41, tzinfo=UTC_PLUS_2),
         )
 
-    def test_date_with_auto_format(self):
+    def test_date_with_auto_format(self) -> None:
         format = hspatial.FilenameWithDateFormat("myprefix", tzinfo=UTC_PLUS_2)
         self.assertEqual(
             format.get_date("myprefix-2019-8-4.tif"),
@@ -812,10 +827,11 @@ class FilenameWithDateFormatTestCase(TestCase):
 
 
 class PassepartoutPointTestCase(TestCase):
-    def test_transform_does_not_modify_srid_of_gdal_point(self):
+    def test_transform_does_not_modify_srid_of_gdal_point(self) -> None:
         pppoint = hspatial.PassepartoutPoint(
             hspatial.coordinates2point(324651, 4205742, srid=2100)
         )
+        assert isinstance(pppoint.point, ogr.Geometry)
         original_spatial_reference = pppoint.point.GetSpatialReference().ExportToWkt()
         sr = osr.SpatialReference()
         sr.ImportFromEPSG(4326)
@@ -825,7 +841,8 @@ class PassepartoutPointTestCase(TestCase):
             original_spatial_reference,
         )
 
-    def test_transform_does_not_modify_srid_of_geodjango_point(self):
+    def test_transform_does_not_modify_srid_of_geodjango_point(self) -> None:
         pppoint = hspatial.PassepartoutPoint(GeoDjangoPoint(324651, 4205742, srid=2100))
-        pppoint.transform_to(4326)
+        pppoint.transform_to("4326")
+        assert isinstance(pppoint.point, GeoDjangoPoint)
         self.assertEqual(pppoint.point.srid, 2100)

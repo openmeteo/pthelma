@@ -70,15 +70,19 @@ class HourlySumTestCase(TestCase):
         self.assertEqual(len(self.result.data), 4)
 
     def test_value_1(self):
+        assert isinstance(self.result.data.loc["2008-02-07 10:00"].value, float)
         self.assertAlmostEqual(self.result.data.loc["2008-02-07 10:00"].value, 31.25)
 
     def test_value_2(self):
+        assert isinstance(self.result.data.loc["2008-02-07 11:00"].value, float)
         self.assertAlmostEqual(self.result.data.loc["2008-02-07 11:00"].value, 65.47)
 
     def test_value_3(self):
+        assert isinstance(self.result.data.loc["2008-02-07 12:00"].value, float)
         self.assertAlmostEqual(self.result.data.loc["2008-02-07 12:00"].value, 69.29)
 
     def test_value_4(self):
+        assert isinstance(self.result.data.loc["2008-02-07 13:00"].value, float)
         self.assertAlmostEqual(self.result.data.loc["2008-02-07 13:00"].value, 72.77)
 
 
@@ -152,12 +156,15 @@ class HourlySumWithLargerMinCountTestCase(TestCase):
         self.assertEqual(len(self.result.data), 3)
 
     def test_value_1(self):
+        assert isinstance(self.result.data.loc["2008-02-07 11:00"].value, float)
         self.assertAlmostEqual(self.result.data.loc["2008-02-07 11:00"].value, 65.47)
 
     def test_value_2(self):
+        assert isinstance(self.result.data.loc["2008-02-07 12:00"].value, float)
         self.assertAlmostEqual(self.result.data.loc["2008-02-07 12:00"].value, 69.29)
 
     def test_value_3(self):
+        assert isinstance(self.result.data.loc["2008-02-07 13:00"].value, float)
         self.assertAlmostEqual(self.result.data.loc["2008-02-07 13:00"].value, 72.77)
 
 
@@ -172,21 +179,25 @@ class HourlyMeanTestCase(TestCase):
         self.assertEqual(len(self.result.data), 4)
 
     def test_value_1(self):
+        assert isinstance(self.result.data.loc["2008-02-07 10:00"].value, float)
         self.assertAlmostEqual(
             self.result.data.loc["2008-02-07 10:00"].value, 10.4166667
         )
 
     def test_value_2(self):
+        assert isinstance(self.result.data.loc["2008-02-07 11:00"].value, float)
         self.assertAlmostEqual(
             self.result.data.loc["2008-02-07 11:00"].value, 10.9116667
         )
 
     def test_value_3(self):
+        assert isinstance(self.result.data.loc["2008-02-07 12:00"].value, float)
         self.assertAlmostEqual(
             self.result.data.loc["2008-02-07 12:00"].value, 11.5483333
         )
 
     def test_value_4(self):
+        assert isinstance(self.result.data.loc["2008-02-07 13:00"].value, float)
         self.assertAlmostEqual(
             self.result.data.loc["2008-02-07 13:00"].value, 12.1283333
         )
@@ -210,21 +221,25 @@ class HourlyMeanWithOffsetTestCase(TestCase):
         self.assertEqual(len(self.result.data), 4)
 
     def test_value_1(self):
+        assert isinstance(self.result.data.loc["2008-02-07 09:59"].value, float)
         self.assertAlmostEqual(
             self.result.data.loc["2008-02-07 09:59"].value, 10.4166667
         )
 
     def test_value_2(self):
+        assert isinstance(self.result.data.loc["2008-02-07 10:59"].value, float)
         self.assertAlmostEqual(
             self.result.data.loc["2008-02-07 10:59"].value, 10.9116667
         )
 
     def test_value_3(self):
+        assert isinstance(self.result.data.loc["2008-02-07 11:59"].value, float)
         self.assertAlmostEqual(
             self.result.data.loc["2008-02-07 11:59"].value, 11.5483333
         )
 
     def test_value_4(self):
+        assert isinstance(self.result.data.loc["2008-02-07 12:59"].value, float)
         self.assertAlmostEqual(
             self.result.data.loc["2008-02-07 12:59"].value, 12.1283333
         )
@@ -248,21 +263,25 @@ class HourlyMeanWithNegativeOffsetTestCase(TestCase):
         self.assertEqual(len(self.result.data), 4)
 
     def test_value_1(self):
+        assert isinstance(self.result.data.loc["2008-02-07 10:01"].value, float)
         self.assertAlmostEqual(
             self.result.data.loc["2008-02-07 10:01"].value, 10.4166667
         )
 
     def test_value_2(self):
+        assert isinstance(self.result.data.loc["2008-02-07 11:01"].value, float)
         self.assertAlmostEqual(
             self.result.data.loc["2008-02-07 11:01"].value, 10.9116667
         )
 
     def test_value_3(self):
+        assert isinstance(self.result.data.loc["2008-02-07 12:01"].value, float)
         self.assertAlmostEqual(
             self.result.data.loc["2008-02-07 12:01"].value, 11.5483333
         )
 
     def test_value_4(self):
+        assert isinstance(self.result.data.loc["2008-02-07 13:01"].value, float)
         self.assertAlmostEqual(
             self.result.data.loc["2008-02-07 13:01"].value, 12.1283333
         )
@@ -279,15 +298,19 @@ class HourlyMaxTestCase(TestCase):
         self.assertEqual(len(self.result.data), 4)
 
     def test_value_1(self):
+        assert isinstance(self.result.data.loc["2008-02-07 10:00"].value, float)
         self.assertAlmostEqual(self.result.data.loc["2008-02-07 10:00"].value, 10.51)
 
     def test_value_2(self):
+        assert isinstance(self.result.data.loc["2008-02-07 11:00"].value, float)
         self.assertAlmostEqual(self.result.data.loc["2008-02-07 11:00"].value, 11.23)
 
     def test_value_3(self):
+        assert isinstance(self.result.data.loc["2008-02-07 12:00"].value, float)
         self.assertAlmostEqual(self.result.data.loc["2008-02-07 12:00"].value, 11.8)
 
     def test_value_4(self):
+        assert isinstance(self.result.data.loc["2008-02-07 13:00"].value, float)
         self.assertAlmostEqual(self.result.data.loc["2008-02-07 13:00"].value, 12.24)
 
 
@@ -302,15 +325,19 @@ class HourlyMinTestCase(TestCase):
         self.assertEqual(len(self.result.data), 4)
 
     def test_value_1(self):
+        assert isinstance(self.result.data.loc["2008-02-07 10:00"].value, float)
         self.assertAlmostEqual(self.result.data.loc["2008-02-07 10:00"].value, 10.32)
 
     def test_value_2(self):
+        assert isinstance(self.result.data.loc["2008-02-07 11:00"].value, float)
         self.assertAlmostEqual(self.result.data.loc["2008-02-07 11:00"].value, 10.54)
 
     def test_value_3(self):
+        assert isinstance(self.result.data.loc["2008-02-07 12:00"].value, float)
         self.assertAlmostEqual(self.result.data.loc["2008-02-07 12:00"].value, 11.41)
 
     def test_value_4(self):
+        assert isinstance(self.result.data.loc["2008-02-07 13:00"].value, float)
         self.assertAlmostEqual(self.result.data.loc["2008-02-07 13:00"].value, 11.91)
 
 
@@ -327,9 +354,11 @@ class ThreeHourlyAggregationTestCase(TestCase):
         self.assertEqual(len(self.result.data), 2)
 
     def test_value_1(self):
+        assert isinstance(self.result.data.loc["2008-02-07 12:00"].value, float)
         self.assertAlmostEqual(self.result.data.loc["2008-02-07 12:00"].value, 166.01)
 
     def test_value_2(self):
+        assert isinstance(self.result.data.loc["2008-02-07 15:00"].value, float)
         self.assertAlmostEqual(self.result.data.loc["2008-02-07 15:00"].value, 85.08)
 
     def test_flags_1(self):
@@ -374,6 +403,7 @@ class AllMissAggregateTestCase(TestCase):
         self.assertEqual(len(self.result.data), 1)
 
     def test_value_1(self):
+        assert isinstance(self.result.data.loc["2005-05-01 02:00"].value, float)
         self.assertAlmostEqual(self.result.data.loc["2005-05-01 02:00"].value, 3)
 
 
@@ -385,7 +415,6 @@ class SetsMetadataTestCase(TestCase):
         self.ts.title = "hello"
         self.ts.precision = 1
         self.ts.comment = "world"
-        self.ts.timezone = "EET (+0200)"
         self.result = aggregate(self.ts, "1h", "sum", min_count=3, missing_flag="MISS")
 
     def test_sets_title(self):
@@ -402,6 +431,3 @@ class SetsMetadataTestCase(TestCase):
 
     def test_sets_time_step(self):
         self.assertEqual(self.result.time_step, "1h")
-
-    def test_sets_timezone(self):
-        self.assertEqual(self.result.timezone, "EET (+0200)")

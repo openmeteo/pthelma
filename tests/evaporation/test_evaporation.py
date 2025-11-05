@@ -1,5 +1,6 @@
 import datetime as dt
 import math
+from typing import Any, Dict
 from unittest import TestCase
 
 import numpy as np
@@ -17,42 +18,48 @@ class SenegalTzinfo(dt.tzinfo):
     assumption as example 19, in order to get the same result.
     """
 
-    def utcoffset(self, adate):
+    def utcoffset(self, adate: dt.datetime | None) -> dt.timedelta:
         return -dt.timedelta(hours=1)
 
-    def dst(self, adate):
+    def dst(self, adate: dt.datetime | None) -> dt.timedelta:
         return dt.timedelta(0)
 
 
-senegal_tzinfo = SenegalTzinfo()
+senegal_tzinfo: dt.tzinfo = SenegalTzinfo()
 
 
 class PenmanMonteithTestCase(TestCase):
-    def test_daily_plain(self):
+    pmclassvars: Dict[str, Any]
+    pmvars: Dict[str, Any]
+
+    def test_daily_plain(self) -> None:
         # Apply Allen et al. (1998) Example 18 page 72.
         self._get_daily_vars()
         result = PenmanMonteith(**self.pmclassvars).calculate(**self.pmvars)
+        assert isinstance(result, float)
         self.assertAlmostEqual(result, 3.9, places=1)
 
-    def test_daily_with_solar_radiation(self):
+    def test_daily_with_solar_radiation(self) -> None:
         # Same as above, but instead of sunshine duration we provide the solar radiation
         # directly. Should get the same result.
         self._get_daily_vars()
         del self.pmvars["sunshine_duration"]
         self.pmvars["solar_radiation"] = 22.07
         result = PenmanMonteith(**self.pmclassvars).calculate(**self.pmvars)
+        assert isinstance(result, float)
         self.assertAlmostEqual(result, 3.9, places=1)
 
-    def test_daily_with_pressure(self):
+    def test_daily_with_pressure(self) -> None:
         # Same as above, but instead of letting it calculate pressure we provide it
         # directly. Should get the same result.
         self._get_daily_vars()
         self.pmclassvars["unit_converters"]["pressure"] = lambda x: x / 10
         self.pmvars["pressure"] = 1001
         result = PenmanMonteith(**self.pmclassvars).calculate(**self.pmvars)
+        assert isinstance(result, float)
         self.assertAlmostEqual(result, 3.9, places=1)
 
-    def _get_daily_vars(self):
+    def _get_daily_vars(self) -> None:
         unit_converters = {
             # Eq. 47 p. 56
             "wind_speed": lambda x: (x * 4.87 / math.log(67.8 * 10 - 5.42))
@@ -74,7 +81,7 @@ class PenmanMonteithTestCase(TestCase):
             "adatetime": dt.date(2014, 7, 6),
         }
 
-    def test_daily_grid(self):
+    def test_daily_grid(self) -> None:
         # We use a 1x3 grid, where point (1, 1) is the same as Example 18,
         # point (1, 2) has some different values, and the elevation at point
         # (1, 3) is NaN to signify a nodata point.
@@ -116,7 +123,7 @@ class PenmanMonteithTestCase(TestCase):
         )
         np.testing.assert_allclose(result, np.array([3.9, 4.8, float("nan")]), atol=0.1)
 
-    def test_hourly(self):
+    def test_hourly(self) -> None:
         # Apply Allen et al. (1998) Example 19 page 75.
         pm = PenmanMonteith(
             albedo=0.23,
@@ -135,6 +142,7 @@ class PenmanMonteithTestCase(TestCase):
             solar_radiation=2.450,
             adatetime=dt.datetime(2014, 10, 1, 15, 0, tzinfo=senegal_tzinfo),
         )
+        assert isinstance(result, float)
         self.assertAlmostEqual(result, 0.63, places=2)
         result = pm.calculate(
             temperature=28,
@@ -144,6 +152,7 @@ class PenmanMonteithTestCase(TestCase):
             solar_radiation=0,
             adatetime=dt.datetime(2014, 10, 1, 2, 30, tzinfo=senegal_tzinfo),
         )
+        assert isinstance(result, float)
         self.assertAlmostEqual(result, 0.0, places=2)
 
         # Same thing, but let it calculate pressure itself
@@ -154,6 +163,7 @@ class PenmanMonteithTestCase(TestCase):
             solar_radiation=2.450,
             adatetime=dt.datetime(2014, 10, 1, 15, 0, tzinfo=senegal_tzinfo),
         )
+        assert isinstance(result, float)
         self.assertAlmostEqual(result, 0.63, places=2)
         result = pm.calculate(
             temperature=28,
@@ -162,9 +172,10 @@ class PenmanMonteithTestCase(TestCase):
             solar_radiation=0,
             adatetime=dt.datetime(2014, 10, 1, 2, 30, tzinfo=senegal_tzinfo),
         )
+        assert isinstance(result, float)
         self.assertAlmostEqual(result, 0.0, places=2)
 
-    def test_hourly_grid(self):
+    def test_hourly_grid(self) -> None:
         # We use a 2x1 grid, where point 1, 1 is the same as Example 19, and
         # point 1, 2 has some different values.
         pm = PenmanMonteith(
@@ -185,7 +196,7 @@ class PenmanMonteithTestCase(TestCase):
         )
         np.testing.assert_almost_equal(result, np.array([0.63, 0.36]), decimal=2)
 
-    def test_hourly_with_albedo_grid(self):
+    def test_hourly_with_albedo_grid(self) -> None:
         # Apply Allen et al. (1998) Example 19 page 75.
         pm = PenmanMonteith(
             albedo=np.array([0.23]),
@@ -204,6 +215,8 @@ class PenmanMonteithTestCase(TestCase):
             solar_radiation=2.450,
             adatetime=dt.datetime(2014, 10, 1, 15, 0, tzinfo=senegal_tzinfo),
         )
+
+        assert isinstance(result, np.ndarray)
         # The following two lines could be written more simply like this:
         #     self.assertAlmostEqual(result, 0.63, places=2)
         # However, it does not work properly on Python 3 because of a numpy
@@ -211,7 +224,7 @@ class PenmanMonteithTestCase(TestCase):
         self.assertEqual(result.size, 1)
         self.assertAlmostEqual(result[0], 0.63, places=2)
 
-    def test_hourly_array_with_seasonal_albedo_grid(self):
+    def test_hourly_array_with_seasonal_albedo_grid(self) -> None:
         # We use a 2x1 grid, where point 1, 1 is the same as Example 19, and
         # point 1, 2 has some different values.
         pm = PenmanMonteith(
@@ -232,7 +245,7 @@ class PenmanMonteithTestCase(TestCase):
         )
         np.testing.assert_almost_equal(result, np.array([0.63, 0.36]), decimal=2)
 
-    def test_hourly_with_seasonal_albedo(self):
+    def test_hourly_with_seasonal_albedo(self) -> None:
         # Apply Allen et al. (1998) Example 19 page 75.
 
         pm = PenmanMonteith(
@@ -265,6 +278,7 @@ class PenmanMonteithTestCase(TestCase):
             solar_radiation=2.450,
             adatetime=dt.datetime(2014, 1, 1, 15, 0, tzinfo=senegal_tzinfo),
         )
+        assert isinstance(result, float)
         self.assertAlmostEqual(result, 0.69, places=2)
 
         result = pm.calculate(
@@ -275,6 +289,7 @@ class PenmanMonteithTestCase(TestCase):
             solar_radiation=2.450,
             adatetime=dt.datetime(2014, 12, 1, 15, 0, tzinfo=senegal_tzinfo),
         )
+        assert isinstance(result, float)
         self.assertAlmostEqual(result, 0.56, places=2)
 
         result = pm.calculate(
@@ -285,11 +300,12 @@ class PenmanMonteithTestCase(TestCase):
             solar_radiation=2.450,
             adatetime=dt.datetime(2014, 10, 1, 15, 0, tzinfo=senegal_tzinfo),
         )
+        assert isinstance(result, float)
         self.assertAlmostEqual(result, 0.63, places=2)
 
 
 class Cloud2RadiationTestCase(TestCase):
-    def test_daily(self):
+    def test_daily(self) -> None:
         # We test using the example at the bottom of FAO56 p. 50, except that we
         # replace n/N with (1 - cloud_cover).
         cloud_cover = 1 - 7.1 / 10.9

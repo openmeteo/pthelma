@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import datetime as dt
 import os
 import shutil
 import tempfile
 import textwrap
+from collections.abc import Sequence
 from pathlib import Path
 from unittest import TestCase
 from unittest.mock import patch
@@ -17,7 +20,9 @@ from htimeseries import TzinfoFromString
 gdal.UseExceptions()
 
 
-def create_geotiff_file(filename, value):
+def create_geotiff_file(
+    filename: str | os.PathLike[str], value: Sequence[Sequence[float]]
+) -> None:
     geo_transform = (-16.25, 1.0, 0, 16.217, 0, 1.0)
     wgs84 = osr.SpatialReference()
     wgs84.ImportFromEPSG(4326)
@@ -32,28 +37,28 @@ def create_geotiff_file(filename, value):
 
 
 class NonExistentConfigFileTestCase(TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         runner = CliRunner(mix_stderr=False)
         self.result = runner.invoke(cli.main, ["nonexistent.conf"])
 
-    def test_exit_status(self):
+    def test_exit_status(self) -> None:
         self.assertEqual(self.result.exit_code, 1)
 
-    def test_error_message(self):
+    def test_error_message(self) -> None:
         self.assertIn(
             "No such file or directory: 'nonexistent.conf'", self.result.stderr
         )
 
 
 class ConfigurationTestCase(TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.tempdir = tempfile.mkdtemp()
         self.configfilename = os.path.join(self.tempdir, "hspatial.conf")
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         shutil.rmtree(self.tempdir)
 
-    def test_missing_mask_parameter_raises_error(self):
+    def test_missing_mask_parameter_raises_error(self) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -74,7 +79,7 @@ class ConfigurationTestCase(TestCase):
         with self.assertRaisesRegex(click.ClickException, msg):
             cli.App(self.configfilename).run()
 
-    def test_nonexistent_log_level_raises_error(self):
+    def test_nonexistent_log_level_raises_error(self) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -97,7 +102,7 @@ class ConfigurationTestCase(TestCase):
         with self.assertRaisesRegex(click.ClickException, msg):
             cli.App(self.configfilename).run()
 
-    def test_missing_epsg_parameter_raises_error(self):
+    def test_missing_epsg_parameter_raises_error(self) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -118,7 +123,7 @@ class ConfigurationTestCase(TestCase):
         with self.assertRaisesRegex(click.ClickException, msg):
             cli.App(self.configfilename).run()
 
-    def test_wrong_epsg_parameter_raises_error(self):
+    def test_wrong_epsg_parameter_raises_error(self) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -140,7 +145,7 @@ class ConfigurationTestCase(TestCase):
         with self.assertRaisesRegex(click.ClickException, msg):
             cli.App(self.configfilename).run()
 
-    def test_missing_filename_prefix_parameter_raises_error(self):
+    def test_missing_filename_prefix_parameter_raises_error(self) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -161,7 +166,7 @@ class ConfigurationTestCase(TestCase):
         with self.assertRaisesRegex(click.ClickException, msg):
             cli.App(self.configfilename).run()
 
-    def test_missing_output_dir_parameter_raises_error(self):
+    def test_missing_output_dir_parameter_raises_error(self) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -182,7 +187,7 @@ class ConfigurationTestCase(TestCase):
         with self.assertRaisesRegex(click.ClickException, msg):
             cli.App(self.configfilename).run()
 
-    def test_missing_number_of_output_files_parameter_raises_error(self):
+    def test_missing_number_of_output_files_parameter_raises_error(self) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -203,7 +208,7 @@ class ConfigurationTestCase(TestCase):
         with self.assertRaisesRegex(click.ClickException, msg):
             cli.App(self.configfilename).run()
 
-    def test_wrong_number_of_output_files_parameter_raises_error(self):
+    def test_wrong_number_of_output_files_parameter_raises_error(self) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -225,7 +230,7 @@ class ConfigurationTestCase(TestCase):
         with self.assertRaisesRegex(click.ClickException, msg):
             cli.App(self.configfilename).run()
 
-    def test_missing_method_raises_error(self):
+    def test_missing_method_raises_error(self) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -246,7 +251,7 @@ class ConfigurationTestCase(TestCase):
         with self.assertRaisesRegex(click.ClickException, msg):
             cli.App(self.configfilename).run()
 
-    def test_missing_files_parameter_raises_error(self):
+    def test_missing_files_parameter_raises_error(self) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -265,7 +270,7 @@ class ConfigurationTestCase(TestCase):
         with self.assertRaisesRegex(click.ClickException, msg):
             cli.App(self.configfilename).run()
 
-    def test_wrong_alpha_parameter_raises_error(self):
+    def test_wrong_alpha_parameter_raises_error(self) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -289,7 +294,7 @@ class ConfigurationTestCase(TestCase):
             cli.App(self.configfilename).run()
 
     @patch("hspatial.cli.App._execute")
-    def test_correct_configuration_executes(self, m):
+    def test_correct_configuration_executes(self, m) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -311,7 +316,7 @@ class ConfigurationTestCase(TestCase):
         m.assert_called_once_with()
 
     @patch("hspatial.cli.App._execute")
-    def test_creates_log_file(self, *args):
+    def test_creates_log_file(self, *args) -> None:
         logfilename = os.path.join(self.tempdir, "hspatial.log")
         with open(self.configfilename, "w") as f:
             f.write(
@@ -334,7 +339,9 @@ class ConfigurationTestCase(TestCase):
         self.assertTrue(os.path.exists(logfilename))
 
 
-def _create_test_data(filename1, filename2):
+def _create_test_data(
+    filename1: str | os.PathLike[str], filename2: str | os.PathLike[str]
+) -> None:
     with open(filename1, "w") as f:
         f.write(
             textwrap.dedent(
@@ -368,7 +375,7 @@ def _create_test_data(filename1, filename2):
 
 
 class AppTestCase(TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.tempdir = tempfile.mkdtemp()
         self.output_dir = os.path.join(self.tempdir, "output")
         self.config_file = os.path.join(self.tempdir, "spatialize.conf")
@@ -378,7 +385,7 @@ class AppTestCase(TestCase):
         _create_test_data(self.filenames[0], self.filenames[1])
         self._prepare_config_file()
 
-    def _prepare_config_file(self, number_of_output_files=24):
+    def _prepare_config_file(self, number_of_output_files: int = 24) -> None:
         with open(self.config_file, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -396,7 +403,7 @@ class AppTestCase(TestCase):
                 )
             )
 
-    def _create_mask_file(self):
+    def _create_mask_file(self) -> None:
         mask_filename = os.path.join(self.tempdir, "mask.tif")
         mask = gdal.GetDriverByName("GTiff").Create(
             mask_filename, 640, 480, 1, gdal.GDT_Float32
@@ -411,10 +418,10 @@ class AppTestCase(TestCase):
         )
         mask = None
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         shutil.rmtree(self.tempdir)
 
-    def test_get_last_dates(self):
+    def test_get_last_dates(self) -> None:
         application = cli.App(self.config_file)
         tzinfo = TzinfoFromString("+0200")
         self.assertEqual(
@@ -435,7 +442,7 @@ class AppTestCase(TestCase):
         )
 
     @patch("hspatial.cli.App._execute")
-    def test_dates_to_calculate(self, *args):
+    def test_dates_to_calculate(self, *args) -> None:
         application = cli.App(self.config_file)
         application.run()
         tzinfo = TzinfoFromString("+0200")
@@ -483,7 +490,7 @@ class AppTestCase(TestCase):
             ],
         )
 
-    def test_dates_to_calculate_error1(self):
+    def test_dates_to_calculate_error1(self) -> None:
         self._create_mask_file()
         application = cli.App(self.config_file)
         with open(self.filenames[0], "a") as f:
@@ -505,7 +512,7 @@ class AppTestCase(TestCase):
             application.run()
 
     @patch("hspatial.cli.App._execute")
-    def test_date_fmt(self, m):
+    def test_date_fmt(self, m) -> None:
         application = cli.App(self.config_file)
         application.run()
 
@@ -553,12 +560,12 @@ class AppTestCase(TestCase):
             application._date_fmt
 
     @patch("hspatial.cli.App._execute")
-    def test_delete_obsolete_files(self, m):
+    def test_delete_obsolete_files(self, m) -> None:
         application = cli.App(self.config_file)
         application.run()
 
         # Create three files
-        prefix = application.config.filename_prefix
+        prefix = application.config.filename_prefix  # type: ignore[attr-defined]
         filename1 = os.path.join(self.output_dir, "{}-1.tif".format(prefix))
         filename2 = os.path.join(self.output_dir, "{}-2.tif".format(prefix))
         filename3 = os.path.join(self.output_dir, "{}-3.tif".format(prefix))
@@ -584,7 +591,7 @@ class AppTestCase(TestCase):
         self.assertTrue(os.path.exists(filename2))
         self.assertTrue(os.path.exists(filename3))
 
-    def test_run(self):
+    def test_run(self) -> None:
         application = cli.App(self.config_file)
 
         # Create a mask
@@ -595,7 +602,7 @@ class AppTestCase(TestCase):
         application.run()
 
         # Check that it has created three files
-        full_prefix = os.path.join(self.output_dir, application.config.filename_prefix)
+        full_prefix = os.path.join(self.output_dir, application.config.filename_prefix)  # type: ignore[attr-defined]
         self.assertTrue(os.path.exists(full_prefix + "-2014-04-30-15-00+0200.tif"))
         self.assertTrue(os.path.exists(full_prefix + "-2014-04-30-14-00+0200.tif"))
         self.assertTrue(os.path.exists(full_prefix + "-2014-04-30-13-00+0200.tif"))
@@ -610,7 +617,7 @@ class AppTestCase(TestCase):
         # unit-tested lower level functions in detail, the above is reasonably
         # sufficient for us to know that it works.
 
-    def test_no_timezone(self):
+    def test_no_timezone(self) -> None:
         self._remove_timezone_from_file(self.filenames[0])
         self._remove_timezone_from_file(self.filenames[1])
         application = cli.App(self.config_file)
@@ -620,7 +627,7 @@ class AppTestCase(TestCase):
         with self.assertRaisesRegex(click.ClickException, msg):
             application.run()
 
-    def _remove_timezone_from_file(self, filename):
+    def _remove_timezone_from_file(self, filename: str | os.PathLike[str]) -> None:
         with open(filename, "r") as f:
             lines = f.readlines()
         with open(filename, "w") as f:

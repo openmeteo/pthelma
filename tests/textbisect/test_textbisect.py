@@ -2,6 +2,8 @@ import textwrap
 from io import StringIO
 from unittest import TestCase
 
+from typing import Any, Union
+
 from textbisect import text_bisect, text_bisect_left, text_bisect_right
 
 testtext = textwrap.dedent(
@@ -89,7 +91,20 @@ testtext2 = textwrap.dedent(
 
 
 class TextBisectTestCaseBase(TestCase):
-    def _do_test(self, search_term, expected_result, direction="", lo=0, hi=None):
+    f: StringIO
+
+    @staticmethod
+    def KEY(x: str) -> str:
+        return x
+    
+    def _do_test(
+        self,
+        search_term: str,
+        expected_result: int,
+        direction: str = "",
+        lo: int = 0,
+        hi: Union[int, None] = None,
+    ):
         function = {
             "left": text_bisect_left,
             "right": text_bisect_right,
@@ -100,8 +115,12 @@ class TextBisectTestCaseBase(TestCase):
         self.assertEqual(pos, self.f.tell())
 
 
+IRRELEVANT = -1
+
+
 class TextBisectWithoutKeyTestCase(TextBisectTestCaseBase):
-    def KEY(x):
+    @staticmethod
+    def KEY(x: str) -> Any:
         return x
 
     @classmethod
@@ -147,7 +166,7 @@ class TextBisectWithoutKeyTestCase(TextBisectTestCaseBase):
 
     def test_when_file_part_ends_in_middle_of_line(self):
         with self.assertRaises(EOFError):
-            self._do_test("nick", "irrelevant", hi=71)
+            self._do_test("nick", IRRELEVANT, hi=71)
 
     def test_searching_in_file_part_specified_by_both_lo_and_hi(self):
         self._do_test("nick", 79, lo=64, hi=93)
@@ -175,7 +194,9 @@ class TextBisectWithoutKeyTestCase(TextBisectTestCaseBase):
 
 
 class TextBisectWithKeyTestCase(TextBisectTestCaseBase):
-    KEY = len
+    @staticmethod
+    def KEY(x: str) -> Any:
+        return len(x)
 
     @classmethod
     def setUpClass(cls):
@@ -220,7 +241,7 @@ class TextBisectWithKeyTestCase(TextBisectTestCaseBase):
 
     def test_when_file_part_ends_in_middle_of_line(self):
         with self.assertRaises(EOFError):
-            self._do_test("eleven=0011", "irrelevant", hi=32)
+            self._do_test("eleven=0011", IRRELEVANT, hi=32)
 
     def test_beginning_of_file_part_specified_by_both_lo_and_hi(self):
         self._do_test("four", 6, lo=6, hi=29)
@@ -248,7 +269,8 @@ class TextBisectWithKeyTestCase(TextBisectTestCaseBase):
 
 
 class TextBisectOnlyOneLineTestCase(TextBisectTestCaseBase):
-    def KEY(x):
+    @staticmethod
+    def KEY(x: str) -> str:
         return x
 
     @classmethod

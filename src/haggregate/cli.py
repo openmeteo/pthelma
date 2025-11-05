@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import configparser
 import datetime as dt
 import logging
 import os
 import sys
+from typing import Optional
 import traceback
 
 import click
@@ -14,7 +17,7 @@ from htimeseries import HTimeseries
 
 @click.command()
 @click.argument("configfile")
-def main(configfile):
+def main(configfile: str) -> None:
     """Create lower-step timeseries from higher-step ones"""
 
     # Start by setting logger to stdout; later we will switch it according to config
@@ -34,7 +37,7 @@ def main(configfile):
         target_step = config.get("General", "target_step")
         min_count = config.getint("General", "min_count")
         missing_flag = config.get("General", "missing_flag")
-        target_timestamp_offset = config.get(
+        target_timestamp_offset: Optional[str] = config.get(
             "General", "target_timestamp_offset", fallback=None
         )
 
@@ -55,8 +58,11 @@ def main(configfile):
         # Read each section and do the work for it
         for section_name in config.sections():
             section = config[section_name]
-            source_filename = os.path.join(base_dir, section.get("source_file"))
-            target_filename = os.path.join(base_dir, section.get("target_file"))
+            source_file = section.get("source_file")
+            target_file = section.get("target_file")
+            assert source_file is not None and target_file is not None
+            source_filename = os.path.join(base_dir, source_file)
+            target_filename = os.path.join(base_dir, target_file)
             method = section.get("method")
             with open(source_filename, newline="\n") as f:
                 ts = HTimeseries(
@@ -67,6 +73,7 @@ def main(configfile):
             else:
                 regularization_mode = RegularizationMode.INTERVAL
             regts = regularize(ts, new_date_flag="DATEINSERT", mode=regularization_mode)
+            assert method is not None
             aggts = aggregate(
                 regts,
                 target_step,

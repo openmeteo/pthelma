@@ -54,7 +54,7 @@ class App:
 
     def _set_logger_handler(self):
         if getattr(self.config, "logfile", None):
-            self.logger.addHandler(logging.FileHandler(self.config.logfile))
+            self.logger.addHandler(logging.FileHandler(self.config.logfile))  # type: ignore[arg-type]
         else:
             self.logger.addHandler(logging.StreamHandler())
 
@@ -281,6 +281,7 @@ class AppConfig:
 
 
 class ProcessAtPoint:
+    timezone: str | None
     def __init__(self, config):
         self.config = config
 
@@ -327,6 +328,7 @@ class ProcessAtPoint:
             self.input_timeseries[var] = HTimeseries(f)
 
     def _check_all_timeseries_are_in_same_location_and_timezone(self):
+        reference_hts = None
         for i, (name, hts) in enumerate(self.input_timeseries.items()):
             if i == 0:
                 reference_hts = hts
@@ -408,7 +410,6 @@ class ProcessAtPoint:
         self.pet = HTimeseries(default_tzinfo=tzinfo)
         self.pet.time_step = self.config.time_step
         self.pet.unit = "mm"
-        self.pet.timezone = self.timezone
         self.pet.variable = "Potential Evapotranspiration"
         self.pet.precision = 2 if self.config.time_step == "h" else 1
         self.pet.location = self.location
@@ -431,6 +432,8 @@ class ProcessAtPoint:
                     else "sunshine_duration"
                 ),
             )
+        else:
+            assert False, "Unreachable"
         self.input_vars = vars
 
     def _calculate_evaporation(self):

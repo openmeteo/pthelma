@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import datetime as dt
+from typing import Optional
 
 
 class TzinfoFromString(dt.tzinfo):
-    def __init__(self, string):
-        self.offset = None
+    def __init__(self, string: Optional[str]) -> None:
+        self.offset: Optional[dt.timedelta] = None
         self.name = ""
         if not string:
             return
@@ -34,11 +37,11 @@ class TzinfoFromString(dt.tzinfo):
 
         self.offset = sign * dt.timedelta(hours=hours, minutes=minutes)
 
-    def utcoffset(self, adatetime):
+    def utcoffset(self, adatetime: Optional[dt.datetime]) -> Optional[dt.timedelta]:
         return self.offset
 
-    def dst(self, adatetime):
+    def dst(self, adatetime: Optional[dt.datetime]) -> dt.timedelta:
         return dt.timedelta(0)
 
-    def tzname(self, adatetime):
+    def tzname(self, adatetime: Optional[dt.datetime]) -> str:
         return self.name

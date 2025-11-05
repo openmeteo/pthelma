@@ -1,8 +1,14 @@
+import datetime as dt
 import numpy as np
 from osgeo import gdal, osr
 
-
-def setup_test_raster(filename, value, timestamp=None, srid=4326, unit=None):
+def setup_test_raster(
+    filename: str,
+    value: np.ndarray[np.float64, np.dtype[np.float64]],
+    timestamp: dt.datetime | dt.date | None = None,
+    srid: int = 4326,
+    unit: str | None = None,
+):
     """Save value, which is an np array, to a GeoTIFF file."""
     nodata = 1e8
     value[np.isnan(value)] = nodata

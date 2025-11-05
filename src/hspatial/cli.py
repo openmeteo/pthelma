@@ -53,7 +53,7 @@ class App:
 
     def _set_logger_handler(self):
         if getattr(self.config, "logfile", None):
-            self.logger.addHandler(logging.FileHandler(self.config.logfile))
+            self.logger.addHandler(logging.FileHandler(self.config.logfile))  # type: ignore[arg-type]
         else:
             self.logger.addHandler(logging.StreamHandler())
 
@@ -64,14 +64,18 @@ class App:
         series is too small). 'filename' is used in error messages.
         """
         # Get the time zone
+        line = None
         with open(filename) as fp:
             for line in fp:
                 if line.startswith("Timezone") or (line and line[0] in "0123456789"):
                     break
+        assert line is not None
         if not line.startswith("Timezone"):
             raise click.ClickException("{} does not contain Timezone".format(filename))
         zonestr = line.partition("=")[2].strip()
-        timezone = TzinfoFromString(zonestr)
+        utcoffset = TzinfoFromString(zonestr).utcoffset(None)
+        assert utcoffset is not None
+        timezone = dt.timezone(offset=utcoffset)
 
         result = []
         previous_line_was_empty = False
@@ -145,15 +149,17 @@ class App:
         """
         Determine date_fmt based on time series time step.
         """
-        if self._time_step.endswith("min") or self._time_step.endswith("h"):
+        time_step = self._time_step
+        assert time_step is not None
+        if time_step.endswith("min") or time_step.endswith("h"):
             return "%Y-%m-%d %H:%M%z"
-        elif self._time_step.endswith("D"):
+        elif time_step.endswith("D"):
             return "%Y-%m-%d"
-        elif self._time_step.endswith("M"):
+        elif time_step.endswith("M"):
             return "%Y-%m"
-        elif self._time_step.endswith("Y"):
+        elif time_step.endswith("Y"):
             return "%Y"
-        raise click.ClickException("Can't use time step " + str(self._time_step))
+        raise click.ClickException(f"Can't use time step {time_step}")
 
     def _delete_obsolete_files(self):
         """
@@ -161,7 +167,7 @@ class App:
         where N is the 'number_of_output_files' configuration option.
         """
         pattern = os.path.join(
-            self.config.output_dir, "{}-*.tif".format(self.config.filename_prefix)
+            self.config.output_dir, "{}-*.tif".format(self.config.filename_prefix)  # type: ignore[str-format]
         )
         files = glob(pattern)
         files.sort()
@@ -176,10 +182,10 @@ class App:
         )
 
         # Get mask
-        mask = gdal.Open(self.config.mask)
+        mask = gdal.Open(self.config.mask)  # type: ignore[arg-type]
 
         # Setup integration method
-        if self.config.method == "idw":
+        if self.config.method == "idw":  # type: ignore[comparison-overlap]
             funct = idw
             kwargs = {"alpha": self.config.alpha}
         else:
@@ -191,7 +197,7 @@ class App:
                 mask,
                 stations_layer,
                 date,
-                os.path.join(self.config.output_dir, self.config.filename_prefix),
+                os.path.join(self.config.output_dir, self.config.filename_prefix),  # type: ignore[str-format]
                 self._date_fmt,
                 funct,
                 kwargs,
@@ -269,7 +275,7 @@ class AppConfig:
 
     def _check_method(self):
         # Check method
-        if self.method != "idw":
+        if self.method != "idw":  # type: ignore[comparison-overlap]
             raise WrongValueError('Option "method" can currently only be idw')
         # Check alpha
         try:

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import datetime as dt
 import json
 import os
@@ -6,11 +8,12 @@ import sys
 import tempfile
 import textwrap
 from io import StringIO
+from typing import Any, Dict, List
 from unittest import TestCase, skipUnless
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import click
-from click.testing import CliRunner
+from click.testing import CliRunner, Result
 
 from enhydris_api_client import EnhydrisApiClient
 from enhydris_cache import cli
@@ -18,28 +21,28 @@ from htimeseries import HTimeseries
 
 
 class NonExistentConfigFileTestCase(TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         runner = CliRunner(mix_stderr=False)
-        self.result = runner.invoke(cli.main, ["nonexistent.conf"])
+        self.result: Result = runner.invoke(cli.main, ["nonexistent.conf"])
 
-    def test_exit_status(self):
+    def test_exit_status(self) -> None:
         self.assertEqual(self.result.exit_code, 1)
 
-    def test_error_message(self):
+    def test_error_message(self) -> None:
         self.assertIn(
             "No such file or directory: 'nonexistent.conf'", self.result.stderr
         )
 
 
 class ConfigurationTestCase(TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.tempdir = tempfile.mkdtemp()
         self.configfilename = os.path.join(self.tempdir, "enhydris-cache.conf")
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         shutil.rmtree(self.tempdir)
 
-    def test_nonexistent_log_level_raises_error(self):
+    def test_nonexistent_log_level_raises_error(self) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -54,7 +57,7 @@ class ConfigurationTestCase(TestCase):
         with self.assertRaisesRegex(click.ClickException, msg):
             cli.App(self.configfilename).run()
 
-    def test_missing_base_url_parameter_raises_error(self):
+    def test_missing_base_url_parameter_raises_error(self) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -75,7 +78,7 @@ class ConfigurationTestCase(TestCase):
         with self.assertRaisesRegex(click.ClickException, msg):
             cli.App(self.configfilename).run()
 
-    def test_missing_station_id_parameter_raises_error(self):
+    def test_missing_station_id_parameter_raises_error(self) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -96,7 +99,7 @@ class ConfigurationTestCase(TestCase):
         with self.assertRaisesRegex(click.ClickException, msg):
             cli.App(self.configfilename).run()
 
-    def test_missing_timeseries_group_id_parameter_raises_error(self):
+    def test_missing_timeseries_group_id_parameter_raises_error(self) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -117,7 +120,7 @@ class ConfigurationTestCase(TestCase):
         with self.assertRaisesRegex(click.ClickException, msg):
             cli.App(self.configfilename).run()
 
-    def test_missing_timeseries_id_parameter_raises_error(self):
+    def test_missing_timeseries_id_parameter_raises_error(self) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -138,7 +141,7 @@ class ConfigurationTestCase(TestCase):
         with self.assertRaisesRegex(click.ClickException, msg):
             cli.App(self.configfilename).run()
 
-    def test_missing_file_parameter_raises_error(self):
+    def test_missing_file_parameter_raises_error(self) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -159,7 +162,7 @@ class ConfigurationTestCase(TestCase):
         with self.assertRaisesRegex(click.ClickException, msg):
             cli.App(self.configfilename).run()
 
-    def test_wrong_station_id_parameter_raises_error(self):
+    def test_wrong_station_id_parameter_raises_error(self) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -180,7 +183,7 @@ class ConfigurationTestCase(TestCase):
         with self.assertRaisesRegex(click.ClickException, "not a valid integer"):
             cli.App(self.configfilename).run()
 
-    def test_wrong_timeseries_group_id_parameter_raises_error(self):
+    def test_wrong_timeseries_group_id_parameter_raises_error(self) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -201,7 +204,7 @@ class ConfigurationTestCase(TestCase):
         with self.assertRaisesRegex(click.ClickException, "not a valid integer"):
             cli.App(self.configfilename).run()
 
-    def test_wrong_timeseries_id_parameter_raises_error(self):
+    def test_wrong_timeseries_id_parameter_raises_error(self) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 textwrap.dedent(
@@ -223,7 +226,7 @@ class ConfigurationTestCase(TestCase):
             cli.App(self.configfilename).run()
 
     @patch("enhydris_cache.cli.App._execute")
-    def test_correct_configuration_executes(self, m):
+    def test_correct_configuration_executes(self, m: MagicMock) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 f"""\
@@ -243,7 +246,7 @@ class ConfigurationTestCase(TestCase):
         m.assert_called_once_with()
 
     @patch("enhydris_cache.cli.App._execute")
-    def test_missing_auth_token_makes_it_none(self, m):
+    def test_missing_auth_token_makes_it_none(self, m: MagicMock) -> None:
         with open(self.configfilename, "w") as f:
             f.write(
                 f"""\
@@ -261,10 +264,11 @@ class ConfigurationTestCase(TestCase):
             )
         app = cli.App(self.configfilename)
         app.run()
+        assert app.config is not None
         self.assertIsNone(app.config.timeseries_group[0]["auth_token"])
 
     @patch("enhydris_cache.cli.App._execute")
-    def test_creates_log_file(self, *args):
+    def test_creates_log_file(self, *mock_objects: MagicMock) -> None:
         logfilename = os.path.join(self.tempdir, "enhydris_cache.log")
         with open(self.configfilename, "w") as f:
             f.write(
@@ -321,15 +325,17 @@ class EnhydrisCacheE2eTestCase(TestCase):
     timeseries1_bottom = test_timeseries1.splitlines(True)[-1]
     timeseries2_bottom = test_timeseries2.splitlines(True)[-1]
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.tempdir = tempfile.mkdtemp()
         self.config_file = os.path.join(self.tempdir, "enhydris_cache.conf")
-        self.saved_argv = sys.argv
+        self.saved_argv: List[str] = sys.argv
         sys.argv = ["enhydris_cache", "--traceback", self.config_file]
         self.savedcwd = os.getcwd()
 
         # Create two stations, each one with a time series
-        self.parms = json.loads(os.getenv("PTHELMA_TEST_ENHYDRIS_SERVER"))
+        raw_parameters = os.getenv("PTHELMA_TEST_ENHYDRIS_SERVER")
+        assert raw_parameters is not None
+        self.parms: Dict[str, Any] = json.loads(raw_parameters)
         self.station_id = self.parms["station_id"]
         self.timeseries_group_id = self.parms["timeseries_group_id"]
         self.api_client = EnhydrisApiClient(
@@ -398,7 +404,7 @@ class EnhydrisCacheE2eTestCase(TestCase):
                 )
             )
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         self.api_client.delete_timeseries(
             self.station_id, self.timeseries_group_id, self.timeseries2_id
         )
@@ -410,7 +416,7 @@ class EnhydrisCacheE2eTestCase(TestCase):
         sys.argv = self.saved_argv
         self.api_client.__exit__()
 
-    def test_execute(self):
+    def test_execute(self) -> None:
         application = cli.App(self.config_file)
 
         # Check that the two files don't exist yet

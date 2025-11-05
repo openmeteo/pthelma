@@ -1,9 +1,17 @@
+from __future__ import annotations
+
 import datetime as dt
 import math
 import warnings
 from math import cos, pi, sin, tan
+from typing import Any, Callable, Dict, Mapping, Optional, Sequence, Tuple, Union, cast
 
 import numpy as np
+
+Numeric = Union[float, np.ndarray, np.ma.MaskedArray]
+Converter = Callable[[Numeric], Numeric]
+ExtraterrestrialRadiation = Union[Numeric, Tuple[Numeric, Numeric]]
+OptionalNumeric = Optional[Numeric]
 
 # Note about RuntimeWarning
 #
@@ -28,23 +36,25 @@ class PenmanMonteith(object):
 
     def __init__(
         self,
-        albedo,
-        elevation,
-        latitude,
-        time_step,
-        longitude=None,
-        nighttime_solar_radiation_ratio=None,
-        unit_converters={},
-    ):
+        albedo: Union[float, np.ndarray, Sequence[float], Sequence[np.ndarray]],
+        elevation: float | np.ndarray,
+        latitude: float | np.ndarray,
+        time_step: str,
+        longitude: Optional[float | np.ndarray] = None,
+        nighttime_solar_radiation_ratio: Optional[Numeric] = None,
+        unit_converters: Optional[Mapping[str, Converter]] = None,
+    ) -> None:
         self.albedo = albedo
         self.nighttime_solar_radiation_ratio = nighttime_solar_radiation_ratio
         self.elevation = elevation
         self.latitude = latitude
         self.longitude = longitude
         self.time_step = time_step
-        self.unit_converters = unit_converters
+        self.unit_converters = (
+            dict(unit_converters) if unit_converters is not None else {}
+        )
 
-    def calculate(self, **kwargs):
+    def calculate(self, **kwargs: Any) -> Numeric:
         if self.time_step == "h":
             return self.calculate_hourly(**kwargs)
         elif self.time_step == "D":
@@ -57,16 +67,16 @@ class PenmanMonteith(object):
 
     def calculate_daily(
         self,
-        temperature_max,
-        temperature_min,
-        humidity_max,
-        humidity_min,
-        wind_speed,
-        adatetime,
-        sunshine_duration=None,
-        pressure=None,
-        solar_radiation=None,
-    ):
+        temperature_max: Numeric,
+        temperature_min: Numeric,
+        humidity_max: Numeric,
+        humidity_min: Numeric,
+        wind_speed: Numeric,
+        adatetime: dt.datetime,
+        sunshine_duration: Optional[Numeric] = None,
+        pressure: Optional[Numeric] = None,
+        solar_radiation: Optional[Numeric] = None,
+    ) -> Numeric:
         if pressure is None:
             # Eq. 7 p. 31
             pressure = 101.3 * ((293 - 0.0065 * self.elevation) / 293) ** 5.26
@@ -80,45 +90,53 @@ class PenmanMonteith(object):
             pressure=pressure,
         )
 
+        temperature_max_c = cast(Numeric, variables["temperature_max"])
+        temperature_min_c = cast(Numeric, variables["temperature_min"])
+        humidity_max_c = cast(Numeric, variables["humidity_max"])
+        humidity_min_c = cast(Numeric, variables["humidity_min"])
+        wind_speed_c = cast(Numeric, variables["wind_speed"])
+        sunshine_duration_c = cast(Numeric, variables["sunshine_duration"])
+
         # Radiation
-        r_a, N = self.get_extraterrestrial_radiation(adatetime)
+        extraterrestrial_radiation = self.get_extraterrestrial_radiation(adatetime)
+        r_a, N = cast(Tuple[Numeric, Numeric], extraterrestrial_radiation)
         if solar_radiation is None:
             solar_radiation = (
-                0.25 + 0.50 * variables["sunshine_duration"] / N
+                0.25 + 0.50 * sunshine_duration_c / N
             ) * r_a  # Eq.35 p. 50
         r_so = r_a * (0.75 + 2e-5 * self.elevation)  # Eq. 37, p. 51
         variables.update(self.convert_units(solar_radiation=solar_radiation))
+        solar_radiation_c = cast(Numeric, variables["solar_radiation"])
 
         with warnings.catch_warnings():
             # See comment about RuntimeWarning on top of the file
             warnings.simplefilter("ignore", RuntimeWarning)
-            temperature_mean = (
-                variables["temperature_max"] + variables["temperature_min"]
-            ) / 2
+            temperature_mean = (temperature_max_c + temperature_min_c) / 2
         variables["temperature_mean"] = temperature_mean
-        gamma = self.get_psychrometric_constant(temperature_mean, variables["pressure"])
+        pressure_c = cast(Numeric, variables["pressure"])
+        gamma = self.get_psychrometric_constant(temperature_mean, pressure_c)
         return self.penman_monteith_daily(
-            incoming_solar_radiation=variables["solar_radiation"],
+            incoming_solar_radiation=solar_radiation_c,
             clear_sky_solar_radiation=r_so,
             psychrometric_constant=gamma,
-            mean_wind_speed=variables["wind_speed"],
-            temperature_max=variables["temperature_max"],
-            temperature_min=variables["temperature_min"],
-            temperature_mean=variables["temperature_mean"],
-            humidity_max=variables["humidity_max"],
-            humidity_min=variables["humidity_min"],
+            mean_wind_speed=wind_speed_c,
+            temperature_max=temperature_max_c,
+            temperature_min=temperature_min_c,
+            temperature_mean=temperature_mean,
+            humidity_max=humidity_max_c,
+            humidity_min=humidity_min_c,
             adate=adatetime,
         )
 
     def calculate_hourly(
         self,
-        temperature,
-        humidity,
-        wind_speed,
-        solar_radiation,
-        adatetime,
-        pressure=None,
-    ):
+        temperature: Numeric,
+        humidity: Numeric,
+        wind_speed: Numeric,
+        solar_radiation: Numeric,
+        adatetime: dt.datetime,
+        pressure: Optional[Numeric] = None,
+    ) -> Numeric:
         if pressure is None:
             # Eq. 7 p. 31
             pressure = 101.3 * ((293 - 0.0065 * self.elevation) / 293) ** 5.26
@@ -129,36 +147,48 @@ class PenmanMonteith(object):
             pressure=pressure,
             solar_radiation=solar_radiation,
         )
+        temperature_c = cast(Numeric, variables["temperature"])
+        humidity_c = cast(Numeric, variables["humidity"])
+        wind_speed_c = cast(Numeric, variables["wind_speed"])
+        pressure_c = cast(Numeric, variables["pressure"])
+        solar_radiation_c = cast(Numeric, variables["solar_radiation"])
         gamma = self.get_psychrometric_constant(
-            variables["temperature"], variables["pressure"]
+            temperature_c, pressure_c
         )
-        r_so = self.get_extraterrestrial_radiation(adatetime) * (
+        extraterrestrial_radiation = self.get_extraterrestrial_radiation(adatetime)
+        r_so = cast(Numeric, extraterrestrial_radiation) * (
             0.75 + 2e-5 * self.elevation
         )  # Eq. 37, p. 51
         return self.penman_monteith_hourly(
-            incoming_solar_radiation=variables["solar_radiation"],
+            incoming_solar_radiation=solar_radiation_c,
             clear_sky_solar_radiation=r_so,
             psychrometric_constant=gamma,
-            mean_wind_speed=variables["wind_speed"],
-            mean_temperature=variables["temperature"],
-            mean_relative_humidity=variables["humidity"],
+            mean_wind_speed=wind_speed_c,
+            mean_temperature=temperature_c,
+            mean_relative_humidity=humidity_c,
             adatetime=adatetime,
         )
 
-    def convert_units(self, **kwargs):
-        result = {}
+    def convert_units(self, **kwargs: OptionalNumeric) -> Dict[str, OptionalNumeric]:
+        result: Dict[str, OptionalNumeric] = {}
         for item in kwargs:
             varname = item
             if item.endswith("_max") or item.endswith("_min"):
                 varname = item[:-4]
+            value = kwargs[item]
+            if value is None:
+                result[item] = None
+                continue
             converter = self.unit_converters.get(varname, lambda x: x)
             with warnings.catch_warnings():
                 # See comment about RuntimeWarning on top of the file
                 warnings.simplefilter("ignore", RuntimeWarning)
-                result[item] = converter(kwargs[item])
+                result[item] = converter(value)
         return result
 
-    def get_extraterrestrial_radiation(self, adatetime):
+    def get_extraterrestrial_radiation(
+        self, adatetime: dt.datetime | dt.date
+    ) -> ExtraterrestrialRadiation:
         """
         Calculates the solar radiation we would receive if there were no
         atmosphere. This is a function of date, time and location.
@@ -193,12 +223,17 @@ class PenmanMonteith(object):
             n = 24 / pi * omega_s  # Eq. 34 p. 48
             return r_a, n
 
+        # We continue with hourly
+        assert isinstance(adatetime, dt.datetime)
+        assert self.longitude is not None
+
         # Seasonal correction for solar time, eq. 32, p. 48.
         b = 2 * pi * (j - 81) / 364
         sc = 0.1645 * sin(2 * b) - 0.1255 * cos(b) - 0.025 * sin(b)
 
         # Longitude at the centre of the local time zone
         utc_offset = adatetime.utcoffset()
+        assert utc_offset is not None
         utc_offset_hours = utc_offset.days * 24 + utc_offset.seconds / 3600.0
         lz = -utc_offset_hours * 15
 
@@ -230,7 +265,9 @@ class PenmanMonteith(object):
             )
         )
 
-    def get_psychrometric_constant(self, temperature, pressure):
+    def get_psychrometric_constant(
+        self, temperature: Numeric, pressure: Numeric
+    ) -> Numeric:
         """
         Allen et al. (1998), eq. 8, p. 32.
 
@@ -245,17 +282,17 @@ class PenmanMonteith(object):
 
     def penman_monteith_daily(
         self,
-        incoming_solar_radiation,
-        clear_sky_solar_radiation,
-        psychrometric_constant,
-        mean_wind_speed,
-        temperature_max,
-        temperature_min,
-        temperature_mean,
-        humidity_max,
-        humidity_min,
-        adate,
-    ):
+        incoming_solar_radiation: Numeric,
+        clear_sky_solar_radiation: Numeric,
+        psychrometric_constant: Numeric,
+        mean_wind_speed: Numeric,
+        temperature_max: Numeric,
+        temperature_min: Numeric,
+        temperature_mean: Numeric,
+        humidity_max: Numeric,
+        humidity_min: Numeric,
+        adate: dt.date,
+    ) -> Numeric:
         """
         Calculates and returns the reference evapotranspiration according
         to Allen et al. (1998), eq. 6, p. 24 & 65.
@@ -275,7 +312,7 @@ class PenmanMonteith(object):
         # Net incoming radiation; p. 51, eq. 38
         albedo = (
             self.albedo[adate.month - 1]
-            if self.albedo.__class__.__name__ in ("tuple", "list")
+            if isinstance(self.albedo, Sequence)
             else self.albedo
         )
         rns = (1.0 - albedo) * incoming_solar_radiation
@@ -309,14 +346,14 @@ class PenmanMonteith(object):
 
     def penman_monteith_hourly(
         self,
-        incoming_solar_radiation,
-        clear_sky_solar_radiation,
-        psychrometric_constant,
-        mean_wind_speed,
-        mean_temperature,
-        mean_relative_humidity,
-        adatetime,
-    ):
+        incoming_solar_radiation: Numeric,
+        clear_sky_solar_radiation: Numeric,
+        psychrometric_constant: Numeric,
+        mean_wind_speed: Numeric,
+        mean_temperature: Numeric,
+        mean_relative_humidity: Numeric,
+        adatetime: dt.datetime,
+    ) -> Numeric:
         """
         Calculates and returns the reference evapotranspiration according
         to Allen et al. (1998), eq. 53, p. 74.
@@ -336,7 +373,7 @@ class PenmanMonteith(object):
         # Net incoming radiation; p. 51, eq. 38
         albedo = (
             self.albedo[adatetime.month - 1]
-            if self.albedo.__class__.__name__ in ("tuple", "list")
+            if isinstance(self.albedo, Sequence)
             else self.albedo
         )
         rns = (1.0 - albedo) * incoming_solar_radiation
@@ -373,17 +410,17 @@ class PenmanMonteith(object):
 
     def get_net_outgoing_radiation(
         self,
-        temperature,
-        incoming_solar_radiation,
-        clear_sky_solar_radiation,
-        mean_actual_vapour_pressure,
-    ):
+        temperature: Union[Numeric, Tuple[Numeric, Numeric]],
+        incoming_solar_radiation: Numeric,
+        clear_sky_solar_radiation: Numeric,
+        mean_actual_vapour_pressure: Numeric,
+    ) -> Numeric:
         """
         Allen et al. (1998), p. 52, eq. 39. Temperature can be a tuple (a pair)
         of min and max, or a single value. If it is a single value, the
         equation is modified according to end of page 74.
         """
-        if temperature.__class__.__name__ in ("tuple", "list"):
+        if isinstance(temperature, Sequence):
             with warnings.catch_warnings():
                 # See comment about RuntimeWarning on top of the file
                 warnings.simplefilter("ignore", RuntimeWarning)
@@ -406,7 +443,7 @@ class PenmanMonteith(object):
             solar_radiation_ratio = np.where(
                 clear_sky_solar_radiation > 0.05,
                 incoming_solar_radiation / clear_sky_solar_radiation,
-                self.nighttime_solar_radiation_ratio,
+                self.nighttime_solar_radiation_ratio,  # type: ignore
             )
             solar_radiation_ratio = np.where(
                 np.isnan(clear_sky_solar_radiation), float("nan"), solar_radiation_ratio
@@ -421,19 +458,21 @@ class PenmanMonteith(object):
             result = np.array(result, dtype=float)
         return result
 
-    def get_saturation_vapour_pressure(self, temperature):
+    def get_saturation_vapour_pressure(self, temperature: Numeric) -> Numeric:
         "Allen et al. (1998), p. 36, eq. 11."
         with warnings.catch_warnings():
             # See comment about RuntimeWarning on top of the file
             warnings.simplefilter("ignore")
             return 0.6108 * math.e ** (17.27 * temperature / (237.3 + temperature))
 
-    def get_soil_heat_flux_density(self, incoming_solar_radiation, rn):
+    def get_soil_heat_flux_density(
+        self, incoming_solar_radiation: Numeric, rn: Numeric
+    ) -> Numeric:
         "Allen et al. (1998), p. 55, eq. 45 & 46."
         coefficient = np.where(incoming_solar_radiation > 0.05, 0.1, 0.5)
         return coefficient * rn
 
-    def get_saturation_vapour_pressure_curve_slope(self, temperature):
+    def get_saturation_vapour_pressure_curve_slope(self, temperature: Numeric) -> Numeric:
         "Allen et al. (1998), p. 37, eq. 13."
         numerator = 4098 * self.get_saturation_vapour_pressure(temperature)
         with warnings.catch_warnings():
@@ -443,7 +482,12 @@ class PenmanMonteith(object):
             return numerator / denominator
 
 
-def cloud2radiation(cloud_cover, latitude, longitude, date):
+def cloud2radiation(
+    cloud_cover: Numeric,
+    latitude: float,
+    longitude: float,
+    date: dt.date,
+) -> Numeric:
     a_s = 0.25
     b_s = 0.50
     dummy = 0.5  # Values not being used by get_extraterrestial_radiation
@@ -454,6 +498,8 @@ def cloud2radiation(cloud_cover, latitude, longitude, date):
         longitude=longitude,
         time_step="D",
     )
-    etrad = pm.get_extraterrestrial_radiation(date)[0]
+    r = pm.get_extraterrestrial_radiation(date)
+    assert isinstance(r, Sequence)
+    etrad = r[0]
     etrad *= 1e6 / 86400  # convert from MJ/m/day to W/s
     return (a_s + b_s * (1 - cloud_cover)) * etrad

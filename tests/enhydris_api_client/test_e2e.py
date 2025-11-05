@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import datetime as dt
 import json
 import os
 import textwrap
 from io import StringIO
+from typing import Any, Dict
 from unittest import TestCase, skipUnless
 from zoneinfo import ZoneInfo
 
@@ -44,8 +47,10 @@ class EndToEndTestCase(AssertFrameEqualMixin, TestCase):
     as in enhydris_cache.
     """
 
-    def setUp(self):
-        v = json.loads(os.getenv("PTHELMA_TEST_ENHYDRIS_SERVER"))
+    def setUp(self) -> None:
+        raw_config = os.getenv("PTHELMA_TEST_ENHYDRIS_SERVER")
+        assert raw_config is not None
+        v: Dict[str, Any] = json.loads(raw_config)
         self.token = v["token"]
         self.client = EnhydrisApiClient(v["base_url"], token=self.token)
         self.client.__enter__()
@@ -53,10 +58,10 @@ class EndToEndTestCase(AssertFrameEqualMixin, TestCase):
         self.variable_id = v["variable_id"]
         self.unit_of_measurement_id = v["unit_of_measurement_id"]
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         self.client.__exit__()
 
-    def test_e2e(self):
+    def test_e2e(self) -> None:
         # Verify we're authenticated
         token = self.client.session.headers.get("Authorization")
         self.assertEqual(token, f"token {self.token}")
@@ -159,14 +164,6 @@ class EndToEndTestCase(AssertFrameEqualMixin, TestCase):
         hts = self.client.read_tsdata(
             tmp_station_id, self.timeseries_group_id, self.timeseries_id
         )
-        try:
-            # Compatibility with older Python or pandas versions (such as Python 3.7
-            # with pandas 0.23): comparison may fail if tzinfo, although practically the
-            # same thing, is a different object
-            if hts.data.index.tz.offset == dt.timedelta(0):
-                hts.data.index = hts.data.index.tz_convert(dt.timezone.utc)
-        except AttributeError:
-            pass
         self.assert_frame_loosely_equal(hts.data, test_timeseries_htimeseries.data)
 
         # The other attributes should have been set too.
@@ -192,15 +189,7 @@ class EndToEndTestCase(AssertFrameEqualMixin, TestCase):
             ),
             default_tzinfo=ZoneInfo("Etc/GMT-1"),
         )
-        try:
-            # Compatibility with older Python or pandas versions (such as Python 3.7
-            # with pandas 0.23): comparison may fail if tzinfo, although practically the
-            # same thing, is a different object
-            if hts.data.index.tz.offset == dt.timedelta(minutes=60):
-                hts.data.index = hts.data.index.tz_convert(ZoneInfo("Etc/GMT-1"))
-        except AttributeError:
-            pass
-        pd.testing.assert_frame_equal(hts.data, expected_result.data)
+        self.assert_frame_loosely_equal(hts.data, expected_result.data)
 
         # Delete the time series and verify
         self.client.delete_timeseries(

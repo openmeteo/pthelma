@@ -1,10 +1,17 @@
+from __future__ import annotations
+
+import datetime as dt
 from copy import copy
 from io import StringIO
+from typing import Any, Dict, Generator, Iterable, Optional
 from urllib.parse import urljoin
 from zoneinfo import ZoneInfo
 
 import iso8601
+import pandas as pd
 import requests
+from requests import Response, Session
+from typing import cast
 
 from htimeseries import HTimeseries
 
@@ -13,11 +20,15 @@ class MalformedResponseError(Exception):
     pass
 
 
+JSONDict = Dict[str, Any]
+
+
 class EnhydrisApiClient:
-    def __init__(self, base_url, token=None):
+    def __init__(self, base_url: str, token: Optional[str] = None) -> None:
         self.base_url = base_url
         self.token = token
-        self.session = requests.Session()
+        self.session: Session = requests.Session()
+        self.response: Response | None = None
         if token is not None:
             self.session.headers.update({"Authorization": f"token {self.token}"})
 
@@ -31,14 +42,16 @@ class EnhydrisApiClient:
             {"Content-Type": "application/x-www-form-urlencoded"}
         )
 
-    def __enter__(self):
+    def __enter__(self) -> "EnhydrisApiClient":
         self.session.__enter__()
         return self
 
-    def __exit__(self, *args):
+    def __exit__(self, *args: object) -> None:
         self.session.__exit__(*args)
 
-    def check_response(self, expected_status_code=None):
+    def check_response(self, expected_status_code: Optional[int] = None) -> None:
+        if self.response is None:
+            raise RuntimeError("No response has been recorded")
         try:
             self._raise_HTTPError_on_error(expected_status_code=expected_status_code)
         except requests.HTTPError as e:
@@ -47,21 +60,27 @@ class EnhydrisApiClient:
                     f"{str(e)}. Server response: {self.response.text}"
                 )
 
-    def _raise_HTTPError_on_error(self, expected_status_code):
+    def _raise_HTTPError_on_error(self, expected_status_code: Optional[int]) -> None:
         self._check_status_code_is_nonerror()
         self._check_status_code_is_the_one_expected(expected_status_code)
 
-    def _check_status_code_is_nonerror(self):
+    def _check_status_code_is_nonerror(self) -> None:
+        if self.response is None:
+            raise RuntimeError("No response has been recorded")
         self.response.raise_for_status()
 
-    def _check_status_code_is_the_one_expected(self, expected_status_code):
+    def _check_status_code_is_the_one_expected(
+        self, expected_status_code: Optional[int]
+    ) -> None:
+        if self.response is None:
+            raise RuntimeError("No response has been recorded")
         if expected_status_code and self.response.status_code != expected_status_code:
             raise requests.HTTPError(
                 f"Expected status code {expected_status_code}; "
                 f"got {self.response.status_code} instead"
             )
 
-    def get_token(self, username, password):
+    def get_token(self, username: str, password: str) -> Optional[str]:
         if not username:
             return
 
@@ -74,7 +93,7 @@ class EnhydrisApiClient:
         self.session.headers.update({"Authorization": f"token {key}"})
         return key
 
-    def list_stations(self):
+    def list_stations(self) -> Generator[JSONDict, None, None]:
         url = urljoin(self.base_url, "api/stations/")
         while url:
             try:
@@ -89,37 +108,37 @@ class EnhydrisApiClient:
                     f"Malformed response from server: {str(e)}"
                 )
 
-    def get_station(self, station_id):
+    def get_station(self, station_id: int) -> JSONDict:
         url = urljoin(self.base_url, f"api/stations/{station_id}/")
         self.response = self.session.get(url)
         self.check_response()
         return self.response.json()
 
-    def post_station(self, data):
+    def post_station(self, data: JSONDict) -> int:
         self.response = self.session.post(
             urljoin(self.base_url, "api/stations/"), data=data
         )
         self.check_response()
         return self.response.json()["id"]
 
-    def put_station(self, station_id, data):
+    def put_station(self, station_id: int, data: JSONDict) -> None:
         self.response = self.session.put(
             urljoin(self.base_url, f"api/stations/{station_id}/"), data=data
         )
         self.check_response()
 
-    def patch_station(self, station_id, data):
+    def patch_station(self, station_id: int, data: JSONDict) -> None:
         self.response = self.session.patch(
             urljoin(self.base_url, f"api/stations/{station_id}/"), data=data
         )
         self.check_response()
 
-    def delete_station(self, station_id):
+    def delete_station(self, station_id: int) -> None:
         url = urljoin(self.base_url, f"api/stations/{station_id}/")
         self.response = self.session.delete(url)
         self.check_response(expected_status_code=204)
 
-    def list_timeseries_groups(self, station_id):
+    def list_timeseries_groups(self, station_id: int) -> Generator[JSONDict, None, None]:
         url = urljoin(self.base_url, f"api/stations/{station_id}/timeseriesgroups/")
         while url:
             try:
@@ -134,7 +153,7 @@ class EnhydrisApiClient:
                     f"Malformed response from server: {str(e)}"
                 )
 
-    def get_timeseries_group(self, station_id, timeseries_group_id):
+    def get_timeseries_group(self, station_id: int, timeseries_group_id: int) -> JSONDict:
         url = urljoin(
             self.base_url,
             f"api/stations/{station_id}/timeseriesgroups/{timeseries_group_id}/",
@@ -143,13 +162,15 @@ class EnhydrisApiClient:
         self.check_response()
         return self.response.json()
 
-    def post_timeseries_group(self, station_id, data):
+    def post_timeseries_group(self, station_id: int, data: JSONDict) -> int:
         url = urljoin(self.base_url, f"api/stations/{station_id}/timeseriesgroups/")
         self.response = self.session.post(url, data=data)
         self.check_response()
         return self.response.json()["id"]
 
-    def put_timeseries_group(self, station_id, timeseries_group_id, data):
+    def put_timeseries_group(
+        self, station_id: int, timeseries_group_id: int, data: JSONDict
+    ) -> int:
         url = urljoin(
             self.base_url,
             f"api/stations/{station_id}/timeseriesgroups/{timeseries_group_id}/",
@@ -158,7 +179,9 @@ class EnhydrisApiClient:
         self.check_response()
         return self.response.json()["id"]
 
-    def patch_timeseries_group(self, station_id, timeseries_group_id, data):
+    def patch_timeseries_group(
+        self, station_id: int, timeseries_group_id: int, data: JSONDict
+    ) -> None:
         url = urljoin(
             self.base_url,
             f"api/stations/{station_id}/timeseriesgroups/{timeseries_group_id}/",
@@ -166,7 +189,7 @@ class EnhydrisApiClient:
         self.response = self.session.patch(url, data=data)
         self.check_response()
 
-    def delete_timeseries_group(self, station_id, timeseries_group_id):
+    def delete_timeseries_group(self, station_id: int, timeseries_group_id: int) -> None:
         url = urljoin(
             self.base_url,
             f"api/stations/{station_id}/timeseriesgroups/{timeseries_group_id}/",
@@ -174,7 +197,7 @@ class EnhydrisApiClient:
         self.response = self.session.delete(url)
         self.check_response(expected_status_code=204)
 
-    def list_timeseries(self, station_id, timeseries_group_id):
+    def list_timeseries(self, station_id: int, timeseries_group_id: int) -> Iterable[JSONDict]:
         url = urljoin(
             self.base_url,
             f"api/stations/{station_id}/timeseriesgroups/{timeseries_group_id}/"
@@ -184,7 +207,9 @@ class EnhydrisApiClient:
         self.check_response()
         return self.response.json()["results"]
 
-    def get_timeseries(self, station_id, timeseries_group_id, timeseries_id):
+    def get_timeseries(
+        self, station_id: int, timeseries_group_id: int, timeseries_id: int
+    ) -> JSONDict:
         url = urljoin(
             self.base_url,
             f"api/stations/{station_id}/timeseriesgroups/{timeseries_group_id}/"
@@ -194,7 +219,9 @@ class EnhydrisApiClient:
         self.check_response()
         return self.response.json()
 
-    def post_timeseries(self, station_id, timeseries_group_id, data):
+    def post_timeseries(
+        self, station_id: int, timeseries_group_id: int, data: JSONDict
+    ) -> int:
         self.response = self.session.post(
             urljoin(
                 self.base_url,
@@ -206,7 +233,9 @@ class EnhydrisApiClient:
         self.check_response()
         return self.response.json()["id"]
 
-    def delete_timeseries(self, station_id, timeseries_group_id, timeseries_id):
+    def delete_timeseries(
+        self, station_id: int, timeseries_group_id: int, timeseries_id: int
+    ) -> None:
         url = urljoin(
             self.base_url,
             f"api/stations/{station_id}/timeseriesgroups/{timeseries_group_id}/"
@@ -217,19 +246,19 @@ class EnhydrisApiClient:
 
     def read_tsdata(
         self,
-        station_id,
-        timeseries_group_id,
-        timeseries_id,
-        start_date=None,
-        end_date=None,
-        timezone=None,
-    ):
+        station_id: int,
+        timeseries_group_id: int,
+        timeseries_id: int,
+        start_date: Optional[dt.datetime] = None,
+        end_date: Optional[dt.datetime] = None,
+        timezone: Optional[str] = None,
+    ) -> HTimeseries:
         url = urljoin(
             self.base_url,
             f"api/stations/{station_id}/timeseriesgroups/{timeseries_group_id}/"
             f"timeseries/{timeseries_id}/data/",
         )
-        params = {"fmt": "hts"}
+        params: Dict[str, Any] = {"fmt": "hts"}
         tzinfo = ZoneInfo(timezone) if timezone else None
         dates_are_aware = (start_date is None or start_date.tzinfo is not None) and (
             end_date is None or end_date.tzinfo is not None
@@ -246,11 +275,17 @@ class EnhydrisApiClient:
         else:
             return HTimeseries()
 
-    def post_tsdata(self, station_id, timeseries_group_id, timeseries_id, ts):
+    def post_tsdata(
+        self,
+        station_id: int,
+        timeseries_group_id: int,
+        timeseries_id: int,
+        ts: HTimeseries,
+    ) -> str:
         f = StringIO()
         data = copy(ts.data)
         try:
-            data.index = data.index.tz_convert("UTC")
+            data.index = cast(pd.DatetimeIndex, data.index).tz_convert("UTC")
         except AttributeError:
             assert data.empty
         data.to_csv(f, header=False)
@@ -266,8 +301,12 @@ class EnhydrisApiClient:
         return self.response.text
 
     def get_ts_end_date(
-        self, station_id, timeseries_group_id, timeseries_id, timezone=None
-    ):
+        self,
+        station_id: int,
+        timeseries_group_id: int,
+        timeseries_id: int,
+        timezone: Optional[str] = None,
+    ) -> Optional[dt.datetime]:
         url = urljoin(
             self.base_url,
             f"api/stations/{station_id}/timeseriesgroups/{timeseries_group_id}/"

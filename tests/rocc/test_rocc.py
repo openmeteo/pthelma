@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import datetime as dt
 import textwrap
 from io import StringIO
+from typing import Any, Iterable
 from unittest import TestCase
 from zoneinfo import ZoneInfo
 
@@ -9,7 +12,7 @@ from rocc import Threshold, rocc
 
 
 class RoccTestCase(TestCase):
-    test_data = textwrap.dedent(
+    test_data: str = textwrap.dedent(
         """\
         2020-10-06 14:30,24.0,
         2020-10-06 14:40,25.0,
@@ -22,13 +25,14 @@ class RoccTestCase(TestCase):
         """
     )
 
-    def setUp(self):
-        self.ahtimeseries = HTimeseries(
+    def setUp(self) -> None:
+        self.ahtimeseries: HTimeseries = HTimeseries(
             StringIO(self.test_data), default_tzinfo=ZoneInfo("Etc/GMT-2")
         )
         self.ahtimeseries.precision = 1
+        self.return_value: list[str] = []
 
-    def _run_rocc(self, flag):
+    def _run_rocc(self, flag: str | None) -> None:
         self.return_value = rocc(
             timeseries=self.ahtimeseries,
             thresholds=(
@@ -39,11 +43,11 @@ class RoccTestCase(TestCase):
             flag=flag,
         )
 
-    def test_calculation(self):
+    def test_calculation(self) -> None:
         self._run_rocc(flag="TEMPORAL")
-        result = StringIO()
-        self.ahtimeseries.write(result)
-        result = result.getvalue().replace("\r\n", "\n")
+        f: StringIO = StringIO()
+        self.ahtimeseries.write(f)
+        result = f.getvalue().replace("\r\n", "\n")
         self.assertEqual(
             result,
             textwrap.dedent(
@@ -60,7 +64,7 @@ class RoccTestCase(TestCase):
             ),
         )
 
-    def test_return_value(self):
+    def test_return_value(self) -> None:
         self._run_rocc(flag="TEMPORAL")
         self.assertEqual(len(self.return_value), 2)
         self.assertEqual(
@@ -70,26 +74,26 @@ class RoccTestCase(TestCase):
             self.return_value[1], "2020-10-06T15:41  +20.0 in 20min (> 15.0)"
         )
 
-    def test_value_dtype(self):
+    def test_value_dtype(self) -> None:
         self._run_rocc(flag="TEMPORAL")
-        expected_dtype = HTimeseries().data["value"].dtype
+        expected_dtype: Any = HTimeseries().data["value"].dtype
         self.assertEqual(self.ahtimeseries.data["value"].dtype, expected_dtype)
 
-    def test_flags_dtype(self):
+    def test_flags_dtype(self) -> None:
         self._run_rocc(flag="TEMPORAL")
-        expected_dtype = HTimeseries().data["flags"].dtype
+        expected_dtype: Any = HTimeseries().data["flags"].dtype
         self.assertEqual(self.ahtimeseries.data["flags"].dtype, expected_dtype)
 
-    def test_empty_flag(self):
+    def test_empty_flag(self) -> None:
         self._run_rocc(flag=None)
-        result = StringIO()
-        self.ahtimeseries.write(result)
-        result = result.getvalue().replace("\r\n", "\n")
+        f: StringIO = StringIO()
+        self.ahtimeseries.write(f)
+        result = f.getvalue().replace("\r\n", "\n")
         self.assertEqual(result, self.test_data)
 
 
 class RoccNegativeTestCase(TestCase):
-    test_data = textwrap.dedent(
+    test_data: str = textwrap.dedent(
         """\
         2020-10-06 14:30,24.0,
         2020-10-06 14:40,25.0,
@@ -102,13 +106,14 @@ class RoccNegativeTestCase(TestCase):
         """
     )
 
-    def setUp(self):
-        self.ahtimeseries = HTimeseries(
+    def setUp(self) -> None:
+        self.ahtimeseries: HTimeseries = HTimeseries(
             StringIO(self.test_data), default_tzinfo=ZoneInfo("Etc/GMT-2")
         )
         self.ahtimeseries.precision = 1
+        self.return_value: list[str] = []
 
-    def _run_rocc(self, flag):
+    def _run_rocc(self, flag: str | None) -> None:
         self.return_value = rocc(
             timeseries=self.ahtimeseries,
             thresholds=(
@@ -118,11 +123,11 @@ class RoccNegativeTestCase(TestCase):
             flag=flag,
         )
 
-    def test_calculation(self):
+    def test_calculation(self) -> None:
         self._run_rocc(flag="TEMPORAL")
-        result = StringIO()
-        self.ahtimeseries.write(result)
-        result = result.getvalue().replace("\r\n", "\n")
+        f = StringIO()
+        self.ahtimeseries.write(f)
+        result = f.getvalue().replace("\r\n", "\n")
         self.assertEqual(
             result,
             textwrap.dedent(
@@ -139,7 +144,7 @@ class RoccNegativeTestCase(TestCase):
             ),
         )
 
-    def test_return_value(self):
+    def test_return_value(self) -> None:
         self._run_rocc(flag="TEMPORAL")
         self.assertEqual(len(self.return_value), 2)
         self.assertEqual(
@@ -151,7 +156,7 @@ class RoccNegativeTestCase(TestCase):
 
 
 class RoccSymmetricTestCase(TestCase):
-    test_data = textwrap.dedent(
+    test_data: str = textwrap.dedent(
         """\
         2020-10-06 14:30,76.0,
         2020-10-06 14:40,75.0,SOMEFLAG
@@ -164,13 +169,13 @@ class RoccSymmetricTestCase(TestCase):
         """
     )
 
-    def setUp(self):
-        self.ahtimeseries = HTimeseries(
+    def setUp(self) -> None:
+        self.ahtimeseries: HTimeseries = HTimeseries(
             StringIO(self.test_data), default_tzinfo=ZoneInfo("Etc/GMT-2")
         )
         self.ahtimeseries.precision = 1
 
-    def test_without_symmetric(self):
+    def test_without_symmetric(self) -> None:
         rocc(
             timeseries=self.ahtimeseries,
             thresholds=(
@@ -179,9 +184,9 @@ class RoccSymmetricTestCase(TestCase):
                 Threshold("h", 40),
             ),
         )
-        result = StringIO()
-        self.ahtimeseries.write(result)
-        result = result.getvalue().replace("\r\n", "\n")
+        f = StringIO()
+        self.ahtimeseries.write(f)
+        result = f.getvalue().replace("\r\n", "\n")
         self.assertEqual(
             result,
             textwrap.dedent(
@@ -198,8 +203,8 @@ class RoccSymmetricTestCase(TestCase):
             ),
         )
 
-    def test_with_symmetric(self):
-        output = rocc(
+    def test_with_symmetric(self) -> None:
+        output: list[str] = rocc(
             timeseries=self.ahtimeseries,
             thresholds=(  # Keep in strange order to test for possible errors
                 Threshold("20min", -15),
@@ -208,9 +213,9 @@ class RoccSymmetricTestCase(TestCase):
             ),
             symmetric=True,
         )
-        result = StringIO()
-        self.ahtimeseries.write(result)
-        result = result.getvalue().replace("\r\n", "\n")
+        f = StringIO()
+        self.ahtimeseries.write(f)
+        result = f.getvalue().replace("\r\n", "\n")
         self.assertEqual(
             result,
             textwrap.dedent(
@@ -234,8 +239,8 @@ class RoccSymmetricTestCase(TestCase):
             ],
         )
 
-    def test_symmetric_return_value(self):
-        return_value = rocc(
+    def test_symmetric_return_value(self) -> None:
+        return_value: list[str] = rocc(
             timeseries=self.ahtimeseries,
             thresholds=(
                 Threshold("10min", 10),
@@ -250,29 +255,32 @@ class RoccSymmetricTestCase(TestCase):
 
 
 class RoccEmptyCase(TestCase):
-    def test_with_empty(self):
-        ahtimeseries = HTimeseries()
+    def test_with_empty(self) -> None:
+        ahtimeseries: HTimeseries = HTimeseries()
         rocc(timeseries=ahtimeseries, thresholds=[Threshold("10min", 10)])
         self.assertTrue(ahtimeseries.data.empty)
 
 
 class RoccImpliedThresholdsTestCase(TestCase):
-    def _create_htimeseries(self, test_data):
-        self.ahtimeseries = HTimeseries(
+    def _create_htimeseries(self, test_data: str) -> None:
+        self.ahtimeseries: HTimeseries = HTimeseries(
             StringIO(test_data), default_tzinfo=dt.timezone.utc
         )
         self.ahtimeseries.precision = 2
+        self.return_value: list[str] = []
 
-    def _run_rocc(self, thresholds, symmetric=False):
+    def _run_rocc(
+        self, thresholds: Iterable[Threshold], symmetric: bool = False
+    ) -> str:
         self.return_value = rocc(
             timeseries=self.ahtimeseries, thresholds=thresholds, symmetric=symmetric
         )
-        result = StringIO()
-        self.ahtimeseries.write(result)
-        result = result.getvalue().replace("\r\n", "\n")
+        f = StringIO()
+        self.ahtimeseries.write(f)
+        result = f.getvalue().replace("\r\n", "\n")
         return result
 
-    def test_positive_ok(self):
+    def test_positive_ok(self) -> None:
         test_data = textwrap.dedent(
             """\
             2020-10-06 14:30,25.00,
@@ -280,7 +288,7 @@ class RoccImpliedThresholdsTestCase(TestCase):
             """
         )
         self._create_htimeseries(test_data)
-        result = self._run_rocc(
+        result: str = self._run_rocc(
             thresholds=(
                 Threshold("10min", 10),
                 Threshold("20min", 15),
@@ -296,7 +304,7 @@ class RoccImpliedThresholdsTestCase(TestCase):
             ),
         )
 
-    def test_positive_not_ok(self):
+    def test_positive_not_ok(self) -> None:
         test_data = textwrap.dedent(
             """\
             2020-10-06 14:30,25.00,
@@ -304,7 +312,7 @@ class RoccImpliedThresholdsTestCase(TestCase):
             """
         )
         self._create_htimeseries(test_data)
-        result = self._run_rocc(
+        result: str = self._run_rocc(
             thresholds=(
                 Threshold("10min", 10),
                 Threshold("20min", 15),
@@ -320,7 +328,7 @@ class RoccImpliedThresholdsTestCase(TestCase):
             ),
         )
 
-    def test_negative_ok(self):
+    def test_negative_ok(self) -> None:
         test_data = textwrap.dedent(
             """\
             2020-10-06 14:30,75.00,
@@ -328,7 +336,7 @@ class RoccImpliedThresholdsTestCase(TestCase):
             """
         )
         self._create_htimeseries(test_data)
-        result = self._run_rocc(
+        result: str = self._run_rocc(
             thresholds=(
                 Threshold("10min", -10),
                 Threshold("20min", -15),
@@ -344,7 +352,7 @@ class RoccImpliedThresholdsTestCase(TestCase):
             ),
         )
 
-    def test_negative_not_ok(self):
+    def test_negative_not_ok(self) -> None:
         test_data = textwrap.dedent(
             """\
             2020-10-06 14:30,75.00,
@@ -352,7 +360,7 @@ class RoccImpliedThresholdsTestCase(TestCase):
             """
         )
         self._create_htimeseries(test_data)
-        result = self._run_rocc(
+        result: str = self._run_rocc(
             thresholds=(
                 Threshold("10min", -10),
                 Threshold("20min", -15),
@@ -368,7 +376,7 @@ class RoccImpliedThresholdsTestCase(TestCase):
             ),
         )
 
-    def test_symmetric_ok(self):
+    def test_symmetric_ok(self) -> None:
         test_data = textwrap.dedent(
             """\
             2020-10-06 14:30,50.00,
@@ -376,7 +384,7 @@ class RoccImpliedThresholdsTestCase(TestCase):
             """
         )
         self._create_htimeseries(test_data)
-        result = self._run_rocc(
+        result: str = self._run_rocc(
             thresholds=(
                 Threshold("10min", 10),
                 Threshold("20min", -15),
@@ -393,7 +401,7 @@ class RoccImpliedThresholdsTestCase(TestCase):
             ),
         )
 
-    def test_symmetric_not_ok(self):
+    def test_symmetric_not_ok(self) -> None:
         test_data = textwrap.dedent(
             """\
             2020-10-06 14:30,75.00,
@@ -401,7 +409,7 @@ class RoccImpliedThresholdsTestCase(TestCase):
             """
         )
         self._create_htimeseries(test_data)
-        result = self._run_rocc(
+        result: str = self._run_rocc(
             thresholds=(
                 Threshold("10min", 10),
                 Threshold("20min", -15),
@@ -418,7 +426,7 @@ class RoccImpliedThresholdsTestCase(TestCase):
             ),
         )
 
-    def test_compare_to_previous_not_null_record(self):
+    def test_compare_to_previous_not_null_record(self) -> None:
         test_data = textwrap.dedent(
             """\
             2023-10-13 08:40,12.3,
@@ -427,7 +435,7 @@ class RoccImpliedThresholdsTestCase(TestCase):
             """
         )
         self._create_htimeseries(test_data)
-        result = self._run_rocc(
+        result: str = self._run_rocc(
             thresholds=(Threshold("10min", 1),),
             symmetric=True,
         )
@@ -442,7 +450,7 @@ class RoccImpliedThresholdsTestCase(TestCase):
             ),
         )
 
-    def test_check_delta_remainder_with_symmetric_and_negative_threshold(self):
+    def test_check_delta_remainder_with_symmetric_and_negative_threshold(self) -> None:
         test_data = textwrap.dedent(
             """\
             2023-10-13 08:40,12.30,
@@ -450,7 +458,7 @@ class RoccImpliedThresholdsTestCase(TestCase):
             """
         )
         self._create_htimeseries(test_data)
-        result = self._run_rocc(
+        result: str = self._run_rocc(
             thresholds=(Threshold("10min", -1),),
             symmetric=True,
         )

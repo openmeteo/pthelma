@@ -2,6 +2,7 @@ import datetime as dt
 import math
 import textwrap
 from io import StringIO
+from typing import cast
 from unittest import TestCase
 from zoneinfo import ZoneInfo
 
@@ -56,19 +57,23 @@ class RegularizeTestCase(TestCase):
         self.assertEqual(len(self.result.data), 3)
 
     def test_timestamps_are_aware(self):
-        self.assertEqual(self.result.data.index[0].utcoffset(), dt.timedelta(hours=2))
+        timestamp = cast(dt.datetime, self.result.data.index[0])
+        self.assertEqual(timestamp.utcoffset(), dt.timedelta(hours=2))
 
     def test_value_1(self):
+        assert isinstance(self.result.data.loc["2008-02-07 10:30:00+0200"].value, float)
         self.assertAlmostEqual(
             self.result.data.loc["2008-02-07 10:30:00+0200"].value, 10.71
         )
 
     def test_value_2(self):
+        assert isinstance(self.result.data.loc["2008-02-07 10:40:00+0200"].value, float)
         self.assertAlmostEqual(
             self.result.data.loc["2008-02-07 10:40:00+0200"].value, 10.93
         )
 
     def test_value_3(self):
+        assert isinstance(self.result.data.loc["2008-02-07 10:50:00+0200"].value, float)
         self.assertAlmostEqual(
             self.result.data.loc["2008-02-07 10:50:00+0200"].value, 11.10
         )
@@ -105,16 +110,19 @@ class RegularizeFirstRecordTestCase(TestCase):
         self.assertEqual(len(self.result.data), 3)
 
     def test_value_1(self):
+        assert isinstance(self.result.data.loc["2008-02-07 10:30:00+0200"].value, float)
         self.assertAlmostEqual(
             self.result.data.loc["2008-02-07 10:30:00+0200"].value, 10.71
         )
 
     def test_value_2(self):
+        assert isinstance(self.result.data.loc["2008-02-07 10:40:00+0200"].value, float)
         self.assertAlmostEqual(
             self.result.data.loc["2008-02-07 10:40:00+0200"].value, 10.93
         )
 
     def test_value_3(self):
+        assert isinstance(self.result.data.loc["2008-02-07 10:50:00+0200"].value, float)
         self.assertAlmostEqual(
             self.result.data.loc["2008-02-07 10:50:00+0200"].value, 11.10
         )
@@ -137,16 +145,19 @@ class RegularizeLastRecordTestCase(TestCase):
         self.assertEqual(len(self.result.data), 3)
 
     def test_value_1(self):
+        assert isinstance(self.result.data.loc["2008-02-07 10:30:00+0200"].value, float)
         self.assertAlmostEqual(
             self.result.data.loc["2008-02-07 10:30:00+0200"].value, 10.71
         )
 
     def test_value_2(self):
+        assert isinstance(self.result.data.loc["2008-02-07 10:40:00+0200"].value, float)
         self.assertAlmostEqual(
             self.result.data.loc["2008-02-07 10:40:00+0200"].value, 10.93
         )
 
     def test_value_3(self):
+        assert isinstance(self.result.data.loc["2008-02-07 10:50:00+0200"].value, float)
         self.assertAlmostEqual(
             self.result.data.loc["2008-02-07 10:50:00+0200"].value, 11.10
         )
@@ -169,6 +180,7 @@ class RegularizeNullRecordTestCase(TestCase):
         self.assertEqual(len(self.result.data), 4)
 
     def test_value_1(self):
+        assert isinstance(self.result.data.loc["2008-02-07 10:30:00+0200"].value, float)
         self.assertAlmostEqual(
             self.result.data.loc["2008-02-07 10:30:00+0200"].value, 10.71
         )
@@ -179,11 +191,13 @@ class RegularizeNullRecordTestCase(TestCase):
         )
 
     def test_value_3(self):
+        assert isinstance(self.result.data.loc["2008-02-07 10:50:00+0200"].value, float)
         self.assertAlmostEqual(
             self.result.data.loc["2008-02-07 10:50:00+0200"].value, 11.10
         )
 
     def test_value_4(self):
+        assert isinstance(self.result.data.loc["2008-02-07 11:00:00+0200"].value, float)
         self.assertAlmostEqual(
             self.result.data.loc["2008-02-07 11:00:00+0200"].value, 10.93
         )
@@ -214,10 +228,12 @@ class RegularizeWithNullRecordTestCase(TestCase):
 
     def test_interval(self):
         result = regularize(self.ts, mode=RegularizationMode.INTERVAL)
+        assert isinstance(result.data.loc["2008-02-07 10:40"].value, float)
         self.assertTrue(math.isnan(result.data.loc["2008-02-07 10:40"].value))
 
     def test_instantaneous(self):
         result = regularize(self.ts, mode=RegularizationMode.INSTANTANEOUS)
+        assert isinstance(result.data.loc["2008-02-07 10:40"].value, float)
         self.assertAlmostEqual(result.data.loc["2008-02-07 10:40"].value, 10.93)
 
 
@@ -236,10 +252,12 @@ class NearestTestCase(TestCase):
 
     def test_interval(self):
         result = regularize(self.ts, mode=RegularizationMode.INTERVAL)
+        assert isinstance(result.data.loc["2008-02-07 10:40"].value, float)
         self.assertTrue(math.isnan(result.data.loc["2008-02-07 10:40"].value))
 
     def test_instantaneous(self):
         result = regularize(self.ts, mode=RegularizationMode.INSTANTANEOUS)
+        assert isinstance(result.data.loc["2008-02-07 10:40"].value, float)
         self.assertAlmostEqual(result.data.loc["2008-02-07 10:40"].value, 10.93)
 
 
@@ -257,7 +275,6 @@ class SetsMetadataTestCase(TestCase):
         self.ts.title = "hello"
         self.ts.precision = 1
         self.ts.comment = "world"
-        self.ts.timezone = "EET (+0200)"
         self.result = regularize(self.ts, mode=RegularizationMode.INTERVAL)
 
     def test_sets_title(self):
@@ -275,6 +292,3 @@ class SetsMetadataTestCase(TestCase):
 
     def test_sets_time_step(self):
         self.assertEqual(self.result.time_step, "10min")
-
-    def test_sets_timezone(self):
-        self.assertEqual(self.result.timezone, "EET (+0200)")

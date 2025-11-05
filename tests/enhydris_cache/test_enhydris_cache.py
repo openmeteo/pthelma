@@ -1,16 +1,19 @@
+from __future__ import annotations
+
 import datetime as dt
 import os
 import shutil
 import tempfile
 import textwrap
 from io import StringIO
+from typing import Dict, Optional
 from unittest import TestCase, mock
 
 from enhydris_api_client import EnhydrisApiClient
-from enhydris_cache import TimeseriesCache
+from enhydris_cache import TimeseriesCache, TimeseriesGroup
 from htimeseries import HTimeseries
 
-test_timeseries = {
+test_timeseries: Dict[str, str] = {
     "42_all": textwrap.dedent(
         """\
         2014-01-01 08:00,11,
@@ -39,14 +42,20 @@ UTC_PLUS_2 = dt.timezone(dt.timedelta(hours=2))
 
 
 def mock_read_tsdata(
-    station_id, timeseries_group_id, timeseries_id, start_date=None, end_date=None
-):
+    station_id: int,
+    timeseries_group_id: int,
+    timeseries_id: int,
+    start_date: Optional[dt.datetime] = None,
+    end_date: Optional[dt.datetime] = None,
+) -> HTimeseries:
     result = _get_hts_object(timeseries_id, start_date)
     _set_hts_attributes(result, timeseries_id)
     return result
 
 
-def _get_hts_object(timeseries_id, start_date):
+def _get_hts_object(
+    timeseries_id: int, start_date: Optional[dt.datetime]
+) -> HTimeseries:
     timeseries_top = HTimeseries(
         StringIO(test_timeseries[f"{timeseries_id}_top"]), default_tzinfo=UTC_PLUS_2
     )
@@ -59,14 +68,14 @@ def _get_hts_object(timeseries_id, start_date):
     return result
 
 
-def _set_hts_attributes(hts, timeseries_id):
+def _set_hts_attributes(hts: HTimeseries, timeseries_id: int) -> None:
     hts.time_step = "D"
     hts.precision = 0 if timeseries_id == 42 else 2
     hts.comment = "Très importante"
 
 
 class TimeseriesCacheTestCase(TestCase):
-    def setUp(self):
+    def setUp(self) -> None:
         self.api_client = EnhydrisApiClient("https://mydomain.com")
 
         # Temporary directory for cache files
@@ -74,21 +83,21 @@ class TimeseriesCacheTestCase(TestCase):
         self.savedcwd = os.getcwd()
         os.chdir(self.tempdir)
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         os.chdir(self.savedcwd)
         shutil.rmtree(self.tempdir)
 
     @mock.patch(
         "enhydris_cache.enhydris_cache.EnhydrisApiClient",
-        **{
+        **{  # type: ignore[misc]
             "return_value.__enter__.return_value.read_tsdata.side_effect": (
                 mock_read_tsdata
             )
         },
     )
-    def test_update(self, mock_api_client):
+    def test_update(self, mock_api_client: mock.MagicMock) -> None:
 
-        two_timeseries = [
+        two_timeseries: list[TimeseriesGroup] = [
             {
                 "base_url": "https://mydomain.com",
                 "station_id": 2,

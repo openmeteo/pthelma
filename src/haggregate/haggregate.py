@@ -1,4 +1,8 @@
+from __future__ import annotations
+
+import datetime as dt
 from enum import Enum
+from typing import Any, Callable, Dict, Optional
 
 import numpy as np
 import pandas as pd
@@ -18,13 +22,13 @@ class AggregateError(Exception):
 
 
 def aggregate(
-    hts,
-    target_step,
-    method,
-    min_count=1,
-    missing_flag="MISS",
-    target_timestamp_offset=None,
-):
+    hts: HTimeseries,
+    target_step: str,
+    method: str,
+    min_count: int = 1,
+    missing_flag: str = "MISS",
+    target_timestamp_offset: Optional[str] = None,
+) -> HTimeseries:
     aggregation = Aggregation(
         source_timeseries=hts,
         target_step=target_step,
@@ -38,14 +42,28 @@ def aggregate(
 
 
 class Aggregation:
-    def __init__(self, **kwargs):
-        for key, value in kwargs.items():
-            setattr(self, key, value)
+    def __init__(
+        self,
+        *,
+        source_timeseries: HTimeseries,
+        target_step: str,
+        method: str,
+        min_count: int,
+        missing_flag: str,
+        target_timestamp_offset: Optional[str],
+    ) -> None:
+        self.source_timeseries = source_timeseries
+        self.target_step = target_step
+        self.method = method
+        self.min_count = min_count
+        self.missing_flag = missing_flag
+        self.target_timestamp_offset = target_timestamp_offset
         self.source = SourceTimeseries(self.source_timeseries)
         self.result = AggregatedTimeseries()
         self.result.time_step = self.target_step
+        self.resampler: Any = None
 
-    def execute(self):
+    def execute(self) -> None:
         self.result.set_metadata(self.source_timeseries)
         try:
             self.source.normalize(self.target_step)
@@ -55,24 +73,32 @@ class Aggregation:
         self.result.remove_leading_and_trailing_nans()
         self.result.add_timestamp_offset(self.target_timestamp_offset)
 
-    def do_aggregation(self):
+    def do_aggregation(self) -> None:
         self.create_resampler()
         self.get_result_values()
         self.get_result_flags()
 
-    def create_resampler(self):
+    def create_resampler(self) -> None:
         self.resampler = self.source.data["value"].resample(
             self.result.time_step, closed="right", label="right"
         )
 
-    def get_result_values(self):
+    def get_result_values(self) -> None:
+        if self.resampler is None:
+            raise RuntimeError("Resampler has not been initialised")
         result_values = self.resampler.agg(methods[self.method])
         values_count = self.resampler.count()
         result_values[values_count < self.min_count] = np.nan
         self.result.data["value"] = result_values
 
-    def get_result_flags(self):
-        max_count = int(pd.Timedelta(self.result.time_step) / self.source.freq)
+    def get_result_flags(self) -> None:
+        if self.resampler is None:
+            raise RuntimeError("Resampler has not been initialised")
+        assert self.source.freq is not None
+        source_time_step = dt.timedelta(microseconds=self.source.freq.nanos / 1000)
+        result_time_step = pd.Timedelta(self.result.time_step)
+        assert isinstance(result_time_step, dt.timedelta)
+        max_count = int(result_time_step / source_time_step)
         values_count = self.resampler.count()
         self.result.data["flags"] = (max_count - values_count).apply(
             lambda x: self.missing_flag.format(x) if x else ""
@@ -83,16 +109,23 @@ class CannotInferFrequency(Exception):
     pass
 
 
-attrs = ("unit", "timezone", "interval_type", "variable", "precision", "location")
+attrs: tuple[str, ...] = (
+    "unit",
+    "timezone",
+    "interval_type",
+    "variable",
+    "precision",
+    "location",
+)
 
 
 class SourceTimeseries(HTimeseries):
-    def __init__(self, s):
+    def __init__(self, s: HTimeseries) -> None:
         for attr in attrs:
             setattr(self, attr, getattr(s, attr, None))
         self.data = s.data
 
-    def normalize(self, target_step):
+    def normalize(self, target_step: str) -> None:
         """Reindex so that it has no missing records but has NaNs instead, starting from
         one before and ending in one after.
         """
@@ -106,17 +139,19 @@ class SourceTimeseries(HTimeseries):
         except ValueError:
             raise CannotInferFrequency()
         first_timestamp = (current_range[0] - pd.Timedelta("1s")).floor(target_step)
-        end_timestamp = current_range[-1].ceil(target_step)
+        end_timestamp = current_range[-1].ceil(target_step)  # type: ignore[assignment]
         new_range = pd.date_range(first_timestamp, end_timestamp, freq=self.freq)
         self.data = self.data.reindex(new_range)
 
 
 class AggregatedTimeseries(HTimeseries):
-    def set_metadata(self, source_timeseries):
+    def set_metadata(self, source_timeseries: HTimeseries) -> None:
         for attr in attrs:
             setattr(self, attr, getattr(source_timeseries, attr, None))
         try:
-            if pd.Timedelta(self.time_step) <= pd.Timedelta(0):
+            time_step = pd.Timedelta(self.time_step)
+            assert isinstance(time_step, dt.timedelta)
+            if time_step <= pd.Timedelta(0):
                 raise ValueError("Non-positive time step")
         except ValueError as e:
             raise AggregateError(
@@ -130,13 +165,13 @@ class AggregatedTimeseries(HTimeseries):
                 + source_timeseries.comment
             )
 
-    def remove_leading_and_trailing_nans(self):
+    def remove_leading_and_trailing_nans(self) -> None:
         while len(self.data.index) > 0 and pd.isnull(self.data["value"]).iloc[0]:
-            self.data = self.data.drop(self.data.index[0])
+            self.data = self.data.drop(self.data.index[0])  # type: ignore[index]
         while len(self.data.index) > 0 and pd.isnull(self.data["value"]).iloc[-1]:
-            self.data = self.data.drop(self.data.index[-1])
+            self.data = self.data.drop(self.data.index[-1])  # type: ignore[index]
 
-    def add_timestamp_offset(self, target_timestamp_offset):
+    def add_timestamp_offset(self, target_timestamp_offset: Optional[str]) -> None:
         if target_timestamp_offset:
             periods = target_timestamp_offset.startswith("-") and 1 or -1
             freq = target_timestamp_offset.lstrip("-")

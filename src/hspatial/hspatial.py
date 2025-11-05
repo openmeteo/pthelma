@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import datetime as dt
 import os
 import struct
 from glob import glob
 from math import isnan
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Union
 
 import iso8601
 import numpy as np
@@ -18,8 +21,12 @@ gdal.UseExceptions()
 
 NODATAVALUE = -(2.0**127)
 
+GeometryLike = Union[GeoDjangoPoint, ogr.Geometry]
+KwargsMapping = Mapping[str, Any]
+InterpolationFunction = Callable[..., float]
 
-def coordinates2point(x, y, srid=4326):
+
+def coordinates2point(x: float, y: float, srid: int = 4326) -> ogr.Geometry:
     point = ogr.Geometry(ogr.wkbPoint)
     sr = osr.SpatialReference()
     sr.ImportFromEPSG(srid)
@@ -30,7 +37,7 @@ def coordinates2point(x, y, srid=4326):
     return point
 
 
-def idw(point, data_layer, alpha=1):
+def idw(point: ogr.Geometry, data_layer: ogr.Layer, alpha: float = 1) -> float:
     data_layer.ResetReading()
     features = [f for f in data_layer if not isnan(f.GetField("value"))]
     distances = np.array([point.Distance(f.GetGeometryRef()) for f in features])
@@ -44,7 +51,14 @@ def idw(point, data_layer, alpha=1):
     return (weights * values).sum()
 
 
-def integrate(dataset, data_layer, target_band, funct, kwargs={}):
+def integrate(
+    dataset: Any,
+    data_layer: ogr.Layer,
+    target_band: Any,
+    funct: InterpolationFunction,
+    kwargs: Optional[KwargsMapping] = None,
+) -> None:
+    call_kwargs: Dict[str, Any] = dict(kwargs or {})
     try:
         mask = dataset.GetRasterBand(1).ReadAsArray() != 0
         x_left, x_step, d1, y_top, d2, y_step = dataset.GetGeoTransform()
@@ -60,12 +74,12 @@ def integrate(dataset, data_layer, target_band, funct, kwargs={}):
     xarray, yarray = np.meshgrid(xcoords, ycoords)
 
     # Create a ufunc that makes the interpolation given the above arrays
-    def interpolate_one_point(x, y, mask):
-        if not mask:
+    def interpolate_one_point(x: float, y: float, mask_value: bool) -> float:
+        if not mask_value:
             return np.nan
         point = ogr.Geometry(ogr.wkbPoint)
         point.AddPoint(x, y)
-        return funct(point, data_layer, **kwargs)
+        return funct(point, data_layer, **call_kwargs)
 
     interpolate = np.vectorize(interpolate_one_point, otypes=[np.float32])
 
@@ -80,7 +94,9 @@ def integrate(dataset, data_layer, target_band, funct, kwargs={}):
         target_band.data(data=result)
 
 
-def create_ogr_layer_from_timeseries(filenames, epsg, data_source):
+def create_ogr_layer_from_timeseries(
+    filenames: Iterable[str], epsg: int, data_source: ogr.DataSource  # type: ignore[type-alias]
+) -> ogr.Layer:
     # Prepare the co-ordinate transformation from WGS84 to epsg
     source_sr = osr.SpatialReference()
     source_sr.ImportFromEPSG(4326)
@@ -99,6 +115,7 @@ def create_ogr_layer_from_timeseries(filenames, epsg, data_source):
             # we only use the location.
             ts = HTimeseries(f, default_tzinfo=dt.timezone.utc)
         point = ogr.Geometry(ogr.wkbPoint)
+        assert ts.location is not None
         point.AddPoint(ts.location["abscissa"], ts.location["ordinate"])
         point.Transform(transform)
         f = ogr.Feature(layer.GetLayerDefn())
@@ -108,7 +125,9 @@ def create_ogr_layer_from_timeseries(filenames, epsg, data_source):
     return layer
 
 
-def _needs_calculation(output_filename, date, stations_layer):
+def _needs_calculation(
+    output_filename: str, date: dt.datetime, stations_layer: ogr.Layer
+) -> bool:
     """
     Used by h_integrate to check whether the output file needs to be calculated
     or not. It does not need to be calculated if it already exists and has been
@@ -151,7 +170,7 @@ def _needs_calculation(output_filename, date, stations_layer):
         with open(filename, newline="\n") as f:
             t = HTimeseries(f)
         try:
-            value = t.data.loc[date, "value"]
+            value = t.data.loc[date, "value"]  # type: ignore[index]
             if not isnan(value):
                 return True
         except KeyError:
@@ -162,8 +181,14 @@ def _needs_calculation(output_filename, date, stations_layer):
 
 
 def h_integrate(
-    mask, stations_layer, date, output_filename_prefix, date_fmt, funct, kwargs
-):
+    mask: gdal.Dataset,
+    stations_layer: ogr.Layer,
+    date: dt.datetime,
+    output_filename_prefix: str,
+    date_fmt: str,
+    funct: InterpolationFunction,
+    kwargs: Optional[KwargsMapping],
+) -> None:
     date_fmt_for_filename = date.strftime(date_fmt).replace(" ", "-").replace(":", "-")
     output_filename = "{}-{}.tif".format(
         output_filename_prefix, date.strftime(date_fmt_for_filename)
@@ -184,7 +209,7 @@ def h_integrate(
         if unit_of_measurement is None and hasattr(t, "unit"):
             unit_of_measurement = t.unit
         try:
-            value = t.data.loc[date, "value"]
+            value = t.data.loc[date, "value"]  # type: ignore[index]
         except KeyError:
             value = np.nan
         station.SetField("value", value)
@@ -217,32 +242,30 @@ def h_integrate(
 class PassepartoutPoint:
     """Uniform interface for GeoDjango Point and OGR Point."""
 
-    def __init__(self, point):
-        self.point = point
+    def __init__(self, point: GeometryLike) -> None:
+        self.point: GeometryLike = point
 
-    def transform_to(self, target_srs_wkt):
+    def transform_to(self, target_srs_wkt: str) -> "PassepartoutPoint":
         point = self.clone(self.point)
         if isinstance(self.point, GeoDjangoPoint):
-            source_srs = point.srs or SpatialReference(4326)
-            try:
-                source_srs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
-            except AttributeError:
-                pass
+            source_srs = getattr(point, "srs") or SpatialReference("4326")
+            if hasattr(source_srs, "SetAxisMappingStrategy"):
+                source_srs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)  # type: ignore[attr-defined]
             ct = CoordTransform(source_srs, SpatialReference(target_srs_wkt))
-            point.transform(ct)
+            point.transform(ct)  # type: ignore[attr-defined]
             return PassepartoutPoint(point)
         else:
-            point_sr = point.GetSpatialReference()
+            point_sr = point.GetSpatialReference()  # type: ignore[attr-defined]
             raster_sr = osr.SpatialReference()
             raster_sr.ImportFromWkt(target_srs_wkt)
             if int(gdal.__version__.split(".")[0]) > 2:
                 point_sr.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
                 raster_sr.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
             transform = osr.CoordinateTransformation(point_sr, raster_sr)
-            point.Transform(transform)
+            point.Transform(transform)  # type: ignore[attr-defined]
             return PassepartoutPoint(point)
 
-    def clone(self, original_point):
+    def clone(self, original_point: GeometryLike) -> GeometryLike:
         if isinstance(original_point, GeoDjangoPoint):
             return GeoDjangoPoint(
                 original_point.x, original_point.y, original_point.srid
@@ -254,21 +277,23 @@ class PassepartoutPoint:
             return point
 
     @property
-    def x(self):
-        try:
+    def x(self) -> float:
+        if isinstance(self.point, GeoDjangoPoint):
             return self.point.x
-        except AttributeError:
+        else:
             return self.point.GetX()
 
     @property
-    def y(self):
-        try:
+    def y(self) -> float:
+        if isinstance(self.point, GeoDjangoPoint):
             return self.point.y
-        except AttributeError:
+        else:
             return self.point.GetY()
 
 
-def extract_point_from_raster(point, data_source, band_number=1):
+def extract_point_from_raster(
+    point: GeometryLike, data_source: Any, band_number: int = 1
+) -> float:
     """Return floating-point value that corresponds to given point."""
     pppoint = PassepartoutPoint(point)
 
@@ -291,7 +316,7 @@ def extract_point_from_raster(point, data_source, band_number=1):
     except AttributeError:
         forward_transform = Affine.from_gdal(*data_source.geotransform)
     reverse_transform = ~forward_transform
-    px, py = reverse_transform * (pppoint.x, pppoint.y)
+    px, py = reverse_transform * (pppoint.x, pppoint.y)  # type: ignore[operator]
     px, py = int(px), int(py)
 
     # Extract pixel value
@@ -314,35 +339,45 @@ def extract_point_from_raster(point, data_source, band_number=1):
 
 
 class PointTimeseries:
-    def __init__(self, point, **kwargs):
-        self.point = point
-        filenames = kwargs.pop("filenames", None)
-        self.prefix = kwargs.pop("prefix", None)
+    def __init__(
+        self,
+        point: GeometryLike,
+        *,
+        filenames: Optional[Iterable[str]] = None,
+        prefix: Optional[str] = None,
+        date_fmt: Optional[str] = None,
+        start_date: Optional[dt.datetime] = None,
+        end_date: Optional[dt.datetime] = None,
+        default_time: dt.time = dt.time(0, 0, tzinfo=dt.timezone.utc),
+    ) -> None:
+        self.point: GeometryLike = point
+        self.prefix = prefix
+        self.filename_format: Optional[FilenameWithDateFormat] = None
         assert filenames is None or self.prefix is None
         assert filenames is not None or self.prefix is not None
-        self.date_fmt = kwargs.pop("date_fmt", None)
-        self.start_date = kwargs.pop("start_date", None)
-        self.end_date = kwargs.pop("end_date", None)
-        self.default_time = kwargs.pop(
-            "default_time", dt.time(0, 0, tzinfo=dt.timezone.utc)
-        )
+        self.date_fmt = date_fmt
+        self.start_date = start_date
+        self.end_date = end_date
+        self.default_time = default_time
         if self.default_time.tzinfo is None:
             raise TypeError("default_time must be aware")
         if self.start_date and self.start_date.tzinfo is None:
             self.start_date = self.start_date.replace(tzinfo=self.default_time.tzinfo)
         if self.end_date and self.end_date.tzinfo is None:
             self.end_date = self.end_date.replace(tzinfo=self.default_time.tzinfo)
-        self.filenames = self._get_filenames(filenames)
+        self.filenames: List[str] = self._get_filenames(filenames)
 
-    def _get_filenames(self, filenames):
+    def _get_filenames(self, filenames: Optional[Iterable[str]]) -> List[str]:
         if self.prefix is None:
-            return filenames
-        filenames = glob(self.prefix + "-*.tif")
+            assert filenames is not None
+            return list(filenames)
+        filenames_list = glob(self.prefix + "-*.tif")
+        assert self.default_time.tzinfo is not None
         self.filename_format = FilenameWithDateFormat(
             self.prefix, date_fmt=self.date_fmt, tzinfo=self.default_time.tzinfo
         )
-        result = []
-        for filename in filenames:
+        result: List[str] = []
+        for filename in filenames_list:
             date = self.filename_format.get_date(filename)
             is_after_start_date = (self.start_date is None) or (date >= self.start_date)
             is_before_end_date = (self.end_date is None) or (date <= self.end_date)
@@ -350,7 +385,7 @@ class PointTimeseries:
                 result.append(filename)
         return result
 
-    def get(self):
+    def get(self) -> HTimeseries:
         result = HTimeseries(default_tzinfo=self.default_time.tzinfo)
         for filename in self.filenames:
             f = gdal.Open(filename)
@@ -365,8 +400,10 @@ class PointTimeseries:
         result.data = result.data.sort_index()
         return result
 
-    def _get_timestamp(self, f):
+    def _get_timestamp(self, f: Any) -> dt.datetime:
         isostring = f.GetMetadata()["TIMESTAMP"]
+        assert self.default_time.tzinfo is not None
+        assert isinstance(self.default_time.tzinfo, dt.timezone)
         timestamp = iso8601.parse_date(
             isostring, default_timezone=self.default_time.tzinfo
         )
@@ -374,14 +411,16 @@ class PointTimeseries:
             timestamp = dt.datetime.combine(timestamp.date(), self.default_time)
         return timestamp
 
-    def _get_unit_of_measurement(self, f, ahtimeseries):
+    def _get_unit_of_measurement(self, f: Any, ahtimeseries: HTimeseries) -> None:
         if hasattr(ahtimeseries, "unit"):
             return
         unit = f.GetMetadataItem("UNIT")
         if unit is not None:
             ahtimeseries.unit = unit
 
-    def get_cached(self, dest, force=False, version=4):
+    def get_cached(
+        self, dest: str, force: bool = False, version: int = 4
+    ) -> HTimeseries:
         assert self.prefix
         ts = self._get_saved_timeseries_if_updated_else_none(dest, force)
         if ts is None:
@@ -390,33 +429,45 @@ class PointTimeseries:
                 ts.write(f, format=HTimeseries.FILE, version=version)
         return ts
 
-    def _get_saved_timeseries_if_updated_else_none(self, dest, force):
+    def _get_saved_timeseries_if_updated_else_none(
+        self, dest: str, force: bool
+    ) -> Optional[HTimeseries]:
         if force or not os.path.exists(dest):
             return None
         else:
             return self._get_timeseries_if_file_is_up_to_date_else_none(dest)
 
-    def _get_timeseries_if_file_is_up_to_date_else_none(self, dest):
+    def _get_timeseries_if_file_is_up_to_date_else_none(
+        self, dest: str
+    ) -> Optional[HTimeseries]:
         with open(dest, "r", newline="") as f:
             ts = HTimeseries(f, default_tzinfo=self.default_time.tzinfo)
         for filename in self.filenames:
+            assert self.filename_format is not None
             if not self.filename_format.get_date(filename) in ts.data.index:
                 return None
         return ts
 
 
 class FilenameWithDateFormat:
-    def __init__(self, prefix, *, date_fmt=None, tzinfo):
+    def __init__(
+        self,
+        prefix: str,
+        *,
+        date_fmt: Optional[str] = None,
+        tzinfo: dt.tzinfo,
+    ) -> None:
         self.prefix = prefix
         self.date_fmt = date_fmt
         self.tzinfo = tzinfo
 
-    def get_date(self, filename):
+    def get_date(self, filename: str) -> dt.datetime:
         datestr = self._extract_datestr(filename)
         self._ensure_we_have_date_fmt(datestr)
+        assert self.date_fmt is not None
         return dt.datetime.strptime(datestr, self.date_fmt).replace(tzinfo=self.tzinfo)
 
-    def _ensure_we_have_date_fmt(self, datestr):
+    def _ensure_we_have_date_fmt(self, datestr: str) -> None:
         if self.date_fmt is not None:
             pass
         elif datestr.count("-") == 4:
@@ -426,7 +477,7 @@ class FilenameWithDateFormat:
         else:
             raise ValueError("Invalid date " + datestr)
 
-    def _extract_datestr(self, filename):
+    def _extract_datestr(self, filename: str) -> str:
         assert filename.startswith(self.prefix + "-")
         assert filename.endswith(".tif")
         startpos = len(self.prefix) + 1

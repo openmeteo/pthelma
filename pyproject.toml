@@ -60,6 +60,9 @@ max-line-length = 88
 [tool.setuptools]
 package-dir = {"" = "src"}
 
+[tool.setuptools.package-data]
+"*" = ["*.pyi", "py.typed"]
+
 [tool.setuptools_scm]
 write_to = "src/pthelma/_version.py"
 
@@ -74,3 +77,6 @@ skip = "pp* cp313-*"
 [tool.isort]
 skip = ["_version.py"]
 extra_standard_library = ["cpython", "libc"]
+
+[tool.pyright]
+ignore = ["osgeo.*", "django.contrib.gis.*"]
