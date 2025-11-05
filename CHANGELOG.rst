@@ -2,6 +2,12 @@
 Changelog
 =========
 
+DEV
+===
+
+* Added textbisect module.
+* Added type hints.
+
 2.6.0 (2025-10-01)
 ==================
 
