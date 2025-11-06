@@ -37,7 +37,7 @@ Reference
       it in subsequent requests. The method will be removed in future
       versions.
 
-   .. method:: list_stations(self)
+   .. method:: list_stations(self, query_string=None)
                get_station(self, id)
                post_station(self, data)
                put_station(self, station_id, data)
@@ -51,7 +51,8 @@ Reference
       :meth:`~EnhydrisApiClient.post_station` returns the created
       station's id. :meth:`~EnhydrisApiClient.list_stations` returns a
       generator object that in each iteration provides a dictionary with
-      the station's data.
+      the station's data; if *query_string* is specified then only stations
+      that match are returned.
 
    .. method:: list_timeseries_groups(self, station_id)
                get_timeseries_group(self, station_id, timeseries_group_id)

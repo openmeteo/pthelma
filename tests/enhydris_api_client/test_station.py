@@ -41,6 +41,26 @@ class ListStationsSinglePageTestCase(TestCase):
         )
 
 
+@mock_session(
+    **{
+        "get.return_value.json.return_value": {
+            "count": 2,
+            "next": None,
+            "previous": None,
+            "results": [{"name": "Hobbiton"}, {"name": "Rivendell"}],
+        }
+    }
+)
+class ListStationsWithQueryTestCase(TestCase):
+    def test_makes_request_with_query(self, m: MagicMock) -> None:
+        client = EnhydrisApiClient("https://mydomain.com")
+        result = client.list_stations(query_string="hello world")
+        next(result)  # Ensure the request is actually made
+        m.return_value.get.assert_called_once_with(
+            "https://mydomain.com/api/stations/?q=hello+world"
+        )
+
+
 class ListStationsMultiPageTestCase(TestCase):
     def setUp(self) -> None:  # type: ignore[misc]
         self.session_patcher = mock_session(

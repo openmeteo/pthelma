@@ -5,6 +5,7 @@ Changelog
 DEV
 ===
 
+* enhydris_api_client.list_stations() now accepts a query string.
 * Added textbisect module.
 * Added type hints.
 

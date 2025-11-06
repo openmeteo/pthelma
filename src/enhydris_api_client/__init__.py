@@ -4,7 +4,7 @@ import datetime as dt
 from copy import copy
 from io import StringIO
 from typing import Any, Dict, Generator, Iterable, Optional, cast
-from urllib.parse import urljoin
+from urllib.parse import quote_plus, urljoin
 from zoneinfo import ZoneInfo
 
 import iso8601
@@ -92,8 +92,12 @@ class EnhydrisApiClient:
         self.session.headers.update({"Authorization": f"token {key}"})
         return key
 
-    def list_stations(self) -> Generator[JSONDict, None, None]:
+    def list_stations(
+        self, query_string: Optional[str] = None
+    ) -> Generator[JSONDict, None, None]:
         url = urljoin(self.base_url, "api/stations/")
+        if query_string:
+            url += f"?q={quote_plus(query_string)}"
         while url:
             try:
                 self.response = self.session.get(url)
