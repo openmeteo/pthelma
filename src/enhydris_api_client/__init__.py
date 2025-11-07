@@ -244,6 +244,23 @@ class EnhydrisApiClient:
         self.check_response()
         return self.response.json()["id"]
 
+    def put_timeseries(
+        self,
+        station_id: int,
+        timeseries_group_id: int,
+        timeseries_id: int,
+        data: JSONDict,
+    ) -> None:
+        self.response = self.session.put(
+            urljoin(
+                self.base_url,
+                f"api/stations/{station_id}/timeseriesgroups/{timeseries_group_id}/"
+                f"timeseries/{timeseries_id}/",
+            ),
+            data=data,
+        )
+        self.check_response()
+
     def delete_timeseries(
         self, station_id: int, timeseries_group_id: int, timeseries_id: int
     ) -> None:

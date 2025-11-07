@@ -13,7 +13,7 @@ from unittest import TestCase
 
 import numpy as np
 import pandas as pd
-from django.contrib.gis.gdal import GDALRaster  # type: ignore
+from django.contrib.gis.gdal import GDALRaster
 from django.contrib.gis.geos import Point as GeoDjangoPoint
 from osgeo import gdal, ogr, osr
 
@@ -154,7 +154,7 @@ class IntegrateWithGeoDjangoObjectsTestCase(IntegrateTestCase):
         )
 
         # Our grid represents a 70x150m area, lower-left co-ordinates (0, 0).
-        self.dataset.geotransform = (0, 10, 0, 70, 0, -10)
+        self.dataset.geotransform = [0, 10, 0, 70, 0, -10]
 
         self.target_band = self.dataset.bands[1]
 
