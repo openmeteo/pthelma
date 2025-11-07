@@ -67,11 +67,13 @@ Reference
    .. method:: list_timeseries(self, station_id, timeseries_group_id)
                get_timeseries(self, station_id, timeseries_group_id, timeseries_id)
                post_timeseries(self, station_id, timeseries_group_id, data)
+               put_timeseries(self, station_id, timeseries_group_id, timeseries_id, data)
                delete_timeseries(self, station_id, timeseries_group_id, timeseries_id)
 
-      Methods that create, retrieve or delete time series. Similar to
-      the ones for station. :meth:`~EnhydrisApiClient.list_timeseries`
-      returns a list of dictionaries.
+      Methods that create, retrieve, update or delete time series.
+      Similar to the ones for station.
+      :meth:`~EnhydrisApiClient.list_timeseries` returns a list of
+      dictionaries.
 
    .. method:: read_tsdata(self, station_id, timeseries_group_id, timeseries_id, start_date=None, end_date=None, timezone=None)
               .post_tsdata(self, station_id, timeseries_group_id, timeseries_id, ts)

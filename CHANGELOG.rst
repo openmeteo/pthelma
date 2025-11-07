@@ -2,9 +2,10 @@
 Changelog
 =========
 
-DEV
-===
+2.7.0 (2025-11-07)
+==================
 
+* Added enhydris_api_client.put_timeseries().
 * enhydris_api_client.list_stations() now accepts a query string.
 * Added textbisect module.
 * Added type hints.

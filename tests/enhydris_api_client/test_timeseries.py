@@ -87,6 +87,17 @@ class PostTimeseriesTestCase(TestCase):
         self.assertEqual(self.data, 43)
 
 
+@mock_session()
+class PutTimeseriesTestCase(TestCase):
+    def test_makes_request(self, m: mock.MagicMock) -> None:
+        client = EnhydrisApiClient("https://mydomain.com")
+        client.put_timeseries(41, 42, 43, data={"location": "Syria"})
+        m.return_value.put.assert_called_once_with(
+            "https://mydomain.com/api/stations/41/timeseriesgroups/42/timeseries/43/",
+            data={"location": "Syria"},
+        )
+
+
 class FailedPostTimeseriesTestCase(TestCase):
     @mock_session(**{"post.return_value.status_code": 404})
     def test_raises_exception_on_error(self, m: mock.MagicMock) -> None:
