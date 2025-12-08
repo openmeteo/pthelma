@@ -43,7 +43,7 @@ class NonExistentConfigFileTestCase(TestCase):
     result: Result
 
     def setUp(self) -> None:
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         self.result = runner.invoke(cli.main, ["nonexistent.conf"])
 
     def test_exit_status(self) -> None:

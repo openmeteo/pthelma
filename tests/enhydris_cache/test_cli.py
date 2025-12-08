@@ -22,7 +22,7 @@ from htimeseries import HTimeseries
 
 class NonExistentConfigFileTestCase(TestCase):
     def setUp(self) -> None:
-        runner = CliRunner(mix_stderr=False)
+        runner = CliRunner()
         self.result: Result = runner.invoke(cli.main, ["nonexistent.conf"])
 
     def test_exit_status(self) -> None:
