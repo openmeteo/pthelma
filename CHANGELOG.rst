@@ -2,6 +2,12 @@
 Changelog
 =========
 
+2.8.0 (2025-12-08)
+==================
+
+* enhydris_api_client.post_tsdata() now accepts an optional "mode"
+  argument.
+
 2.7.0 (2025-11-07)
 ==================
 

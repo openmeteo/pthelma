@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime as dt
 from copy import copy
 from io import StringIO
-from typing import Any, Dict, Generator, Iterable, Optional, cast
+from typing import Any, Dict, Generator, Iterable, Literal, Optional, cast
 from urllib.parse import quote_plus, urljoin
 from zoneinfo import ZoneInfo
 
@@ -309,6 +309,7 @@ class EnhydrisApiClient:
         timeseries_group_id: int,
         timeseries_id: int,
         ts: HTimeseries,
+        mode: Literal["append", "insert"] = "append",
     ) -> str:
         f = StringIO()
         data = copy(ts.data)
@@ -323,7 +324,8 @@ class EnhydrisApiClient:
             f"timeseries/{timeseries_id}/data/",
         )
         self.response = self.session.post(
-            url, data={"timeseries_records": f.getvalue(), "timezone": "UTC"}
+            url,
+            data={"timeseries_records": f.getvalue(), "timezone": "UTC", "mode": mode},
         )
         self.check_response()
         return self.response.text

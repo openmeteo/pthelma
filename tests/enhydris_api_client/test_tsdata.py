@@ -139,7 +139,30 @@ class PostTsDataTestCase(TestCase):
         mock_requests_session.return_value.post.assert_called_once_with(
             "https://mydomain.com/api/stations/41/timeseriesgroups/42/timeseries/43/"
             "data/",
-            data={"timeseries_records": f.getvalue(), "timezone": "UTC"},
+            data={
+                "timeseries_records": f.getvalue(),
+                "timezone": "UTC",
+                "mode": "append",
+            },
+        )
+
+    @mock_session()
+    def test_insert_mode(self, mock_requests_session: mock.MagicMock) -> None:
+        client = EnhydrisApiClient("https://mydomain.com")
+        client.post_tsdata(41, 42, 43, test_timeseries_htimeseries, mode="insert")
+        f = StringIO()
+        data = copy(test_timeseries_htimeseries.data)
+        index = cast(pd.DatetimeIndex, data.index)
+        data.index = index.tz_convert("UTC")
+        data.to_csv(f, header=False)
+        mock_requests_session.return_value.post.assert_called_once_with(
+            "https://mydomain.com/api/stations/41/timeseriesgroups/42/timeseries/43/"
+            "data/",
+            data={
+                "timeseries_records": f.getvalue(),
+                "timezone": "UTC",
+                "mode": "insert",
+            },
         )
 
     @mock_session(**{"post.return_value.status_code": 404})

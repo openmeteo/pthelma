@@ -76,7 +76,7 @@ Reference
       dictionaries.
 
    .. method:: read_tsdata(self, station_id, timeseries_group_id, timeseries_id, start_date=None, end_date=None, timezone=None)
-              .post_tsdata(self, station_id, timeseries_group_id, timeseries_id, ts)
+              .post_tsdata(self, station_id, timeseries_group_id, timeseries_id, ts, mode="append")
               .get_ts_end_date(self, station_id, timeseries_group_id, timeseries_id, timezone=None)
 
       Methods that retrieve or update time series data.
@@ -91,7 +91,9 @@ Reference
 
       :meth:`~EnhydrisApiClient.post_tsdata` posts a time series to
       Enhydris, appending the records to any already existing.  ``ts``
-      is a :class:`HTimeseries` object.
+      is a :class:`HTimeseries` object.  ``mode`` can be "append" (the
+      default) or "insert"; see the Enhydris API documentation for the
+      meaning.
 
       :meth:`~EnhydrisApiClient.get_ts_end_date` returns a ``datetime``
       object which is the last timestamp of the time series. If the time
